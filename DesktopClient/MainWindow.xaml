@@ -1,0 +1,23 @@
+<Window x:Class="DesktopClient.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Modern Music Player" Height="650" Width="980">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Modern Music Player" FontSize="28" FontWeight="Bold" />
+
+        <ListBox x:Name="SongListBox" Grid.Row="1" Margin="0,16,0,16" DisplayMemberPath="Title" />
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left">
+            <Button x:Name="BtnPlay" Content="Play" Width="100" Margin="0,0,10,0" Click="BtnPlay_Click" />
+            <Button x:Name="BtnPause" Content="Pause" Width="100" Margin="0,0,10,0" Click="BtnPause_Click" />
+            <Button x:Name="BtnStop" Content="Stop" Width="100" Margin="0,0,10,0" Click="BtnStop_Click" />
+            <Button x:Name="BtnSmartShuffle" Content="Smart Shuffle" Width="140" Click="BtnSmartShuffle_Click" />
+        </StackPanel>
+    </Grid>
+</Window>
