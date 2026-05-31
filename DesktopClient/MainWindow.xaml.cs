@@ -23,9 +23,12 @@ namespace DesktopClient
             try
             {
                 _context = new MusicPlayerContext();
+                
+                // Force database recreation to ensure fresh data
+                _context.Database.EnsureDeleted();
                 _context.Database.EnsureCreated();
 
-                // Seed sample data if database is empty
+                // Seed songs from C:\Music directory
                 var seedService = new SeedDataService(_context);
                 seedService.SeedSampleSongs();
                 seedService.SeedSampleUsers();
