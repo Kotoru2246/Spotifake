@@ -1,0 +1,20 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build output
+bin/
+obj/
+
+# Python
+__pycache__/
+*.py[cod]
+.env
+venv/
+.Python
+
+# Runtime
+*.log
