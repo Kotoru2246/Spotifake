@@ -27,8 +27,7 @@ def _load_model():
     if MODEL is not None:
         return
     base = os.path.dirname(__file__)
-    candidates = [os.path.join(base, 'models', 'combined_genre_rf.joblib'),
-                  os.path.join(base, 'models', 'gtzan_genre_rf.joblib'),
+    candidates = [os.path.join(base, 'models', 'gtzan_genre_rf.joblib'),
                   os.path.join(base, 'models', 'genre_rf.joblib')]
     for p in candidates:
         if os.path.exists(p):

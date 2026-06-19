@@ -11,7 +11,10 @@ from .callback_server import start_callback_server, stop_callback_server, get_au
 from .db import create_db_and_tables, engine
 from .models import Song, SongCreate, SongRead
 from .upload_handler import process_uploaded_song
-from .audio_features import categorize_genre_and_mood
+from .audio_features import categorize_genre_and_mood, extract_audio_features
+from .essentia_client import classify_with_features
+import tempfile
+import os
 
 app = FastAPI(title="Music Player AI Bridge")
 spotify = SpotifyIntegration()
@@ -178,6 +181,51 @@ async def upload_song(
         return song
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error uploading song: {str(e)}")
+
+
+@app.post("/classify-file")
+async def classify_file(file: UploadFile = File(...)):
+    """
+    Classify an audio file using the trained ML model.
+    
+    Extracts features and returns genre prediction with confidence and feature details.
+    This endpoint is used by the test UI to validate the trained model.
+    """
+    try:
+        # Save uploaded file to temporary location
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+            content = await file.read()
+            tmp.write(content)
+            tmp_path = tmp.name
+
+        try:
+            # Extract audio features
+            features = extract_audio_features(tmp_path)
+            
+            # Classify using the ML model
+            genre, classification_data = classify_with_features(features)
+            
+            # Return results with genre, confidence, features subset, and genre scores
+            return {
+                "genre": genre,
+                "confidence": classification_data.get("confidence", 0),
+                "features": {
+                    "tempo": features.get("tempo"),
+                    "energy": features.get("energy"),
+                    "danceability": features.get("danceability"),
+                    "acousticness": features.get("acousticness"),
+                    "valence": features.get("valence"),
+                    "instrumentalness": features.get("instrumentalness")
+                },
+                "genre_scores": classification_data.get("genre_scores", {}),
+                "all_scores": classification_data.get("all_scores", {})
+            }
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error classifying audio: {str(e)}")
 
 
 @app.get("/songs", response_model=list[SongRead])
