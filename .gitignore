@@ -14,7 +14,15 @@ __pycache__/
 *.py[cod]
 .env
 venv/
+.venv
 .Python
 
 # Runtime
 *.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+

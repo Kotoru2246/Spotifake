@@ -1,0 +1,445 @@
+================================================================================
+SPOTIFAKE - WEB-FIRST MUSIC PLATFORM WITH AI CATEGORIZATION
+Project Context & Status
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+Spotifake is evolving from a Spotify-integrated desktop music player into a 
+web-first platform that supports:
+- Independent artist music uploads with AI-based auto-categorization
+- Spotify integration for hybrid recommendations
+- Smart Shuffle using audio feature similarity
+- Real-time audio feature extraction and analysis
+
+STATUS: Phase 1 (Backend AI & Feature Extraction) - IN PROGRESS
+
+
+ARCHITECTURE
+================================================================================
+Frontend: Web-first (React/Next.js + CSHTML) - NOT STARTED
+Backend:  Python FastAPI with audio processing
+Database: SQLite (local) + SQL Server (planned for production)
+Storage:  Local file system (./uploads/) + S3 (planned for production)
+
+
+TECHNOLOGY STACK
+================================================================================
+Backend:
+  - FastAPI 0.100.0+ for REST API
+  - Spotipy 2.23.0+ for Spotify API integration
+  - Librosa 0.10.0+ for audio feature extraction
+  - Soundfile 0.12.1 for audio file handling
+  - NumPy 1.24.0+, SciPy 1.11.0 for signal processing
+  - SQLModel 0.0.14 for ORM/database models
+  - Python-dotenv for environment configuration
+  - Uvicorn for ASGI server
+
+Frontend (Planned):
+  - React or Next.js
+  - Tailwind CSS
+  - Axios for API calls
+  - HTML5 Audio API for playback
+
+
+CURRENT PROJECT STRUCTURE
+================================================================================
+c:\Users\jacky\OneDrive\Desktop\New folder\
+├── BackendAI/
+│   ├── __init__.py
+│   ├── main.py                  # FastAPI app with all endpoints
+│   ├── requirements.txt          # Python dependencies
+│   ├── spotify_integration.py    # Spotify API wrapper
+│   ├── callback_server.py        # OAuth callback handler
+│   ├── schemas.py               # Pydantic request/response schemas
+│   ├── models.py                # SQLModel database models (NEW)
+│   ├── db.py                    # Database initialization (NEW)
+│   ├── audio_features.py        # Librosa feature extraction (NEW)
+│   ├── upload_handler.py        # Upload processing & feature extraction (NEW)
+│   ├── start_backend.py         # Backend startup script
+│   └── README.md                # API documentation
+│
+├── DataAccess/                  # C# EF Core models (SQL Server)
+│   ├── DataAccess.csproj
+│   ├── MusicPlayerContext.cs
+│   ├── Models/
+│   │   ├── Song.cs              # UPDATED: Added Name/Artist aliases
+│   │   ├── User.cs
+│   │   ├── Playlist.cs
+│   │   ├── PlaylistTrack.cs
+│   │   └── UserSession.cs
+│   └── Services/
+│       ├── SeedDataService.cs
+│       ├── GdprExportService.cs
+│       ├── AdminService.cs
+│       ├── SessionService.cs
+│       ├── FeatureFlagService.cs
+│       ├── PlaylistImportService.cs
+│       └── MusicScannerService.cs
+│
+├── DesktopClient/               # WPF C# desktop app
+│   ├── DesktopClient.csproj
+│   ├── MainWindow.xaml          # UPDATED: Added volume slider & track display
+│   ├── MainWindow.xaml.cs       # UPDATED: Fixed syntax, added volume control
+│   ├── App.xaml
+│   ├── App.xaml.cs
+│   ├── Services/
+│   │   ├── AudioEngine.cs       # NAudio playback (WORKING)
+│   │   ├── SmartShuffleService.cs
+│   │   └── SpotifyServiceClient.cs  # FIXED: Null safety & nullable warnings
+│   └── bin/, obj/
+│
+└── README.md
+
+
+KEY FILES & THEIR PURPOSE
+================================================================================
+
+BackendAI/main.py
+  - Central FastAPI application
+  - Spotify OAuth endpoints
+  - Song upload endpoint (/songs/upload)
+  - Song listing endpoints (/songs, /songs/{id})
+  - Hybrid recommendation endpoint (/recommendations/hybrid)
+  - Smart Shuffle placeholder
+  - CORS configured for web frontend
+
+BackendAI/models.py (NEW)
+  - Song model: Unified schema for both Spotify + uploaded tracks
+  - Fields: id, source, source_id, title, artist, album, duration_ms, uri, 
+    popularity, genre, mood, tempo, energy, danceability, valence, 
+    acousticness, instrumentalness, key, mode, tags, file_path, storage_url
+  - SongCreate & SongRead schemas for API validation
+
+BackendAI/audio_features.py (NEW)
+  - extract_audio_features(file_path): Main feature extraction function
+    Returns: {tempo, energy, danceability, valence, acousticness, 
+              instrumentalness, key, mode, duration_ms}
+  - compute_danceability(): Based on onset strength + tempo
+  - compute_acousticness(): Based on spectral centroid + ZCR
+  - compute_valence(): Based on spectral brightness + MFCC
+  - compute_instrumentalness(): Based on ZCR + energy consistency
+  - categorize_genre_and_mood(): Rule-based categorization
+    Returns: (genre, mood) tuple
+
+BackendAI/upload_handler.py (NEW)
+  - save_upload_file(): Saves uploaded files to ./uploads/
+  - process_uploaded_song(): Full pipeline - save + extract + categorize
+    Returns: SongCreate object ready for database
+
+BackendAI/db.py (NEW)
+  - create_db_and_tables(): Initializes SQLite database
+  - DATABASE_URL: Points to ./backendai.db
+
+BackendAI/spotify_integration.py (EXISTING)
+  - SpotifyIntegration class with methods:
+    - get_auth_url(): OAuth flow initiation
+    - authenticate_with_code(): OAuth token exchange
+    - get_current_user_tracks(): Fetch liked songs
+    - get_track_audio_features(): Extract Spotify features
+    - search_spotify(): Search entire Spotify catalog
+    - get_playlists() / get_playlist_tracks()
+
+DesktopClient/MainWindow.xaml.cs (UPDATED)
+  - Local music playback via NAudio ✓ WORKING
+  - Volume slider control
+  - Current track display
+  - Spotify integration (opens Spotify app for playback)
+  - Search Spotify catalog
+  - Smart Shuffle functionality
+
+
+API ENDPOINTS (CURRENT & NEW)
+================================================================================
+
+SPOTIFY INTEGRATION
+  GET  /health                              - Service status
+  GET  /spotify/auth-url                    - Get OAuth URL
+  POST /spotify/authenticate-with-code      - Complete OAuth flow
+  GET  /spotify/tracks?limit=50             - Get user's liked songs
+  GET  /spotify/playlists?limit=20          - Get user's playlists
+  GET  /spotify/playlist/{id}/tracks        - Get playlist tracks
+  GET  /spotify/track/{id}/features         - Get Spotify audio features
+  GET  /spotify/search?query=...&limit=50   - Search Spotify catalog
+
+SONG MANAGEMENT (NEW)
+  POST /songs/upload                        - Upload song + extract features
+    Form: file, title, artist, album
+    Returns: SongRead with all features
+  
+  GET  /songs                               - List all uploaded songs
+  GET  /songs/{song_id}                     - Get song by ID
+
+RECOMMENDATIONS (NEW)
+  POST /recommendations/hybrid              - Hybrid recommendations
+    Query params: seed_song_id, seed_spotify_id, limit
+    Returns: {spotify_recommendations, similar_uploads, combined}
+
+AI/SMART SHUFFLE
+  POST /api/smart-shuffle                   - Get similar songs (placeholder)
+
+
+AUDIO FEATURES EXTRACTED
+================================================================================
+For each song (upload or Spotify):
+
+Tempo (BPM)
+  - 0-200+ BPM
+  - Extracted using librosa.beat.beat_track()
+  
+Energy (0-1)
+  - Strength & activity of track
+  - Based on RMS (root mean square)
+  
+Danceability (0-1)
+  - How suitable for dancing
+  - Combines tempo + onset strength
+  
+Valence (0-1)
+  - Musical positivity (happy vs sad)
+  - Based on spectral brightness + MFCC
+  
+Acousticness (0-1)
+  - How acoustic vs electronic
+  - Based on spectral centroid + ZCR
+  
+Instrumentalness (0-1)
+  - Lack of vocals
+  - Based on zero crossing rate
+  
+Key (0-11)
+  - Musical key (C=0, C#=1, ..., B=11)
+  - From chromagram
+  
+Mode (0-1)
+  - Major (1) vs Minor (0)
+  - Based on signal mean
+
+Genre (categorical)
+  - acoustic, edm, dance, ambient, hip-hop, rock, pop
+  - Rule-based from features
+
+Mood (categorical)
+  - happy, sad, calm, aggressive, neutral
+  - Rule-based from valence + energy
+
+
+HYBRID RECOMMENDATION ALGORITHM
+================================================================================
+When user requests /recommendations/hybrid?seed_song_id=1:
+
+1. Get seed song features from database
+2. Compare against all other uploaded songs using Euclidean distance
+   Formula: distance = sqrt((t1-t2)² + (e1-e2)² + (d1-d2)² + ...)
+3. Sort by distance (closest = most similar)
+4. Return top N similar uploads
+
+If seed_spotify_id provided:
+5. Also call Spotify.recommendations() for Spotify-based suggestions
+6. Merge both result sets
+
+Response contains:
+  - spotify_recommendations: From Spotify API
+  - similar_uploads: From feature similarity
+  - combined: Merged list
+
+
+WHAT HAS BEEN COMPLETED
+================================================================================
+✓ Spotify OAuth integration (working)
+✓ Desktop client with NAudio playback for local music
+✓ Fixed C# nullable reference warnings
+✓ Audio feature extraction pipeline with librosa
+✓ Unified Song model for Spotify + uploads
+✓ Database models and initialization
+✓ Upload endpoint with automatic feature extraction
+✓ Feature categorization (genre, mood)
+✓ Hybrid recommendation endpoint
+✓ Backend API documentation ready
+✓ Requirements.txt updated with all dependencies
+
+
+WHAT IS IN PROGRESS / TODO
+================================================================================
+
+PRIORITY 1 - IMMEDIATE
+  - Test upload endpoint with real audio files
+  - Verify librosa feature extraction accuracy
+  - Test hybrid recommendations endpoint
+  - Create frontend web interface (React/Next.js)
+  - Build upload form UI
+
+PRIORITY 2 - SHORT TERM
+  - Implement ChromaDB/FAISS for vector similarity (faster than Euclidean)
+  - Add playlist creation/management endpoints
+  - Improve genre/mood classification (ML model instead of rules)
+  - Add user authentication (JWT tokens)
+  - Implement caching for recommendations
+
+PRIORITY 3 - MEDIUM TERM
+  - S3 storage integration for uploaded files
+  - PostgreSQL migration from SQLite
+  - Add download/stream endpoints
+  - Implement follow/favorite system
+  - Add artist profile pages
+
+PRIORITY 4 - LONG TERM
+  - Request Spotify Production approval for Web Playback
+  - Integrate Web Playback SDK (embedded Spotify player)
+  - Advanced ML-based recommendations
+  - Community features (social sharing, playlists)
+
+
+RUNNING THE BACKEND
+================================================================================
+1. Install dependencies:
+   cd BackendAI
+   pip install -r requirements.txt
+
+2. Set environment variables (.env file):
+   SPOTIFY_CLIENT_ID=your_client_id
+   SPOTIFY_CLIENT_SECRET=your_client_secret
+
+3. Start the server:
+   python start_backend.py
+   OR
+   uvicorn main:app --reload --port 8000
+
+4. Access API docs:
+   http://127.0.0.1:8000/docs (Swagger UI)
+   http://127.0.0.1:8000/redoc (ReDoc)
+
+5. Test upload:
+   curl -X POST "http://127.0.0.1:8000/songs/upload" \
+     -F "file=@test_song.mp3" \
+     -F "title=Test Song" \
+     -F "artist=Test Artist" \
+     -F "album=Test Album"
+
+
+DATABASE SCHEMA (SQLite - backendai.db)
+================================================================================
+Table: song
+  Columns:
+    id (int, primary key)
+    source (str) - "upload" or "spotify"
+    source_id (str) - Spotify track ID if from Spotify
+    title (str)
+    artist (str)
+    album (str)
+    duration_ms (int)
+    uri (str) - Spotify URI
+    popularity (int) - 0-100
+    uploaded_at (datetime)
+    genre (str)
+    mood (str)
+    tempo (float)
+    energy (float)
+    danceability (float)
+    valence (float)
+    acousticness (float)
+    instrumentalness (float)
+    key (int)
+    mode (int)
+    tags (str)
+    file_path (str)
+    storage_url (str)
+
+
+KNOWN ISSUES & LIMITATIONS
+================================================================================
+1. Feature extraction is rule-based (not ML models)
+   - Danceability, valence are approximations
+   - Can be improved with trained classifiers
+
+2. No audio streaming yet
+   - Spotify Premium required for Web Playback
+   - Need production approval from Spotify
+   - Currently only shows Spotify URI for playback
+
+3. SQLite for development only
+   - Production should use PostgreSQL
+   - No concurrent write support
+
+4. File storage is local
+   - Uploads go to ./uploads/
+   - Need S3 for production/scalability
+
+5. No authentication yet
+   - Anyone can upload/access
+   - Need JWT tokens + user system
+
+
+NEXT IMMEDIATE STEPS
+================================================================================
+1. Test the audio feature extraction:
+   - Upload a sample MP3 file
+   - Verify features are extracted correctly
+   - Check database records
+
+2. Build React/Next.js web frontend:
+   - Upload form
+   - Song discovery page
+   - Recommendations display
+   - Playback UI (for local uploads)
+
+3. Add authentication:
+   - User sign-up/login
+   - JWT token management
+   - Artist profile separation
+
+4. Expand recommendations:
+   - Add playlist support
+   - Implement search filters by genre/mood
+   - Add follow/favorite system
+
+
+SPOTIFAKE CLIENT (DESKTOP) STATUS
+================================================================================
+COMPLETED:
+  ✓ Local music playback (NAudio)
+  ✓ Spotify OAuth integration
+  ✓ Search Spotify catalog
+  ✓ View Spotify liked songs
+  ✓ Volume control
+  ✓ Play/Pause/Stop controls
+  ✓ Smart Shuffle (basic)
+
+LIMITATIONS:
+  ✗ Spotify playback (opens external Spotify app)
+  ✗ Streaming not supported (Premium + Production approval needed)
+  ✗ No web interface yet (planned as priority)
+
+
+DEPENDENCIES OVERVIEW
+================================================================================
+Python 3.8+
+  fastapi>=0.100.0          - Web framework
+  uvicorn[standard]>=0.23.0 - ASGI server
+  pydantic>=2.0.0           - Data validation
+  spotipy>=2.23.0           - Spotify API
+  sqlmodel>=0.0.14          - ORM
+  librosa>=0.10.0           - Audio analysis
+  soundfile>=0.12.1         - Audio I/O
+  numpy>=1.24.0             - Numerical computing
+  scipy>=1.11.0             - Scientific computing
+  python-dotenv>=1.0.0      - Environment vars
+  python-multipart>=0.0.6   - File uploads
+
+.NET 8.0 (Desktop Client)
+  Microsoft.EntityFrameworkCore 8.0.0
+  NAudio 2.1.0 (audio playback)
+
+
+TEAM NOTES
+================================================================================
+- Project is transitioning from desktop-first to web-first
+- AI categorization is the core innovation
+- Hybrid Spotify + indie artist platform model
+- Focus on feature extraction accuracy for recommendations
+- Production will require significant infrastructure (S3, PostgreSQL, etc.)
+
+
+LAST UPDATED: 2026-06-16
+NEXT REVIEW: After successful upload + feature extraction testing
+================================================================================

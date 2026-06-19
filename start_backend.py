@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Start script for the Music Player AI Backend Service.
-Run after: pip install -r BackendAI/requirements.txt
+Run from the repository root after: pip install -r BackendAI/requirements.txt
 """
 
 if __name__ == "__main__":

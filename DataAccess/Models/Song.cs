@@ -11,5 +11,9 @@ namespace DataAccess.Models
         public string FilePath { get; set; } = string.Empty;
         public long PlayCount { get; set; }
         public bool IsHidden { get; set; }
+
+        // Aliases for compatibility with UI bindings
+        public string Name => Title;
+        public string Artist => ArtistName;
     }
 }
