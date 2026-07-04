@@ -20,6 +20,26 @@ venv/
 # Runtime
 *.log
 
+# Audio and generated media (do not commit songs)
+*.mp3
+*.wav
+*.flac
+*.ogg
+*.m4a
+*.aac
+*.wma
+*.aiff
+
+# Uploaded/downloaded song folders
+uploads/
+BackendAI/uploads/
+BackendAI/datasets/genre18_audio/
+BackendAI/gtzan_data/Data/genres_original/
+BackendAI/spotify_dataset/
+BackendAI/spotify_dataset_small/
+BackendAI/spotify_dataset_test/
+BackendAI/spotify_dataset_test2/
+
 # IDE
 .vscode/
 .idea/

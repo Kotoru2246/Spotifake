@@ -12,6 +12,7 @@ from audio_features import extract_audio_features
 
 def extract_dataset(labels_csv: str, audio_dir: str, out_csv: str):
     rows = []
+    total = 0
     with open(labels_csv, newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for r in reader:
@@ -19,10 +20,18 @@ def extract_dataset(labels_csv: str, audio_dir: str, out_csv: str):
             genre = r.get('genre')
             if not filename or not genre:
                 continue
+            total += 1
+            # Support both flat (filename.mp3) and nested (Genre_Folder/filename.mp3) paths
             path = os.path.join(audio_dir, filename)
             if not os.path.exists(path):
-                print(f"Missing file: {path}")
-                continue
+                # Try treating audio_dir as the parent of genre subfolders
+                basename = os.path.basename(filename)
+                alt_path = os.path.join(audio_dir, basename)
+                if os.path.exists(alt_path):
+                    path = alt_path
+                else:
+                    print(f"Missing file: {path}")
+                    continue
             try:
                 features = extract_audio_features(path)
                 features['genre'] = genre

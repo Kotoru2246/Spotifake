@@ -16,25 +16,32 @@ try:
 except Exception:
     MutagenFile = None
 
-# Simple mapping from Spotify genre keywords to our 18-class taxonomy
+# Simple mapping from Spotify genre keywords to the target 18-class taxonomy.
+# This is a heuristic labeler, not ground truth. Manual review is still recommended.
 GENRE_MAP = [
-    (['edm', 'electronic', 'dance', 'house', 'techno', 'trance'], 'edm'),
-    (['classical', 'baroque', 'concerto', 'symphony'], 'classical'),
-    (['country', 'americana', 'country rock'], 'country'),
-    (['hip hop', 'rap', 'trap'], 'hip-hop'),
-    (['rock', 'alternative', 'indie rock', 'punk'], 'rock'),
-    (['metal', 'heavy metal', 'death metal'], 'metal'),
-    (['jazz', 'bebop', 'smooth jazz'], 'jazz'),
-    (['blues'], 'blues'),
-    (['reggae', 'ska'], 'reggae'),
-    (['folk', 'singer-songwriter', 'acoustic'], 'folk'),
-    (['pop'], 'pop'),
-    (['soul', 'r&b', 'rnb'], 'soul'),
-    (['funk', 'disco'], 'funk'),
-    (['ambient', 'chill', 'downtempo'], 'ambient'),
-    (['classical crossover', 'orchestral'], 'classical'),
-    (['electronic', 'synth'], 'electronic'),
+    (['hip hop', 'hip-hop', 'rap', 'trap', 'drill'], 'Hip-Hop / Rap'),
+    (['pop', 'teen pop', 'dance pop', 'synthpop'], 'Pop'),
+    (['rock', 'alternative', 'indie rock', 'classic rock', 'punk'], 'Rock'),
+    (['edm', 'electronic', 'dance', 'house', 'techno', 'trance', 'dubstep'], 'Electronic Dance Music (EDM)'),
+    (['r&b', 'rnb', 'rhythm and blues', 'neo soul'], 'R&B (Rhythm and Blues)'),
+    (['country', 'americana', 'country rock', 'bluegrass'], 'Country'),
+    (['jazz', 'bebop', 'smooth jazz', 'vocal jazz'], 'Jazz'),
+    (['classical', 'baroque', 'concerto', 'symphony', 'orchestra'], 'Classical'),
+    (['reggae', 'ska', 'dub', 'dancehall'], 'Reggae'),
+    (['latin', 'latino', 'reggaeton', 'salsa', 'bachata', 'cumbia', 'merengue', 'urbano latino'], 'Latin Music'),
+    (['k-pop', 'kpop', 'korean pop'], 'K-Pop'),
+    (['j-pop', 'jpop', 'japanese pop', 'japanese pop music'], 'J-Pop'),
+    (['metal', 'heavy metal', 'death metal', 'black metal', 'thrash metal'], 'Metal'),
+    (['afrobeats', 'afrobeat', 'afropop'], 'Afrobeats'),
+    (['folk', 'singer-songwriter', 'acoustic', 'roots'], 'Folk'),
+    (['blues'], 'Blues'),
+    (['soul', 'motown', 'gospel soul'], 'Soul'),
+    (['funk', 'disco'], 'Funk'),
+    (['indie', 'alternative', 'indie pop', 'indietronica'], 'Indie / Alternative'),
+    (['vocaloid', 'anime', 'anime song', 'anime pop', 'hatsune miku'], 'Anime / Vocaloid'),
 ]
+
+TARGET_GENRES = [target for _, target in GENRE_MAP]
 
 
 def map_spotify_to_target(genres):
@@ -48,13 +55,13 @@ def map_spotify_to_target(genres):
                 return target
     # fallback heuristics
     if 'hip' in gstr or 'rap' in gstr:
-        return 'hip-hop'
+        return 'Hip-Hop / Rap'
     if 'classical' in gstr:
-        return 'classical'
+        return 'Classical'
     if 'edm' in gstr or 'dance' in gstr:
-        return 'edm'
+        return 'Electronic Dance Music (EDM)'
     # default to pop
-    return 'pop'
+    return 'Pop'
 
 
 def parse_filename(filename: str):
@@ -117,7 +124,7 @@ def auto_label(audio_dir: str, out_csv: str, dry_run: bool = False):
 
         mapped = map_spotify_to_target(spotify_genres)
         if not mapped:
-            mapped = 'pop'  # fallback to keep labels non-empty
+            mapped = 'Pop'  # fallback to keep labels non-empty
         print(f"{f} -> Spotify: {spotify_genres} -> Mapped: {mapped}")
         rows.append({'filename': f, 'genre': mapped, 'spotify_genres': ';'.join(spotify_genres)})
 

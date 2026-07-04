@@ -1,11 +1,15 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Form
+from datetime import datetime, timedelta, timezone
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Form, status
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from uuid import UUID
 import asyncio
 import numpy as np
+import jwt
 from sqlmodel import Session, select
-from .schemas import SmartShuffleRequest, SmartShuffleResponse
+from .schemas import LoginRequest, LoginResponse, SmartShuffleRequest, SmartShuffleResponse
 from .spotify_integration import SpotifyIntegration
 from .callback_server import start_callback_server, stop_callback_server, get_auth_code, reset_auth_code
 from .db import create_db_and_tables, engine
@@ -18,6 +22,17 @@ import os
 
 app = FastAPI(title="Music Player AI Bridge")
 spotify = SpotifyIntegration()
+security = HTTPBearer(auto_error=False)
+
+JWT_SECRET = os.getenv("JWT_SECRET", "spotifake-dev-secret-change-me")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+
+TEST_USERS = {
+    "user_test": {"password": "User@123", "role": "user"},
+    "artist_test": {"password": "Artist@123", "role": "artist"},
+    "admin_test": {"password": "Admin@123", "role": "admin"},
+}
 
 # Add CORS middleware to allow frontend requests
 app.add_middleware(
@@ -36,6 +51,92 @@ def get_session():
     """Database session dependency."""
     with Session(engine) as session:
         yield session
+
+
+def create_access_token(username: str, role: str) -> tuple[str, int]:
+    """Create a signed JWT for the authenticated user."""
+    expires_in = ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    payload = {
+        "sub": username,
+        "role": role,
+        "exp": expires_at,
+        "iat": datetime.now(timezone.utc),
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return token, expires_in
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Validate the Bearer token and return the decoded user claims."""
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    username = payload.get("sub")
+    role = payload.get("role")
+
+    if not username or username not in TEST_USERS:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token subject",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    expected_role = TEST_USERS[username]["role"]
+    if role != expected_role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token role",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return {"username": username, "role": role}
+
+
+@app.post("/auth/login", response_model=LoginResponse)
+def login(request: LoginRequest):
+    """Verify username/password and issue a JWT for the client."""
+    user = TEST_USERS.get(request.username)
+    if not user or user["password"] != request.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    if request.role and request.role != user["role"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account type does not match the selected role",
+        )
+
+    access_token, expires_in = create_access_token(request.username, user["role"])
+    return LoginResponse(
+        access_token=access_token,
+        username=request.username,
+        role=user["role"],
+        expires_in=expires_in,
+    )
 
 # Start the callback server when the app starts
 @app.on_event("startup")
@@ -67,13 +168,13 @@ def health_check():
     return {"status": "ok", "service": "Music Player AI Backend"}
 
 @app.get("/spotify/auth-url")
-def get_spotify_auth_url():
+def get_spotify_auth_url(current_user=Depends(get_current_user)):
     """Get Spotify OAuth authentication URL."""
     auth_url = spotify.sp_oauth.get_authorize_url()
     return {"auth_url": auth_url}
 
 @app.get("/spotify/auth-status")
-def get_spotify_auth_status():
+def get_spotify_auth_status(current_user=Depends(get_current_user)):
     """Check if authorization code was captured."""
     code = get_auth_code()
     if code:
@@ -81,7 +182,7 @@ def get_spotify_auth_status():
     return {"authenticated": False, "code": None}
 
 @app.post("/spotify/authenticate-with-code")
-async def spotify_authenticate_with_code(code: str = None):
+async def spotify_authenticate_with_code(code: str = None, current_user=Depends(get_current_user)):
     """Authenticate with Spotify using the captured auth code."""
     # If code is provided in query/body, use it directly
     if not code:
@@ -104,7 +205,7 @@ async def spotify_authenticate_with_code(code: str = None):
         raise HTTPException(status_code=401, detail="Failed to authenticate with Spotify")
 
 @app.get("/spotify/tracks")
-def get_spotify_tracks(limit: int = 50):
+def get_spotify_tracks(limit: int = 50, current_user=Depends(get_current_user)):
     """Fetch user's liked tracks from Spotify."""
     if not spotify.sp:
         raise HTTPException(status_code=401, detail="Not authenticated with Spotify. Visit /spotify/auth-url first.")
@@ -113,7 +214,7 @@ def get_spotify_tracks(limit: int = 50):
     return {"tracks": tracks, "count": len(tracks)}
 
 @app.get("/spotify/playlists")
-def get_spotify_playlists(limit: int = 20):
+def get_spotify_playlists(limit: int = 20, current_user=Depends(get_current_user)):
     """Fetch user's playlists from Spotify."""
     if not spotify.sp:
         raise HTTPException(status_code=401, detail="Not authenticated with Spotify. Visit /spotify/auth-url first.")
@@ -122,7 +223,7 @@ def get_spotify_playlists(limit: int = 20):
     return {"playlists": playlists, "count": len(playlists)}
 
 @app.get("/spotify/playlist/{playlist_id}/tracks")
-def get_playlist_tracks(playlist_id: str):
+def get_playlist_tracks(playlist_id: str, current_user=Depends(get_current_user)):
     """Fetch tracks from a specific Spotify playlist."""
     if not spotify.sp:
         raise HTTPException(status_code=401, detail="Not authenticated with Spotify. Visit /spotify/auth-url first.")
@@ -131,7 +232,7 @@ def get_playlist_tracks(playlist_id: str):
     return {"tracks": tracks, "count": len(tracks)}
 
 @app.get("/spotify/track/{track_id}/features")
-def get_track_features(track_id: str):
+def get_track_features(track_id: str, current_user=Depends(get_current_user)):
     """Get audio features for a track (for Smart Shuffle AI)."""
     if not spotify.sp:
         raise HTTPException(status_code=401, detail="Not authenticated with Spotify. Visit /spotify/auth-url first.")
@@ -143,7 +244,7 @@ def get_track_features(track_id: str):
     return {"track_id": track_id, "features": features}
 
 @app.get("/spotify/search")
-def search_spotify(query: str, search_type: str = "track", limit: int = 50):
+def search_spotify(query: str, search_type: str = "track", limit: int = 50, current_user=Depends(get_current_user)):
     """Search Spotify's entire catalog."""
     if not spotify.sp:
         raise HTTPException(status_code=401, detail="Not authenticated with Spotify. Visit /spotify/auth-url first.")
@@ -161,7 +262,8 @@ async def upload_song(
     title: str = Form(...),
     artist: str = Form(...),
     album: str = Form(default=""),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user=Depends(get_current_user)
 ):
     """
     Upload a song file and extract audio features.
@@ -184,7 +286,7 @@ async def upload_song(
 
 
 @app.post("/classify-file")
-async def classify_file(file: UploadFile = File(...)):
+async def classify_file(file: UploadFile = File(...), current_user=Depends(get_current_user)):
     """
     Classify an audio file using the trained ML model.
     
@@ -218,6 +320,10 @@ async def classify_file(file: UploadFile = File(...)):
                     "instrumentalness": features.get("instrumentalness")
                 },
                 "genre_scores": classification_data.get("genre_scores", {}),
+                "mapped_scores_18": classification_data.get("mapped_scores_18", {}),
+                "mapped_top_5_18": classification_data.get("mapped_top_5_18", {}),
+                "source_genre": classification_data.get("source_genre"),
+                "source_confidence": classification_data.get("source_confidence"),
                 "all_scores": classification_data.get("all_scores", {})
             }
         finally:
@@ -229,14 +335,14 @@ async def classify_file(file: UploadFile = File(...)):
 
 
 @app.get("/songs", response_model=list[SongRead])
-def list_songs(session: Session = Depends(get_session)):
+def list_songs(session: Session = Depends(get_session), current_user=Depends(get_current_user)):
     """List all uploaded songs."""
     songs = session.exec(select(Song)).all()
     return songs
 
 
 @app.get("/songs/{song_id}", response_model=SongRead)
-def get_song(song_id: int, session: Session = Depends(get_session)):
+def get_song(song_id: int, session: Session = Depends(get_session), current_user=Depends(get_current_user)):
     """Get a song by ID."""
     song = session.get(Song, song_id)
     if not song:
@@ -249,7 +355,8 @@ def get_hybrid_recommendations(
     seed_song_id: int = None,
     seed_spotify_id: str = None,
     limit: int = 10,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user=Depends(get_current_user)
 ):
     """
     Get recommendations combining:

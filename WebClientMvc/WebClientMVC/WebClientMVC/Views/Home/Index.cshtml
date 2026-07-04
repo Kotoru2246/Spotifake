@@ -1,0 +1,113 @@
+﻿@{
+    ViewData["Title"] = "Web Client";
+}
+
+<div class="login-gate" id="loginGate">
+    <div class="login-card">
+        <h2 class="login-title">Sign in to Spotifake</h2>
+        <p class="login-subtitle">Choose an account type and use one of the test credentials below.</p>
+
+        <div class="credentials-box">
+            <h3>Test credentials</h3>
+            <div class="credential-row"><span><span class="role-tag">User</span> user_test / User@123</span></div>
+            <div class="credential-row"><span><span class="role-tag">Artist</span> artist_test / Artist@123</span></div>
+            <div class="credential-row"><span><span class="role-tag">Admin</span> admin_test / Admin@123</span></div>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="accountType">Account Type</label>
+                <select id="accountType" required>
+                    <option value="user">User</option>
+                    <option value="artist">Artist</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="loginUsername">Username</label>
+                <input type="text" id="loginUsername" placeholder="Enter username" required>
+            </div>
+            <div class="form-group">
+                <label for="loginPassword">Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter password" required>
+            </div>
+            <button type="submit" style="width: 100%;">Login</button>
+            <div id="loginError" class="login-error"></div>
+            <div id="loginStatus" class="login-status"></div>
+        </form>
+    </div>
+</div>
+
+<div class="container">
+    <header>
+        <h1>Spotifake</h1>
+        <p>Web-First Music Platform with AI Categorization</p>
+        <div class="nav-buttons">
+            <button onclick="showSection('home')">Home</button>
+            <button onclick="showSection('upload')">Upload Songs</button>
+            <button onclick="showSection('my-songs')">My Songs</button>
+            <button onclick="showSection('spotify')">Spotify</button>
+            <button onclick="showSection('recommendations')">Recommendations</button>
+            <button onclick="showSection('test-classifier')">Test Classifier</button>
+            <button class="secondary" onclick="checkBackendHealth()">Check Backend</button>
+        </div>
+    </header>
+
+    <div class="content-area">
+        <div id="home" class="section active">
+            <h2>Welcome to Spotifake</h2>
+            <p class="home-text">Upload your own music and discover songs based on AI-powered audio analysis.</p>
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-value" id="total-songs">0</div>
+                    <div class="stat-label">Uploaded Songs</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">Web</div>
+                    <div class="stat-label">MVC Frontend</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">Ready</div>
+                    <div class="stat-label">Status</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="upload" class="section">
+            <h2>Upload a Song</h2>
+            <div class="form-group">
+                <label>Song File *</label>
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <p>Click to upload or drag and drop</p>
+                </div>
+                <input type="file" id="fileInput" accept="audio/*" style="display: none;" onchange="handleFileSelect()">
+            </div>
+            <div class="form-group"><label>Song Title *</label><input type="text" id="title"></div>
+            <div class="form-group"><label>Artist Name *</label><input type="text" id="artist"></div>
+            <button onclick="fakeUpload()">Upload Song</button>
+            <div id="uploadStatus"></div>
+        </div>
+
+        <div id="my-songs" class="section">
+            <h2>My Uploaded Songs</h2>
+            <div id="mySongsContainer"></div>
+        </div>
+
+        <div id="spotify" class="section">
+            <h2>Spotify Integration</h2>
+            <div class="spotify-auth">
+                <p>Spotify panel placeholder in MVC view.</p>
+            </div>
+        </div>
+
+        <div id="recommendations" class="section">
+            <h2>Recommendations</h2>
+            <div id="recommendationsResults">Recommendations panel placeholder.</div>
+        </div>
+
+        <div id="test-classifier" class="section">
+            <h2>Test Classifier</h2>
+            <div id="classifyStatus">Classifier panel placeholder.</div>
+        </div>
+    </div>
+</div>

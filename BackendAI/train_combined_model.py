@@ -48,7 +48,7 @@ def prepare_features(df: pd.DataFrame, label_col: str = None):
     return X, y
 
 
-def train_model_on_combined(csv_inputs: List[str], out_path: str, label_col: str = None):
+def train_model_on_combined(csv_inputs: List[str], out_path: str, label_col: str = None, epochs: int = 10):
     df = load_and_merge(csv_inputs)
     X, y = prepare_features(df, label_col)
 
@@ -57,8 +57,26 @@ def train_model_on_combined(csv_inputs: List[str], out_path: str, label_col: str
 
     X_train, X_test, y_train, y_test = train_test_split(X, y_enc, test_size=0.2, random_state=42)
 
-    clf = RandomForestClassifier(n_estimators=300, random_state=42, n_jobs=-1)
-    clf.fit(X_train, y_train)
+    total_trees = 300
+    epochs = max(1, int(epochs))
+    trees_per_epoch = max(1, total_trees // epochs)
+    clf = RandomForestClassifier(
+        n_estimators=trees_per_epoch,
+        random_state=42,
+        n_jobs=-1,
+        warm_start=True,
+    )
+
+    print(f"Training for {epochs} epoch(s) with {total_trees} total trees")
+    for epoch in range(1, epochs + 1):
+        clf.set_params(n_estimators=min(total_trees, trees_per_epoch * epoch))
+        clf.fit(X_train, y_train)
+        print(f"Epoch {epoch}/{epochs} - trained {clf.n_estimators} trees")
+
+    if clf.n_estimators != total_trees:
+        clf.set_params(n_estimators=total_trees)
+        clf.fit(X_train, y_train)
+        print(f"Epoch {epochs}/{epochs} - trained {clf.n_estimators} trees (final)")
 
     scores = cross_val_score(clf, X_train, y_train, cv=5, scoring='accuracy')
     print(f"Cross-val accuracy: {scores.mean():.3f} ± {scores.std():.3f}")
@@ -76,5 +94,6 @@ if __name__ == '__main__':
     p.add_argument('--inputs', nargs='+', required=True, help='Input feature CSVs')
     p.add_argument('--out', default='BackendAI/models/combined_genre_rf.joblib')
     p.add_argument('--label-col', default=None)
+    p.add_argument('--epochs', type=int, default=10, help='Number of progress epochs to display during training')
     args = p.parse_args()
-    train_model_on_combined(args.inputs, args.out, args.label_col)
+    train_model_on_combined(args.inputs, args.out, args.label_col, args.epochs)

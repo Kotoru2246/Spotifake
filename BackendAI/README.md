@@ -37,6 +37,20 @@ SPOTIFY_REDIRECT_URI=https://localhost:8888/callback
 uvicorn BackendAI.main:app --reload --port 8000
 ```
 
+## Build An 18-Genre Dataset
+
+Use the dataset builder to auto-label files, extract features, and optionally train an 18-genre model:
+
+```bash
+python BackendAI/build_18_genre_dataset.py --audio-dir path\to\audio --workdir BackendAI/datasets/genre18 --train
+```
+
+This creates:
+- `labels_raw.csv` from Spotify heuristics
+- `labels_18.csv` normalized to the 18-genre taxonomy
+- `features_18.csv` with extracted audio features
+- `genre18_rf.joblib` if `--train` is used
+
 ## API Endpoints
 
 ### Health Check
@@ -45,6 +59,10 @@ uvicorn BackendAI.main:app --reload --port 8000
 ### Spotify Authentication
 - `GET /spotify/auth-url` - Get OAuth authentication URL
 - `POST /spotify/authenticate?code=AUTH_CODE` - Complete OAuth flow
+
+### User Authentication
+- `POST /auth/login` - Verify username/password and return a JWT access token
+- Send the token on protected requests with `Authorization: Bearer <JWT>`
 
 ### Spotify Data
 - `GET /spotify/tracks?limit=50` - Get user's liked tracks
