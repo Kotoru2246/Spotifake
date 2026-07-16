@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -15,9 +17,9 @@ public class AuthController : Controller
 
     private static readonly Dictionary<string, (string Password, string Role)> TestUsers = new()
     {
-        ["user_test"] = ("User@123", "user"),
-        ["artist_test"] = ("Artist@123", "artist"),
-        ["admin_test"] = ("Admin@123", "admin")
+        ["user_test"] = ("user123", "user"),
+        ["artist_test"] = ("artist123", "artist"),
+        ["admin_test"] = ("admin123", "admin")
     };
 
     public AuthController(IConfiguration configuration)
@@ -27,7 +29,7 @@ public class AuthController : Controller
 
     [HttpPost("login")]
     [AllowAnonymous]
-    public IActionResult Login([FromBody] JwtLoginRequest request)
+    public async Task<IActionResult> Login([FromBody] JwtLoginRequest request)
     {
         if (!TestUsers.TryGetValue(request.Username, out var user))
         {
@@ -71,6 +73,17 @@ public class AuthController : Controller
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
+        var cookieIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var cookiePrincipal = new ClaimsPrincipal(cookieIdentity);
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            cookiePrincipal,
+            new AuthenticationProperties
+            {
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(expiresMinutes)
+            });
+
         return Ok(new
         {
             access_token = tokenString,
@@ -90,5 +103,13 @@ public class AuthController : Controller
             username = User.Identity?.Name,
             role = User.FindFirst(ClaimTypes.Role)?.Value
         });
+    }
+
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout()
+    {
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        return Ok(new { detail = "Logged out." });
     }
 }

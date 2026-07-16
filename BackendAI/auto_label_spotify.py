@@ -16,29 +16,20 @@ try:
 except Exception:
     MutagenFile = None
 
-# Simple mapping from Spotify genre keywords to the target 18-class taxonomy.
+# Simple mapping from Spotify genre keywords to the target 11-class taxonomy.
 # This is a heuristic labeler, not ground truth. Manual review is still recommended.
 GENRE_MAP = [
     (['hip hop', 'hip-hop', 'rap', 'trap', 'drill'], 'Hip-Hop / Rap'),
     (['pop', 'teen pop', 'dance pop', 'synthpop'], 'Pop'),
     (['rock', 'alternative', 'indie rock', 'classic rock', 'punk'], 'Rock'),
-    (['edm', 'electronic', 'dance', 'house', 'techno', 'trance', 'dubstep'], 'Electronic Dance Music (EDM)'),
-    (['r&b', 'rnb', 'rhythm and blues', 'neo soul'], 'R&B (Rhythm and Blues)'),
+    (['edm', 'electronic', 'dance', 'house', 'techno', 'trance', 'dubstep'], 'Electronic / EDM'),
+    (['r&b', 'rnb', 'rhythm and blues', 'neo soul', 'soul', 'motown', 'funk', 'disco'], 'R&B / Soul'),
     (['country', 'americana', 'country rock', 'bluegrass'], 'Country'),
     (['jazz', 'bebop', 'smooth jazz', 'vocal jazz'], 'Jazz'),
     (['classical', 'baroque', 'concerto', 'symphony', 'orchestra'], 'Classical'),
     (['reggae', 'ska', 'dub', 'dancehall'], 'Reggae'),
-    (['latin', 'latino', 'reggaeton', 'salsa', 'bachata', 'cumbia', 'merengue', 'urbano latino'], 'Latin Music'),
-    (['k-pop', 'kpop', 'korean pop'], 'K-Pop'),
-    (['j-pop', 'jpop', 'japanese pop', 'japanese pop music'], 'J-Pop'),
-    (['metal', 'heavy metal', 'death metal', 'black metal', 'thrash metal'], 'Metal'),
-    (['afrobeats', 'afrobeat', 'afropop'], 'Afrobeats'),
-    (['folk', 'singer-songwriter', 'acoustic', 'roots'], 'Folk'),
+    (['latin', 'latino', 'reggaeton', 'salsa', 'bachata', 'cumbia', 'merengue', 'urbano latino'], 'Latin'),
     (['blues'], 'Blues'),
-    (['soul', 'motown', 'gospel soul'], 'Soul'),
-    (['funk', 'disco'], 'Funk'),
-    (['indie', 'alternative', 'indie pop', 'indietronica'], 'Indie / Alternative'),
-    (['vocaloid', 'anime', 'anime song', 'anime pop', 'hatsune miku'], 'Anime / Vocaloid'),
 ]
 
 TARGET_GENRES = [target for _, target in GENRE_MAP]
@@ -58,8 +49,8 @@ def map_spotify_to_target(genres):
         return 'Hip-Hop / Rap'
     if 'classical' in gstr:
         return 'Classical'
-    if 'edm' in gstr or 'dance' in gstr:
-        return 'Electronic Dance Music (EDM)'
+    if 'edm' in gstr or 'dance' in gstr or 'electronic' in gstr:
+        return 'Electronic / EDM'
     # default to pop
     return 'Pop'
 

@@ -1,0 +1,46 @@
+@model WebClientMVC.Models.AdminDashboardPageViewModel
+@{
+    ViewData["Title"] = "Manage Users";
+}
+
+<div class="admin-page-shell">
+    <header class="admin-page-header">
+        <div>
+            <div class="eyebrow">Section</div>
+            <h1>Manage Users</h1>
+            <p>Pause or restore user access.</p>
+        </div>
+        <a class="secondary-action" href="/admin/dashboard">Back To Overview</a>
+    </header>
+
+    <nav class="admin-page-nav">
+        <a class="secondary-action" href="/admin/dashboard/users">Users</a>
+        <a class="secondary-action" href="/admin/dashboard/artists">Artists</a>
+        <a class="secondary-action" href="/admin/dashboard/music">Music</a>
+    </nav>
+
+    <section class="admin-card">
+        <div class="admin-list">
+            @foreach (var user in Model.Dashboard.Users)
+            {
+                <article class="admin-list-item">
+                    <div class="admin-item-main">
+                        <div class="admin-item-header">
+                            <div class="admin-item-title">@user.DisplayName</div>
+                            <span class="admin-badge @(user.IsActive ? "is-active" : "is-paused")">@(user.IsActive ? "Active" : "Paused")</span>
+                        </div>
+                        <div class="admin-item-meta">@@@user.Username • @user.UploadedTracks uploads • Last active @user.LastActiveUtc.LocalDateTime</div>
+                        <div class="admin-item-note">@user.Notes</div>
+                    </div>
+                    <div class="admin-item-actions">
+                        <a class="secondary-action" href="/admin/dashboard/users/@Uri.EscapeDataString(user.Username)/playlists">Manage Playlists</a>
+                        <form method="post" action="/admin/dashboard/users/@Uri.EscapeDataString(user.Username)/toggle">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="secondary-action">@(user.IsActive ? "Pause Access" : "Restore Access")</button>
+                        </form>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+</div>

@@ -1,0 +1,91 @@
+@model WebClientMVC.Models.AdminDashboardPageViewModel
+@{
+    ViewData["Title"] = "Manage Music";
+}
+
+<div class="admin-page-shell">
+    <header class="admin-page-header">
+        <div>
+            <div class="eyebrow">Section</div>
+            <h1>Manage Music</h1>
+            <p>Review song views and open detailed listener analytics.</p>
+        </div>
+        <a class="secondary-action" href="/admin/dashboard">Back To Overview</a>
+    </header>
+
+    <nav class="admin-page-nav">
+        <a class="secondary-action" href="/admin/dashboard/users">Users</a>
+        <a class="secondary-action" href="/admin/dashboard/artists">Artists</a>
+        <a class="secondary-action" href="/admin/dashboard/music">Music</a>
+    </nav>
+
+    <div class="admin-grid admin-grid-music">
+        <section class="admin-card">
+            <div class="admin-card-subtitle">Library path: @Model.Dashboard.MusicFolderPath</div>
+            <div class="admin-list">
+                @foreach (var track in Model.Dashboard.Music)
+                {
+                    var views = Model.Dashboard.SongViews.FirstOrDefault(item => item.FileName == track.FileName)?.TotalViews ?? 0;
+                    <article class="admin-list-item">
+                        <div class="admin-item-main">
+                            <div class="admin-item-header">
+                                <div class="admin-item-title">@track.DisplayName</div>
+                                <span class="admin-badge is-featured">Views @views</span>
+                            </div>
+                            <div class="admin-item-meta">@track.Artist • @track.Extension • @track.FileName</div>
+                        </div>
+                        <div class="admin-item-actions">
+                            <a class="secondary-action" href="/admin/dashboard/music?fileName=@Uri.EscapeDataString(track.FileName)">View Details</a>
+                            <a class="secondary-action admin-link-button" href="/music/download/@Uri.EscapeDataString(track.FileName)">Download</a>
+                            <form method="post" action="/admin/dashboard/music/@Uri.EscapeDataString(track.FileName)/delete">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="secondary-action danger-action">Remove</button>
+                            </form>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="admin-card">
+            <div class="admin-song-detail-title">Song Details</div>
+            @if (Model.SelectedSongDetail is null)
+            {
+                <div class="admin-song-detail">Select a song from the left and click View Details.</div>
+            }
+            else
+            {
+                <div class="admin-song-detail">
+                    <div class="admin-song-detail-title">@Model.SelectedSongDetail.DisplayName</div>
+                    <div class="admin-song-detail-meta">Total views: @Model.SelectedSongDetail.TotalViews • File: @Model.SelectedSongDetail.FileName</div>
+                    <table class="admin-song-detail-table">
+                        <thead>
+                            <tr>
+                                <th>User ID</th>
+                                <th>Listens</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.SelectedSongDetail.Listeners.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="2">No listens recorded yet.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var listener in Model.SelectedSongDetail.Listeners)
+                                {
+                                    <tr>
+                                        <td>@listener.UserId</td>
+                                        <td>@listener.ListenCount</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
+</div>

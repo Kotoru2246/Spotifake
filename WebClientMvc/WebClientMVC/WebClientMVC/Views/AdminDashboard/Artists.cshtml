@@ -1,0 +1,50 @@
+@model WebClientMVC.Models.AdminDashboardPageViewModel
+@{
+    ViewData["Title"] = "Manage Artists";
+}
+
+<div class="admin-page-shell">
+    <header class="admin-page-header">
+        <div>
+            <div class="eyebrow">Section</div>
+            <h1>Manage Artists</h1>
+            <p>Control artist access and featured status.</p>
+        </div>
+        <a class="secondary-action" href="/admin/dashboard">Back To Overview</a>
+    </header>
+
+    <nav class="admin-page-nav">
+        <a class="secondary-action" href="/admin/dashboard/users">Users</a>
+        <a class="secondary-action" href="/admin/dashboard/artists">Artists</a>
+        <a class="secondary-action" href="/admin/dashboard/music">Music</a>
+    </nav>
+
+    <section class="admin-card">
+        <div class="admin-list">
+            @foreach (var artist in Model.Dashboard.Artists)
+            {
+                <article class="admin-list-item">
+                    <div class="admin-item-main">
+                        <div class="admin-item-header">
+                            <div class="admin-item-title">@artist.DisplayName</div>
+                            <span class="admin-badge @(artist.IsActive ? "is-active" : "is-paused")">@(artist.IsActive ? "Active" : "Paused")</span>
+                            <span class="admin-badge @(artist.IsFeatured ? "is-featured" : "is-idle")">@(artist.IsFeatured ? "Featured" : "Standard")</span>
+                        </div>
+                        <div class="admin-item-meta">@@@artist.Username • @artist.UploadedTracks uploads • Last active @artist.LastActiveUtc.LocalDateTime</div>
+                        <div class="admin-item-note">@artist.Notes</div>
+                    </div>
+                    <div class="admin-item-actions">
+                        <form method="post" action="/admin/dashboard/artists/@Uri.EscapeDataString(artist.Username)/feature">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="secondary-action">@(artist.IsFeatured ? "Remove Feature" : "Feature Artist")</button>
+                        </form>
+                        <form method="post" action="/admin/dashboard/artists/@Uri.EscapeDataString(artist.Username)/toggle">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="secondary-action">@(artist.IsActive ? "Pause Access" : "Restore Access")</button>
+                        </form>
+                    </div>
+                </article>
+            }
+        </div>
+    </section>
+</div>
