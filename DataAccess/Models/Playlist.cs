@@ -11,5 +11,8 @@ namespace DataAccess.Models
         public bool IsPublic { get; set; }
 
         public List<PlaylistTrack> PlaylistTracks { get; set; } = new();
+
+        // Navigation
+        public User Owner { get; set; } = null!;
     }
 }

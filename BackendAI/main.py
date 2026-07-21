@@ -8,12 +8,13 @@ from uuid import UUID
 import asyncio
 import numpy as np
 import jwt
+import bcrypt
 from sqlmodel import Session, select
-from .schemas import LoginRequest, LoginResponse, SmartShuffleRequest, SmartShuffleResponse
+from .schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, SmartShuffleRequest, SmartShuffleResponse
 from .spotify_integration import SpotifyIntegration
 from .callback_server import start_callback_server, stop_callback_server, get_auth_code, reset_auth_code
-from .db import create_db_and_tables, engine
-from .models import Song, SongCreate, SongRead
+from .db import engine
+from .models import Song, SongCreate, SongRead, User, UserCreate, UserRead
 from .upload_handler import process_uploaded_song
 from .audio_features import categorize_genre_and_mood, extract_audio_features
 from .essentia_client import classify_with_features
@@ -21,18 +22,18 @@ import tempfile
 import os
 
 app = FastAPI(title="Music Player AI Bridge")
-spotify = SpotifyIntegration()
+
+try:
+    spotify = SpotifyIntegration()
+    print("Spotify integration initialized.")
+except Exception as e:
+    print(f"Spotify integration disabled: {e}")
+    spotify = None
 security = HTTPBearer(auto_error=False)
 
 JWT_SECRET = os.getenv("JWT_SECRET", "spotifake-dev-secret-change-me")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
-
-TEST_USERS = {
-    "user_test": {"password": "User@123", "role": "user"},
-    "artist_test": {"password": "Artist@123", "role": "artist"},
-    "admin_test": {"password": "Admin@123", "role": "admin"},
-}
 
 # Add CORS middleware to allow frontend requests
 app.add_middleware(
@@ -43,9 +44,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize database
-create_db_and_tables()
-
 
 def get_session():
     """Database session dependency."""
@@ -53,22 +51,33 @@ def get_session():
         yield session
 
 
-def create_access_token(username: str, role: str) -> tuple[str, int]:
+from uuid import UUID
+
+def create_access_token(user_id: UUID, username: str, role: str) -> tuple[str, int]:
     """Create a signed JWT for the authenticated user."""
     expires_in = ACCESS_TOKEN_EXPIRE_MINUTES * 60
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+
     payload = {
         "sub": username,
+        "user_id": str(user_id),
         "role": role,
         "exp": expires_at,
         "iat": datetime.now(timezone.utc),
     }
-    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+    token = jwt.encode(
+        payload,
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM
+    )
+
     return token, expires_in
-
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Validate the Bearer token and return the decoded user claims."""
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    session: Session = Depends(get_session)
+):
+    """Validate the Bearer token and return the user from the database."""
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -94,51 +103,141 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         )
 
     username = payload.get("sub")
-    role = payload.get("role")
+    user_id = payload.get("user_id")
+    token_role = payload.get("role")
 
-    if not username or username not in TEST_USERS:
+    if not username or not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token subject",
+            detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    expected_role = TEST_USERS[username]["role"]
-    if role != expected_role:
+    # Verify user exists in database
+    db_user = session.get(User, user_id)
+    if not db_user or db_user.username != username or db_user.account_status != "Active":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token role",
+            detail="User not found or account is inactive",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return {"username": username, "role": role}
+    # Verify role matches
+    if db_user.role != token_role:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token role does not match user role",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return db_user
+
+
+def require_role(required_role: str):
+    """Dependency factory: returns a dependency that checks for a specific role."""
+    def role_checker(current_user: User = Depends(get_current_user)):
+        if current_user.role != required_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Requires '{required_role}' role",
+            )
+        return current_user
+    return role_checker
+
+
+@app.post("/auth/register", response_model=RegisterResponse)
+def register(request: RegisterRequest, session: Session = Depends(get_session)):
+    """Register a new user account."""
+    # Validate role
+    valid_roles = {"user", "artist", "admin"}
+    if request.role not in valid_roles:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}")
+
+    # Check for existing username
+    existing_username = session.exec(select(User).where(User.username == request.username)).first()
+    if existing_username:
+        raise HTTPException(status_code=409, detail="Username already taken")
+
+    # Check for existing email
+    existing_email = session.exec(select(User).where(User.email == request.email)).first()
+    if existing_email:
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    # Hash password
+    password_hash = bcrypt.hashpw(request.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    # Create user
+    display_name = request.display_name or request.username
+    db_user = User(
+        username=request.username,
+        email=request.email,
+        password_hash=password_hash,
+        role=request.role,
+        display_name=display_name,
+    )
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
+
+    # Generate JWT
+    access_token, expires_in = create_access_token(db_user.id, db_user.username, db_user.role)
+
+    return RegisterResponse(
+    id=str(db_user.id),
+    username=db_user.username,
+    email=db_user.email,
+    role=db_user.role,
+    display_name=db_user.display_name,
+    access_token=access_token,
+    created_at=db_user.created_at
+)
 
 
 @app.post("/auth/login", response_model=LoginResponse)
-def login(request: LoginRequest):
-    """Verify username/password and issue a JWT for the client."""
-    user = TEST_USERS.get(request.username)
-    if not user or user["password"] != request.password:
+def login(request: LoginRequest, session: Session = Depends(get_session)):
+    """Verify username/password against database and issue a JWT."""
+    # Find user by username
+    db_user = session.exec(select(User).where(User.username == request.username)).first()
+    if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
 
-    if request.role and request.role != user["role"]:
+    # Verify password
+    if not bcrypt.checkpw(request.password.encode("utf-8"), db_user.password_hash.encode("utf-8")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    # Check account status
+    if db_user.account_status != "Active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive. Contact an administrator.",
+        )
+
+    # If role specified, verify it matches
+    if request.role and request.role != db_user.role:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account type does not match the selected role",
         )
 
-    access_token, expires_in = create_access_token(request.username, user["role"])
-    return LoginResponse(
-        access_token=access_token,
-        username=request.username,
-        role=user["role"],
-        expires_in=expires_in,
-    )
+    # Generate JWT
+    access_token, expires_in = create_access_token(db_user.id, db_user.username, db_user.role)
 
-# Start the callback server when the app starts
+    return LoginResponse(
+    access_token=access_token,
+    token_type="bearer",
+    username=db_user.username,
+    role=db_user.role,
+    user_id=str(db_user.id),
+    expires_in=expires_in,
+)
+
+# Start the allback server when the app starts
 @app.on_event("startup")
 async def startup_event():
     """Start the callback server on app startup."""
@@ -461,6 +560,131 @@ def smart_shuffle(request: SmartShuffleRequest):
     neighbor_ids = SONG_NEIGHBORS[seed_id]
     response = SmartShuffleResponse(song_ids=neighbor_ids)
     return response
+
+
+# ============================================================
+# Admin-only endpoints
+# ============================================================
+
+@app.get("/admin/users", response_model=list[UserRead])
+def admin_list_users(
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_role("admin"))
+):
+    """List all registered users. Admin only."""
+    users = session.exec(select(User)).all()
+    return users
+
+
+@app.put("/admin/users/{user_id}/status")
+def admin_update_user_status(
+    user_id: int,
+    status: str = "Active",
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_role("admin"))
+):
+    """Update a user's account status (Active/Banned/Suspended). Admin only."""
+    valid_statuses = {"Active", "Banned", "Suspended"}
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    old_status = target.account_status
+    target.account_status = status
+    target.updated_at = datetime.utcnow()
+    session.add(target)
+
+    # Log the action
+    log = AdminAuditLog(
+        admin_id=admin.id,
+        action="UPDATE_USER_STATUS",
+        target_type="user",
+        target_id=str(user_id),
+        details=f"Status changed from '{old_status}' to '{status}'",
+    )
+    session.add(log)
+    session.commit()
+
+    return {"status": "updated", "user_id": user_id, "new_status": status}
+
+
+@app.put("/admin/artists/{user_id}/verify")
+def admin_verify_artist(
+    user_id: int,
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_role("admin"))
+):
+    """Verify an artist account. Admin only."""
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if target.role != "artist":
+        raise HTTPException(status_code=400, detail="User is not an artist")
+
+    # Create or update artist profile
+    profile = session.exec(select(ArtistProfile).where(ArtistProfile.user_id == user_id)).first()
+    if not profile:
+        profile = ArtistProfile(user_id=user_id)
+    profile.verified = True
+    session.add(profile)
+
+    # Log the action
+    log = AdminAuditLog(
+        admin_id=admin.id,
+        action="VERIFY_ARTIST",
+        target_type="user",
+        target_id=str(user_id),
+        details=f"Artist '{target.username}' verified",
+    )
+    session.add(log)
+    session.commit()
+
+    return {"status": "verified", "user_id": user_id}
+
+
+@app.delete("/admin/songs/{song_id}")
+def admin_delete_song(
+    song_id: int,
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_role("admin"))
+):
+    """Delete a song. Admin only."""
+    song = session.get(Song, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    session.delete(song)
+
+    # Log the action
+    from datetime import datetime as dt
+    log = AdminAuditLog(
+        admin_id=admin.id,
+        action="DELETE_SONG",
+        target_type="song",
+        target_id=str(song_id),
+        details=f"Song '{song.title}' by {song.artist} deleted",
+    )
+    session.add(log)
+    session.commit()
+
+    return {"status": "deleted", "song_id": song_id}
+
+
+@app.get("/admin/audit-logs")
+def admin_get_audit_logs(
+    limit: int = 50,
+    session: Session = Depends(get_session),
+    admin: User = Depends(require_role("admin"))
+):
+    """View admin audit logs. Admin only."""
+    logs = session.exec(
+        select(AdminAuditLog).order_by(AdminAuditLog.timestamp.desc()).limit(limit)
+    ).all()
+    return logs
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -2,7 +2,7 @@ import librosa
 import numpy as np
 from pathlib import Path
 from typing import Dict
-from essentia_client import classify_with_features
+from .essentia_client import classify_with_features
 
 
 def to_native_python(value):
