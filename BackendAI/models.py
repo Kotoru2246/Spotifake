@@ -1,6 +1,9 @@
-from datetime import datetime
 from sqlmodel import SQLModel, Field
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
+from datetime import datetime
 from typing import Optional
+from uuid import UUID, uuid4
 
 
 class Song(SQLModel, table=True):
@@ -75,3 +78,148 @@ class SongRead(SQLModel):
     mode: int
     tags: str
     storage_url: str
+
+
+class User(SQLModel, table=True):
+    __tablename__ = "Users"
+
+    id: Optional[UUID] = Field(
+    default_factory=uuid4,
+    sa_column=Column(
+        "UserID",
+        UNIQUEIDENTIFIER,
+        primary_key=True
+    )
+    )
+
+    username: str = Field(
+        sa_column=Column("Username", String(50), unique=True, nullable=False, index=True)
+    )
+
+    email: str = Field(
+        sa_column=Column("Email", String(255), unique=True, nullable=False, index=True)
+    )
+
+    password_hash: str = Field(
+        sa_column=Column("PasswordHash", String(255), nullable=False)
+    )
+
+    role: str = Field(
+        sa_column=Column("Role", String(20), nullable=False, default="user")
+    )
+
+    display_name: str = Field(
+        sa_column=Column("DisplayName", String(100), nullable=False, default="")
+    )
+
+    bio: str = Field(
+        sa_column=Column("Bio", String(2000), nullable=False, default="")
+    )
+
+    avatar_url: str = Field(
+        sa_column=Column("AvatarUrl", String(500), nullable=False, default="")
+    )
+
+    subscription_tier: str = Field(
+        sa_column=Column("SubscriptionTier", String(20), nullable=False, default="Free")
+    )
+
+    is_incognito: bool = Field(
+        sa_column=Column("IsIncognito", Boolean, nullable=False, default=False)
+    )
+
+    account_status: str = Field(
+        sa_column=Column("AccountStatus", String(20), nullable=False, default="Active")
+    )
+
+    is_email_verified: bool = Field(
+        sa_column=Column("IsEmailVerified", Boolean, nullable=False, default=False)
+    )
+
+    created_at: datetime = Field(
+    sa_column=Column(
+        "CreatedAt",
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow
+    )
+)
+    updated_at: datetime = Field(
+    sa_column=Column(
+        "UpdatedAt",
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow
+    )
+)
+
+class UserCreate(SQLModel):
+    username: str
+    email: str
+    password: str
+    role: str = "user"
+    display_name: str = ""
+
+
+class UserRead(SQLModel):
+    id: UUID
+    username: str
+    email: str
+    role: str
+    display_name: str
+    bio: str
+    avatar_url: str
+    subscription_tier: str
+    account_status: str
+    is_email_verified: bool
+    created_at: datetime
+
+
+class ArtistProfile(SQLModel, table=True):
+    __tablename__ = "ArtistProfiles"
+
+    id: Optional[UUID] = Field(
+        default_factory=uuid4,
+        sa_column=Column(
+            "ArtistProfileID",
+            UNIQUEIDENTIFIER,
+            primary_key=True
+        )
+)
+    
+
+    stage_name: str = Field(default="")
+    bio: str = Field(default="")
+    genre: str = Field(default="")
+    verified: bool = Field(default=False)
+    followers_count: int = Field(default=0)
+    website: str = Field(default="")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class AdminAuditLog(SQLModel, table=True):
+    id: Optional[UUID] = Field(
+        default_factory=uuid4,
+        sa_column=Column(
+            "AuditLogID",
+            UNIQUEIDENTIFIER,
+            primary_key=True
+        )
+    )
+
+    admin_id: UUID = Field(
+        sa_column=Column(
+            "AdminID",
+            UNIQUEIDENTIFIER,
+            ForeignKey("Users.UserID"),
+            nullable=False
+        )
+    )
+
+    action: str = Field(default="")
+    target_type: str = Field(default="")
+    target_id: str = Field(default="")
+    details: str = Field(default="")
+
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow
+    )

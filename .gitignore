@@ -1,48 +1,42 @@
-# Visual Studio
-.vs/
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# Build output
-bin/
-obj/
-
 # Python
 __pycache__/
 *.py[cod]
+*.db
+*.sqlite
+*.sqlite3
 .env
 venv/
-.venv
-.Python
+.venv/
 
-# Runtime
-*.log
+# VS Code
+.vscode/
 
-# Audio and generated media (do not commit songs)
+# Visual Studio
+.vs/
+bin/
+obj/
+
+# Temporary
+tempCodeRunnerFile.py
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Audio / Media files
 *.mp3
 *.wav
 *.flac
-*.ogg
 *.m4a
-*.aac
-*.wma
-*.aiff
+*.ogg
+*.mp4
 
-# Uploaded/downloaded song folders
+# Upload directories
 uploads/
-BackendAI/uploads/
-BackendAI/datasets/genre18_audio/
-BackendAI/gtzan_data/Data/genres_original/
-BackendAI/spotify_dataset/
-BackendAI/spotify_dataset_small/
-BackendAI/spotify_dataset_test/
-BackendAI/spotify_dataset_test2/
+**/uploads/
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
+# Dataset directories & ML models
+**/datasets/
+**/spotify_dataset*/
+**/gtzan_data/
+**/*.joblib

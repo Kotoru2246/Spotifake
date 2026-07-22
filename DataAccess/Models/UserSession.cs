@@ -9,5 +9,8 @@ namespace DataAccess.Models
         public string DeviceName { get; set; } = string.Empty;
         public DateTime LastActive { get; set; } = DateTime.UtcNow;
         public bool IsRevoked { get; set; }
+
+        // Navigation
+        public User User { get; set; } = null!;
     }
 }
