@@ -223,3 +223,19 @@ class AdminAuditLog(SQLModel, table=True):
     timestamp: datetime = Field(
         default_factory=datetime.utcnow
     )
+
+class Comment(SQLModel, table=True):
+    __tablename__ = "Comments"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: UUID = Field(
+        sa_column=Column(
+            "UserID",
+            UNIQUEIDENTIFIER,
+            ForeignKey("Users.UserID"),
+            nullable=False
+        )
+    )
+    song_id: int = Field(foreign_key="song.id")
+    timestamp_ms: int = Field(default=0)
+    content: str = Field(default="")
+    created_at: datetime = Field(default_factory=datetime.utcnow)

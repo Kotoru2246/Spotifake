@@ -164,6 +164,8 @@ document.addEventListener('DOMContentLoaded', () => {
       src: `${API_BASE_URL}/songs/${song.id}/stream`,
       duration: Math.round((song.duration_ms || 0) / 1000),
       fileName: song.file_path || '',
+      id: song.id,
+      Id: song.id,
     };
   }
 
@@ -571,13 +573,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setNowPlayingMeta(track) {
     if (!track) return;
-    if (sidebarTrackTitle) sidebarTrackTitle.textContent = track.title;
-    if (sidebarTrackArtist) sidebarTrackArtist.textContent = track.artist;
-    if (currentTrackTitle) currentTrackTitle.textContent = track.title;
-    if (currentTrackArtist) currentTrackArtist.textContent = track.artist;
+    const title = track.Title || track.title || 'Unknown Title';
+    const artist = track.Artist || track.artist || 'Unknown Artist';
+    
+    if (sidebarTrackTitle) sidebarTrackTitle.textContent = title;
+    if (sidebarTrackArtist) sidebarTrackArtist.textContent = artist;
+    if (currentTrackTitle) currentTrackTitle.textContent = title;
+    if (currentTrackArtist) currentTrackArtist.textContent = artist;
     if (currentPlaylistName) currentPlaylistName.textContent = track.playlist || 'SQL Server DB: MusicPlayerDb';
-    if (playerTrack) playerTrack.textContent = track.title;
-    if (playerArtist) playerArtist.textContent = track.artist;
+    
+    if (playerTrack) {
+        playerTrack.textContent = title;
+        playerTrack.style.cursor = 'pointer';
+        playerTrack.style.textDecoration = 'underline';
+        playerTrack.onclick = () => { if(window.openWaveformView) window.openWaveformView(track); };
+    }
+    if (playerArtist) {
+        playerArtist.textContent = artist;
+    }
+    
+    // Right Side Panel "Now Playing" view elements
+    const rightPanelTrackTitle = document.getElementById('rightPanelTrackTitle');
+    const rightPanelTrackArtist = document.getElementById('rightPanelTrackArtist');
+    if (rightPanelTrackTitle) {
+        rightPanelTrackTitle.textContent = title;
+        rightPanelTrackTitle.style.cursor = 'pointer';
+        rightPanelTrackTitle.style.textDecoration = 'underline';
+        rightPanelTrackTitle.onclick = () => { if(window.openWaveformView) window.openWaveformView(track); };
+    }
+    if (rightPanelTrackArtist) rightPanelTrackArtist.textContent = artist;
     if (miniArt) miniArt.textContent = track.color || 'AI';
     const albumArtBadge = document.getElementById('albumArtBadge');
     if (albumArtBadge) albumArtBadge.textContent = track.color || '♪';
@@ -1016,6 +1040,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentTimeEl) currentTimeEl.textContent = formatTime(current);
     if (totalTimeEl) totalTimeEl.textContent = formatTime(duration);
     if (progressFill) progressFill.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+    
+    if (window.updateWaveformProgress) {
+        window.updateWaveformProgress(current, duration);
+    }
   }
 
   function buildQueueOrder() {
@@ -1208,6 +1236,10 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTransportUI();
     updateProgressUI();
     updateActiveQueueItem();
+    
+    if (window.initializeWaveform) {
+        window.initializeWaveform(track);
+    }
   }
 
   function togglePlay() {
@@ -1889,4 +1921,550 @@ document.addEventListener('DOMContentLoaded', () => {
   window.setVolume = setVolume;
   window.adminViewSongDetails = handleAdminSongDetailClick;
   window.adminDeleteSong = handleAdminDeleteTrackClick;
+
+  // Search Logic
+  window.handleSearchInput = function(event) {
+    const query = event.target.value.toLowerCase();
+    const dropdown = document.getElementById('searchDropdown');
+    
+    if (query.length < 2) {
+      dropdown.hidden = true;
+      return;
+    }
+    
+    const results = tracks.filter(t => 
+      t.Title.toLowerCase().includes(query) || 
+      t.Artist.toLowerCase().includes(query)
+    ).slice(0, 5);
+    
+    if (results.length === 0) {
+      dropdown.hidden = true;
+      return;
+    }
+    
+    dropdown.innerHTML = results.map(t => `
+      <div class="search-dropdown-item" onclick="document.getElementById('searchInput').value='${t.Title.replace(/'/g, "\\'")}'; window.handleSearchSubmit({key: 'Enter'});">
+        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(t.Artist)}&background=random&color=fff" alt="art">
+        <div>
+          <div style="font-weight: 500;">${t.Title}</div>
+          <div style="font-size: 13px; color: var(--muted);">${t.Artist}</div>
+        </div>
+      </div>
+    `).join('');
+    dropdown.hidden = false;
+  };
+
+  window.handleSearchSubmit = function(event) {
+    if (event.key === 'Enter') {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      document.getElementById('searchDropdown').hidden = true;
+      if(!query) return;
+      
+      const results = tracks.filter(t => 
+        t.Title.toLowerCase().includes(query) || 
+        t.Artist.toLowerCase().includes(query)
+      );
+      
+      showSection('search-results');
+      
+      const topResultCard = document.getElementById('topResultCard');
+      const songsList = document.getElementById('searchSongsList');
+      
+      if(results.length > 0) {
+        const top = results[0];
+        topResultCard.innerHTML = `
+          <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(top.Artist)}&background=random&color=fff&size=128" alt="art">
+          <h1>${top.Title}</h1>
+          <div style="color: var(--muted); font-size: 14px; font-weight: 500;">${top.Artist}</div>
+          <div class="badge">Song</div>
+          <div class="quick-card-play" style="opacity: 1; bottom: 20px;" onclick="loadTrack(${tracks.indexOf(top)}, true)">▶</div>
+        `;
+        
+        songsList.innerHTML = results.slice(0, 4).map(t => `
+          <div class="song-row" style="grid-template-columns: 50px minmax(0, 1fr) auto; border: none; background: transparent; padding: 8px; border-radius: 4px; cursor: pointer;" onclick="loadTrack(${tracks.indexOf(t)}, true)">
+            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(t.Artist)}&background=random&color=fff" width="40" height="40" style="border-radius: 4px;">
+            <div>
+              <div style="font-weight: 500; color: #fff;">${t.Title}</div>
+              <div style="font-size: 13px; color: var(--muted);">${t.Artist}</div>
+            </div>
+            <div style="color: var(--muted); font-size: 14px;">${window.formatTime ? window.formatTime(t.Duration) : '0:00'}</div>
+          </div>
+        `).join('');
+      } else {
+        topResultCard.innerHTML = `<h2>No results found for "${query}"</h2>`;
+        songsList.innerHTML = '';
+      }
+    }
+  };
+
+  // ==========================================
+  // SPOTIFY REDESIGN JAVASCRIPT WIRING
+  // ==========================================
+  
+  const rightSidePanel = document.getElementById('rightSidePanel');
+  const rightPanelNowPlayingView = document.getElementById('rightPanelNowPlayingView');
+  const rightPanelQueueView = document.getElementById('rightPanelQueueView');
+  const rightPanelContextTitle = document.getElementById('rightPanelContextTitle');
+  let currentRightPanelMode = 'none'; // 'queue', 'nowplaying'
+
+  function closeRightPanel() {
+    if(rightSidePanel) {
+      rightSidePanel.hidden = true;
+      appShell.classList.remove('right-panel-active');
+      currentRightPanelMode = 'none';
+      document.querySelectorAll('.player-bar .right-icon-btn').forEach(btn => btn.classList.remove('active'));
+    }
+  }
+
+  function toggleQueuePanel() {
+    if(!rightSidePanel) return;
+    
+    // Ensure panel is open
+    rightSidePanel.hidden = false;
+    appShell.classList.add('right-panel-active');
+    
+    if (currentRightPanelMode === 'queue') {
+        // Switch back to Now Playing
+        rightPanelNowPlayingView.hidden = false;
+        rightPanelQueueView.hidden = true;
+        rightPanelContextTitle.textContent = 'Now Playing';
+        currentRightPanelMode = 'nowplaying';
+        document.querySelectorAll('.player-bar .right-icon-btn').forEach(btn => btn.classList.remove('active'));
+    } else {
+        // Switch to Queue
+        rightPanelNowPlayingView.hidden = true;
+        rightPanelQueueView.hidden = false;
+        rightPanelContextTitle.textContent = 'Queue';
+        currentRightPanelMode = 'queue';
+    }
+  }
+
+  function toggleLyricsView() {
+    if (document.getElementById('lyrics-view').classList.contains('active')) {
+      showSection('home');
+    } else {
+      showSection('lyrics-view');
+      renderLyrics();
+    }
+  }
+  
+  function renderLyrics() {
+    const activeTrack = tracks[currentTrackIndex];
+    if(!activeTrack) return;
+    const lyricsContainer = document.getElementById('lyricsTextContainer');
+    if(lyricsContainer) {
+      lyricsContainer.innerHTML = '';
+      const line = document.createElement('div');
+      line.className = 'lyric-line active';
+      line.textContent = `♪ Synchronized lyrics for ${activeTrack.Title} coming soon ♪`;
+      lyricsContainer.appendChild(line);
+    }
+  }
+
+  function populateHomeGrid() {
+    const grid = document.getElementById('homeQuickGrid');
+    if(!grid) return;
+    const items = ['Liked Songs', 'Daily Mix 1', 'Discover Weekly', 'Release Radar', 'On Repeat', 'Time Capsule', 'Your Top Songs 2026', 'Jazz Vibes'];
+    grid.innerHTML = items.map(title => `
+      <div class="quick-card">
+        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=random&color=fff&size=64" alt="art">
+        <div class="quick-card-title">${title}</div>
+        <div class="quick-card-play">▶</div>
+      </div>
+    `).join('');
+  }
+
+  function populateMadeForYou() {
+    const carousel = document.getElementById('homeMadeForYouCarousel');
+    if(!carousel) return;
+    const mixes = [
+      { title: 'Daily Mix 1', desc: 'Luna Waves, Neon Nights and more' },
+      { title: 'Daily Mix 2', desc: 'Chill beats to study to' },
+      { title: 'Daily Mix 3', desc: 'Upbeat pop hits' },
+      { title: 'Discover Weekly', desc: 'New music based on your listening' }
+    ];
+    carousel.innerHTML = mixes.map(mix => `
+      <div class="mix-card">
+        <div class="mix-card-img-wrapper">
+          <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(mix.title)}&background=random&color=fff&size=300" alt="mix">
+        </div>
+        <div class="mix-card-title">${mix.title}</div>
+        <div class="mix-card-desc">${mix.desc}</div>
+      </div>
+    `).join('');
+  }
+
+  function populateBrowseAll() {
+    const grid = document.getElementById('browseCategoryGrid');
+    if(!grid) return;
+    const categories = [
+      { name: 'Podcasts', color: '#e13300' }, { name: 'Made For You', color: '#1e3264' },
+      { name: 'New Releases', color: '#e8115b' }, { name: 'Pop', color: '#148a08' },
+      { name: 'Hip-Hop', color: '#bc5900' }, { name: 'K-Pop', color: '#8d67ab' },
+      { name: 'Rock', color: '#e91429' }, { name: 'Indie', color: '#608108' }
+    ];
+    grid.innerHTML = categories.map(cat => `
+      <a href="#" class="browse-card" style="background-color: ${cat.color};">
+        <h3>${cat.name}</h3>
+        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(cat.name)}&background=282828&color=fff&size=100" alt="category">
+      </a>
+    `).join('');
+  }
+  
+  function toggleMiniPlayer() {
+    showToast('info', 'Mini Player', 'Mini Player popped out.');
+  }
+
+  // Waveform & Danmaku Logic
+  let currentWaveformComments = [];
+  let lastDanmakuTime = 0;
+  let activeTrackId = null;
+  
+  window.openWaveformView = function(track) {
+    if(!track) track = tracks[currentTrackIndex];
+    if(!track) return;
+    
+    showSection('playlist-view');
+    document.getElementById('pvTitle').textContent = track.Title || track.title || 'Unknown';
+    document.getElementById('pvCreatorName').textContent = track.Artist || track.artist || 'Unknown';
+    
+    // Attempt to match album art background if it exists
+    const pvCoverArt = document.getElementById('pvCoverArt');
+    if (pvCoverArt) {
+        pvCoverArt.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(track.Artist || track.artist)}&background=random&color=fff&size=300`;
+    }
+    
+    window.initializeWaveform(track);
+  };
+  
+  window.initializeWaveform = function(track) {
+    // If it's a demo track, use its index as ID
+    activeTrackId = track.Id || track.id || tracks.indexOf(track) || 1;
+    
+    let waveformContainer = document.getElementById('waveformContainer');
+    const descriptionEl = document.getElementById('pvDescription');
+    
+    if (!waveformContainer && descriptionEl) {
+        // Dynamically inject the HTML so we don't need a C# restart for the view
+        waveformContainer = document.createElement('div');
+        waveformContainer.className = 'waveform-container';
+        waveformContainer.id = 'waveformContainer';
+        waveformContainer.style.display = 'none';
+        waveformContainer.innerHTML = `
+            <div class="danmaku-layer" id="danmakuLayer"></div>
+            <canvas id="waveformCanvas" width="800" height="80"></canvas>
+            <div class="comment-input-popover" id="commentPopover" style="display: none;">
+                <input type="text" id="commentInput" placeholder="Add a comment..." onkeypress="handleCommentSubmit(event)">
+            </div>
+        `;
+        descriptionEl.parentNode.insertBefore(waveformContainer, descriptionEl.nextSibling);
+    }
+    
+    if (waveformContainer && descriptionEl) {
+      waveformContainer.style.display = 'block';
+      descriptionEl.style.display = 'none';
+      drawSimulatedWaveform();
+      fetchTrackComments(activeTrackId);
+      
+      waveformContainer.onclick = (e) => {
+        if(e.target.id === 'commentInput') return;
+        const rect = waveformContainer.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const progress = clickX / rect.width;
+        
+        if (audioPlayer && audioPlayer.duration) {
+            audioPlayer.currentTime = progress * audioPlayer.duration;
+            drawSimulatedWaveform(progress);
+        }
+        
+        // Hide comment box if left clicking to seek
+        document.getElementById('commentPopover').style.display = 'none';
+      };
+
+      waveformContainer.oncontextmenu = (e) => {
+        e.preventDefault(); // Prevent default browser right-click menu
+        if(e.target.id === 'commentInput') return;
+        
+        const rect = waveformContainer.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const progress = clickX / rect.width;
+        
+        const popover = document.getElementById('commentPopover');
+        popover.style.display = 'block';
+        popover.style.left = `${Math.min(clickX, rect.width - 220)}px`;
+        // Position it nicely in the middle vertically instead of off-screen
+        popover.style.bottom = '20px'; 
+        
+        const input = document.getElementById('commentInput');
+        input.dataset.timestamp = Math.floor(progress * (audioPlayer ? (audioPlayer.duration || track.Duration) : track.Duration) * 1000);
+        input.focus();
+      };
+    }
+  };
+
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  function fetchRealAudioData(track) {
+      if (track.isFetchingRealData || track.realAudioData) return;
+      if (!track.src) return;
+      
+      track.isFetchingRealData = true;
+      fetch(track.src)
+          .then(res => {
+              if(!res.ok) throw new Error("Network response was not ok");
+              return res.arrayBuffer();
+          })
+          .then(buffer => audioCtx.decodeAudioData(buffer))
+          .then(audioBuffer => {
+              const rawData = audioBuffer.getChannelData(0); 
+              const numPoints = 2000;
+              const blockSize = Math.floor(rawData.length / numPoints);
+              const data = [];
+              
+              for(let i = 0; i < numPoints; i++) {
+                  let blockStart = i * blockSize;
+                  let sum = 0;
+                  for(let j = 0; j < blockSize; j++) {
+                      let val = rawData[blockStart + j];
+                      sum += val * val;
+                  }
+                  let rms = Math.sqrt(sum / blockSize);
+                  data.push(rms * 4); // Amplify RMS to get better visual height
+              }
+              
+              let maxAmp = Math.max(...data);
+              let normalized = data.map(v => (maxAmp > 0 ? v / maxAmp : 0));
+              
+              const smoothed = [];
+              for(let i=0; i<numPoints; i++) {
+                  let sum = 0, count = 0;
+                  for(let j=-1; j<=1; j++) {
+                     if(i+j >= 0 && i+j < numPoints) {
+                         sum += normalized[i+j]; count++;
+                     }
+                  }
+                  smoothed.push(sum/count);
+              }
+              
+              track.realAudioData = smoothed;
+              const currentActiveId = track.Id || track.id || (tracks.indexOf(track) !== -1 ? tracks.indexOf(track) : 1);
+              if (activeTrackId === currentActiveId && window.audioPlayer) {
+                  drawSimulatedWaveform(window.audioPlayer.duration ? window.audioPlayer.currentTime / window.audioPlayer.duration : 0);
+              }
+          })
+          .catch(e => {
+              console.error("Failed to decode real audio for waveform:", e);
+              track.isFetchingRealData = false;
+          });
+  }
+
+  function getPseudoAudioData(track) {
+      if (track.audioData) return track.audioData;
+      
+      const seedStr = (track.Title || track.title || '') + (track.Id || track.id || '');
+      let seed = 12345;
+      for(let i=0; i<seedStr.length; i++) seed += seedStr.charCodeAt(i);
+      
+      const data = [];
+      const numPoints = 2000;
+      
+      let rand = seed;
+      for (let i = 0; i < numPoints; i++) {
+          rand = (rand * 9301 + 49297) % 233280;
+          let val = rand / 233280;
+          val = Math.pow(val, 1.5);
+          let envelope = Math.sin(Math.PI * (i / numPoints));
+          let macro = Math.sin(Math.PI * 15 * (i / numPoints)) * 0.5 + 0.5; 
+          let amplitude = val * (0.3 + 0.7 * macro) * (0.1 + 0.9 * envelope);
+          data.push(amplitude);
+      }
+      
+      const smoothed = [];
+      for(let i=0; i<numPoints; i++) {
+          let sum = 0, count = 0;
+          for(let j=-1; j<=1; j++) {
+             if(i+j >= 0 && i+j < numPoints) {
+                 sum += data[i+j];
+                 count++;
+             }
+          }
+          smoothed.push(sum/count);
+      }
+      
+      track.audioData = smoothed;
+      return smoothed;
+  }
+
+  function drawSimulatedWaveform(progress = 0) {
+    const canvas = document.getElementById('waveformCanvas');
+    if(!canvas) return;
+    
+    // Ensure native resolution matches the CSS display size to avoid blurry stretch
+    if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    let track = tracks[currentTrackIndex];
+    if (activeTrackId) {
+        track = tracks.find(t => (t.Id || t.id || tracks.indexOf(t) || 1) === activeTrackId) || track;
+    }
+    if (!track) return;
+    
+    let audioData;
+    if (track.realAudioData) {
+        audioData = track.realAudioData;
+    } else {
+        audioData = getPseudoAudioData(track);
+        fetchRealAudioData(track);
+    }
+    
+    const barWidth = 2; // Thin bars like SoundCloud
+    const gap = 1;
+    const bars = Math.floor(canvas.width / (barWidth + gap));
+    const centerY = Math.floor(canvas.height * 0.65); // 65% for top, 35% for reflection
+    
+    for(let i = 0; i < bars; i++) {
+        const itemProgress = i / bars;
+        const isPlayed = itemProgress <= progress;
+        
+        const dataIndex = Math.floor(itemProgress * (audioData.length - 1));
+        const val = audioData[dataIndex];
+        
+        // SoundCloud colors
+        const topColor = isPlayed ? '#ff5500' : 'rgba(255, 255, 255, 0.7)';
+        const bottomColor = isPlayed ? '#ffb380' : 'rgba(255, 255, 255, 0.3)';
+        
+        const topHeight = Math.max(2, val * (centerY - 5));
+        const bottomHeight = topHeight * 0.4;
+        
+        // Draw top bar
+        ctx.fillStyle = topColor;
+        ctx.fillRect(i * (barWidth + gap), centerY - topHeight, barWidth, topHeight);
+        
+        // Draw bottom bar (reflection) touching the center line
+        ctx.fillStyle = bottomColor;
+        ctx.fillRect(i * (barWidth + gap), centerY, barWidth, bottomHeight);
+    }
+  }
+
+
+  window.updateWaveformProgress = function(current, duration) {
+    if (!duration) return;
+    const progress = current / duration;
+    drawSimulatedWaveform(progress);
+    
+    const currentMs = Math.floor(current * 1000);
+    if (Math.abs(currentMs - lastDanmakuTime) > 200) {
+        // if user seeks backwards or seeks far ahead, just reset lastDanmakuTime
+        if (currentMs < lastDanmakuTime || currentMs - lastDanmakuTime > 2000) {
+            lastDanmakuTime = currentMs;
+            return;
+        }
+        const toSpawn = currentWaveformComments.filter(c => c.timestamp_ms > lastDanmakuTime && c.timestamp_ms <= currentMs);
+        toSpawn.forEach(c => spawnDanmaku(c.content));
+        lastDanmakuTime = currentMs;
+    }
+  };
+
+  function fetchTrackComments(songId) {
+    if(!songId) return;
+    currentWaveformComments = [];
+    document.getElementById('danmakuLayer').innerHTML = ''; 
+    
+    fetch(`http://localhost:8000/songs/${songId}/comments`)
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+            currentWaveformComments = data || [];
+        })
+        .catch(err => console.error("Failed to load comments:", err));
+  }
+
+  window.handleCommentSubmit = function(event) {
+    if (event.key === 'Enter') {
+        const input = document.getElementById('commentInput');
+        const content = input.value.trim();
+        const timestampMs = parseInt(input.dataset.timestamp || 0);
+        
+        if (!content || !activeTrackId) return;
+        
+        const token = localStorage.getItem('spotifake.jwt');
+        if (!token) {
+            showToast('error', 'Authentication', 'Please log in to comment.');
+            return;
+        }
+
+        fetch(`http://localhost:8000/songs/${activeTrackId}/comments`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                song_id: activeTrackId,
+                timestamp_ms: timestampMs,
+                content: content
+            })
+        }).then(res => {
+            if (res.ok) return res.json();
+            throw new Error("Failed to post comment");
+        }).then(comment => {
+            currentWaveformComments.push(comment);
+            currentWaveformComments.sort((a,b) => a.timestamp_ms - b.timestamp_ms);
+            input.value = '';
+            document.getElementById('commentPopover').style.display = 'none';
+            spawnDanmaku(comment.content);
+            showToast('success', 'Comment Added', 'Your comment was added to the timeline!');
+        }).catch(err => {
+            showToast('error', 'Error', 'Failed to add comment.');
+        });
+    }
+  };
+
+  function spawnDanmaku(text) {
+    const layer = document.getElementById('danmakuLayer');
+    if(!layer) return;
+    
+    const div = document.createElement('div');
+    div.className = 'danmaku-item';
+    div.textContent = text;
+    
+    const top = Math.random() * 50;
+    div.style.top = `${top}px`;
+    
+    const duration = 4 + Math.random() * 3;
+    div.style.animationDuration = `${duration}s`;
+    
+    layer.appendChild(div);
+    
+    setTimeout(() => {
+        if(div.parentNode === layer) {
+            layer.removeChild(div);
+        }
+    }, duration * 1000);
+  }
+
+  // Bind global functions
+  window.closeRightPanel = closeRightPanel;
+  window.toggleQueuePanel = toggleQueuePanel;
+  window.toggleLyricsView = toggleLyricsView;
+  window.toggleMiniPlayer = toggleMiniPlayer;
+
+  // Run init on load
+  populateHomeGrid();
+  populateMadeForYou();
+  populateBrowseAll();
+  
+  // Set Right Panel default state to "Now Playing"
+  if(rightSidePanel) {
+      rightSidePanel.hidden = false;
+      appShell.classList.add('right-panel-active');
+      rightPanelNowPlayingView.hidden = false;
+      rightPanelQueueView.hidden = true;
+      rightPanelContextTitle.textContent = 'Now Playing';
+      currentRightPanelMode = 'nowplaying';
+  }
 });

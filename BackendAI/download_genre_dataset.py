@@ -1046,7 +1046,7 @@ def main() -> None:
     print()
     print("Next — extract features and train:")
     print(f'  python BackendAI/data_extraction.py --labels "{labels_csv}" --audio-dir "{out_dir}" --out BackendAI/datasets/genre18_audio/features.csv')
-    print(f'  python BackendAI/train_combined_model.py --inputs BackendAI/datasets/genre18_audio/features.csv --out BackendAI/models/genre11_rf.joblib')
+    print(f'  python BackendAI/train_combined_model.py --inputs BackendAI/datasets/genre18_audio/features.csv --out BackendAI/ml_models/genre11_rf.joblib')
 
 
 if __name__ == "__main__":

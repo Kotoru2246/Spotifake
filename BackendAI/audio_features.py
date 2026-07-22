@@ -5,7 +5,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import Dict
-<<<<<<< HEAD
 try:
     from .essentia_client import classify_with_features
 except ImportError:
@@ -13,10 +12,6 @@ except ImportError:
         from essentia_client import classify_with_features
     except ImportError:
         classify_with_features = None
-
-=======
-from .essentia_client import classify_with_features
->>>>>>> 8eaff07070cea93f393666da4deb16f79450017a
 
 
 def to_native_python(value):

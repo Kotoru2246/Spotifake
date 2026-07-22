@@ -11,18 +11,12 @@ import numpy as np
 import jwt
 import bcrypt
 from sqlmodel import Session, select
-from .schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, SmartShuffleRequest, SmartShuffleResponse
+from .schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, SmartShuffleRequest, SmartShuffleResponse, CommentCreate, CommentRead
 from .spotify_integration import SpotifyIntegration
 from .callback_server import start_callback_server, stop_callback_server, get_auth_code, reset_auth_code
-<<<<<<< HEAD
 from .db import create_db_and_tables, engine
-from .models import Song, SongCreate, SongRead
+from .models import Song, SongCreate, SongRead, User, UserCreate, UserRead, ArtistProfile, AdminAuditLog, Comment
 from .upload_handler import save_upload_file
-=======
-from .db import engine
-from .models import Song, SongCreate, SongRead, User, UserCreate, UserRead
-from .upload_handler import process_uploaded_song
->>>>>>> 8eaff07070cea93f393666da4deb16f79450017a
 from .audio_features import categorize_genre_and_mood, extract_audio_features
 from .essentia_client import classify_with_features
 import tempfile
@@ -50,6 +44,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+TEST_USERS = {
+    "user_test": {"password": "User@123", "role": "user", "id": UUID("00000000-0000-0000-0000-000000000001")},
+    "artist_test": {"password": "Artist@123", "role": "artist", "id": UUID("00000000-0000-0000-0000-000000000002")},
+    "admin_test": {"password": "Admin@123", "role": "admin", "id": UUID("00000000-0000-0000-0000-000000000003")}
+}
 
 
 def get_session():
@@ -120,14 +120,31 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Verify user exists in database
-    db_user = session.get(User, user_id)
-    if not db_user or db_user.username != username or db_user.account_status != "Active":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or account is inactive",
-            headers={"WWW-Authenticate": "Bearer"},
+    # Check if this is a demo/test user
+    if username in TEST_USERS:
+        return User(
+            id=UUID(user_id) if isinstance(user_id, str) else user_id,
+            username=username,
+            email=f"{username}@musicplayer.local",
+            password_hash="",
+            role=token_role or TEST_USERS[username]["role"],
+            display_name=username,
+            account_status="Active"
         )
+
+    # Verify user exists in database
+    try:
+        db_user = session.get(User, user_id)
+        if db_user and db_user.username == username and db_user.account_status == "Active":
+            return db_user
+    except Exception:
+        pass
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="User not found or account is inactive",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
     # Verify role matches
     if db_user.role != token_role:
@@ -202,47 +219,64 @@ def register(request: RegisterRequest, session: Session = Depends(get_session)):
 
 @app.post("/auth/login", response_model=LoginResponse)
 def login(request: LoginRequest, session: Session = Depends(get_session)):
-    """Verify username/password against database and issue a JWT."""
-    # Find user by username
-    db_user = session.exec(select(User).where(User.username == request.username)).first()
-    if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
-        )
+    """Verify username/password against database or test users and issue a JWT."""
+    # 1. Check demo/test users first
+    if request.username in TEST_USERS:
+        user_info = TEST_USERS[request.username]
+        if request.password == user_info["password"]:
+            role = user_info["role"]
+            if request.role and request.role != role:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Account type does not match the selected role",
+                )
+            access_token, expires_in = create_access_token(user_info["id"], request.username, role)
+            return LoginResponse(
+                access_token=access_token,
+                token_type="bearer",
+                username=request.username,
+                role=role,
+                user_id=str(user_info["id"]),
+                expires_in=expires_in,
+            )
 
-    # Verify password
-    if not bcrypt.checkpw(request.password.encode("utf-8"), db_user.password_hash.encode("utf-8")):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
-        )
+    # 2. Check SQL Server database
+    try:
+        db_user = session.exec(select(User).where(User.username == request.username)).first()
+        if db_user:
+            pwd_valid = False
+            try:
+                pwd_valid = bcrypt.checkpw(request.password.encode("utf-8"), db_user.password_hash.encode("utf-8"))
+            except Exception:
+                pwd_valid = (request.password == db_user.password_hash)
 
-    # Check account status
-    if db_user.account_status != "Active":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive. Contact an administrator.",
-        )
+            if pwd_valid:
+                if db_user.account_status != "Active":
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Account is inactive. Contact an administrator.",
+                    )
+                if request.role and request.role != db_user.role:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Account type does not match the selected role",
+                    )
+                access_token, expires_in = create_access_token(db_user.id, db_user.username, db_user.role)
+                return LoginResponse(
+                    access_token=access_token,
+                    token_type="bearer",
+                    username=db_user.username,
+                    role=db_user.role,
+                    user_id=str(db_user.id),
+                    expires_in=expires_in,
+                )
+    except Exception as e:
+        print(f"⚠ DB login check warning: {e}")
 
-    # If role specified, verify it matches
-    if request.role and request.role != db_user.role:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account type does not match the selected role",
-        )
-
-    # Generate JWT
-    access_token, expires_in = create_access_token(db_user.id, db_user.username, db_user.role)
-
-    return LoginResponse(
-    access_token=access_token,
-    token_type="bearer",
-    username=db_user.username,
-    role=db_user.role,
-    user_id=str(db_user.id),
-    expires_in=expires_in,
-)
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid username or password",
+    )
 
 # Start the allback server when the app starts
 @app.on_event("startup")
@@ -515,6 +549,55 @@ def list_songs(session: Session = Depends(get_session)):
     """List all uploaded songs from SQL Server."""
     songs = session.exec(select(Song)).all()
     return songs
+
+
+@app.delete("/songs/{song_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_song(song_id: int, session: Session = Depends(get_session)):
+    song = session.get(Song, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    session.delete(song)
+    session.commit()
+    return
+
+@app.post("/songs/{song_id}/comments", response_model=CommentRead)
+def create_comment(
+    song_id: int,
+    comment: CommentCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    song = session.get(Song, song_id)
+    if not song:
+        # Allow commenting on frontend hardcoded tracks by automatically creating them in the DB
+        song = Song(id=song_id, title=f"Track {song_id}")
+        session.add(song)
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise HTTPException(status_code=500, detail="Failed to initialize track for commenting")
+    
+    db_comment = Comment(
+        user_id=current_user.id,
+        song_id=song_id,
+        timestamp_ms=comment.timestamp_ms,
+        content=comment.content
+    )
+    session.add(db_comment)
+    session.commit()
+    session.refresh(db_comment)
+    return db_comment
+
+@app.get("/songs/{song_id}/comments", response_model=list[CommentRead])
+def get_comments(song_id: int, session: Session = Depends(get_session)):
+    song = session.get(Song, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    comments = session.exec(select(Comment).where(Comment.song_id == song_id).order_by(Comment.timestamp_ms)).all()
+    return comments
 
 
 @app.get("/songs/{song_id}", response_model=SongRead)
@@ -791,6 +874,44 @@ def admin_get_audit_logs(
     ).all()
     return logs
 
+
+@app.post("/songs/{song_id}/comments", response_model=CommentRead)
+def create_comment(
+    song_id: int,
+    comment: CommentCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    song = session.get(Song, song_id)
+    if not song:
+        # Allow commenting on frontend hardcoded tracks by automatically creating them in the DB
+        song = Song(id=song_id, title=f"Track {song_id}")
+        session.add(song)
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise HTTPException(status_code=500, detail="Failed to initialize track for commenting")
+    
+    db_comment = Comment(
+        user_id=current_user.id,
+        song_id=song_id,
+        timestamp_ms=comment.timestamp_ms,
+        content=comment.content
+    )
+    session.add(db_comment)
+    session.commit()
+    session.refresh(db_comment)
+    return db_comment
+
+@app.get("/songs/{song_id}/comments", response_model=list[CommentRead])
+def get_comments(song_id: int, session: Session = Depends(get_session)):
+    song = session.get(Song, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    
+    comments = session.exec(select(Comment).where(Comment.song_id == song_id).order_by(Comment.timestamp_ms)).all()
+    return comments
 
 if __name__ == "__main__":
     import uvicorn

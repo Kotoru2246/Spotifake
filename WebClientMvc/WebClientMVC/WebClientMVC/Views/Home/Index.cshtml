@@ -2,19 +2,31 @@
     ViewData["Title"] = "Spotifake Player";
 }
 
-<header class="auth-bar">
-    <div class="auth-brand">
-        <div class="brand-mark">S</div>
-        <div>
-            <div class="sidebar-title">Spotifake</div>
-            <div class="sidebar-subtitle">AI Music Platform</div>
+<header class="top-bar">
+    <div class="top-bar-left">
+        <svg viewBox="0 0 24 24" class="spotify-logo" width="32" height="32" fill="currentColor">
+            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"></path>
+        </svg>
+    </div>
+    <div class="top-bar-center">
+        <button class="nav-btn" onclick="showSection('home')" title="Home">🏠</button>
+        <div class="search-bar-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="What do you want to play?" oninput="handleSearchInput(event)" onkeypress="handleSearchSubmit(event)">
+            <button class="browse-btn" onclick="showSection('browse')" title="Browse All">🗂️</button>
+            <div id="searchDropdown" class="search-dropdown" hidden></div>
         </div>
     </div>
-    <div class="auth-actions">
-        <div class="auth-user-pill" id="authUserPill">Not signed in</div>
-        <button type="button" class="secondary-action" id="loginToggleButton">Log In</button>
-        <button type="button" class="secondary-action" id="signupToggleButton">Sign Up</button>
-        <button type="button" class="secondary-action auth-logout" id="logoutButton" hidden>Log Out</button>
+    <div class="top-bar-right">
+        <button class="bell-btn" id="notificationBell" title="What's New">
+            🔔<span class="badge" id="bellBadge" hidden></span>
+        </button>
+        <div class="auth-actions">
+            <div class="auth-user-pill" id="authUserPill">Not signed in</div>
+            <button type="button" class="secondary-action" id="loginToggleButton">Log In</button>
+            <button type="button" class="secondary-action" id="signupToggleButton">Sign Up</button>
+            <button type="button" class="secondary-action auth-logout" id="logoutButton" hidden>Log Out</button>
+        </div>
     </div>
 </header>
 
@@ -66,99 +78,151 @@
 </div>
 
 <div class="music-app-shell" id="appShell">
-    <aside class="sidebar">
-        <div class="sidebar-brand">
-            <div class="sidebar-mark">S</div>
-            <div>
-                <div class="sidebar-title">Spotifake</div>
-                <div class="sidebar-subtitle">AI Music Platform</div>
-            </div>
+    <aside class="compact-sidebar">
+        <div class="sidebar-top">
+            <button class="lib-btn" onclick="showSection('library')" title="Your Library">
+                <svg role="img" height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 22a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v18a1 1 0 0 1-1 1zM15.5 2.134A1 1 0 0 0 14 3v18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6.464a1 1 0 0 0-.5-.866l-6-3.464zM9 2a1 1 0 0 0-1 1v18a1 1 0 1 0 2 0V3a1 1 0 0 0-1-1z"></path></svg>
+            </button>
+            <button class="add-btn" id="quickCreatePlaylistBtn" title="Create playlist or folder" onclick="document.getElementById('createPlaylistModal').style.display = 'flex';">
+                <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M15.25 8a.75.75 0 0 1-.75.75H8.75v5.75a.75.75 0 0 1-1.5 0V8.75H1.5a.75.75 0 0 1 0-1.5h5.75V1.5a.75.75 0 0 1 1.5 0v5.75h5.75a.75.75 0 0 1 .75.75z"></path></svg>
+            </button>
         </div>
-
-        <nav class="sidebar-nav">
-            <button class="sidebar-link active" data-section="home" onclick="showSection('home')">
-                <span class="nav-icon">🏠</span> Home
+        <div class="sidebar-scroll">
+            <div class="pinned-item liked-songs-tile" onclick="showSection('playlists')" title="Liked Songs">
+                <div class="liked-icon">
+                    <svg role="img" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8.667 1.912c-2.193 0-4.049 1.638-4.493 3.738C3.73 7.75 4.382 10.121 7.221 12.879l4.779 4.619 4.779-4.62c2.839-2.757 3.49-5.128 3.047-7.23-.444-2.099-2.3-3.737-4.493-3.737-1.332 0-2.585.602-3.333 1.594A4.32 4.32 0 0 0 8.667 1.912z"></path></svg>
+                </div>
+            </div>
+            <div id="sidebarUserPlaylists"></div>
+            <button class="pinned-item admin-only" id="adminNavLink" onclick="window.location.href='/admin/dashboard'" title="Admin Dashboard" hidden>
+                <div class="admin-icon">⚙️</div>
             </button>
-            <button class="sidebar-link" data-section="library" onclick="showSection('library')">
-                <span class="nav-icon">📚</span> Library
-            </button>
-            <button class="sidebar-link" data-section="upload-ai" onclick="showSection('upload-ai')">
-                <span class="nav-icon">🎙️</span> AI Song Upload
-            </button>
-            <button class="sidebar-link" data-section="playlists" onclick="showSection('playlists')">
-                <span class="nav-icon">🎵</span> Playlists
-            </button>
-            <a class="sidebar-link admin-only" id="adminNavLink" href="/admin/dashboard" hidden>Admin Dashboard</a>
-        </nav>
-
-        <div class="sidebar-card">
-            <div class="sidebar-card-label">Now Playing</div>
-            <div class="sidebar-track-title" id="sidebarTrackTitle">No Track Selected</div>
-            <div class="sidebar-track-artist" id="sidebarTrackArtist">Upload audio to begin</div>
-            <div class="sidebar-ai-tag" id="sidebarAiTag">Genre: -- | Mood: --</div>
         </div>
     </aside>
 
     <main class="main-panel">
-        <!-- Home / Player View -->
-        <section class="hero-panel section active" id="home">
-            <div class="hero-copy">
-                <div class="eyebrow">End-to-End AI Music Engine</div>
-                <h1>Dark Spotify-Style AI Player</h1>
-                <p>Upload audio files, automatically extract Librosa AI feature vectors, categorize genre and mood, and save directly to SQL Server.</p>
-                <div class="hero-actions">
-                    <button onclick="togglePlay()" class="primary-action">▶ Play / Pause</button>
-                    <button onclick="showSection('upload-ai')" class="secondary-action">🎙️ Upload New Song</button>
-                    <button onclick="toggleShuffle()" class="secondary-action">🔀 Shuffle</button>
-                    <button onclick="cycleLoop()" class="secondary-action">↻ Loop</button>
+        <!-- Home View -->
+        <section class="section active" id="home">
+            <div class="home-header">
+                <div class="category-pills">
+                    <button class="pill active">All</button>
+                    <button class="pill">Music</button>
+                    <button class="pill">Podcasts</button>
                 </div>
             </div>
+            
+            <div class="quick-grid" id="homeQuickGrid">
+                <!-- 8 cards populated by JS -->
+            </div>
 
-            <div class="now-playing-card">
-                <div class="album-art" id="albumArt">
-                    <div class="album-art-badge" id="albumArtBadge">♪</div>
+            <div class="section-title-row">
+                <h2>Made For You</h2>
+                <a href="#" class="show-all-link">Show all</a>
+            </div>
+            
+            <div class="card-carousel" id="homeMadeForYouCarousel">
+                <!-- Daily Mixes & Discover Weekly populated by JS -->
+            </div>
+        </section>
+
+        <!-- Search Results View -->
+        <section class="section" id="search-results">
+            <div class="search-filters">
+                <button class="filter-pill active">All</button>
+                <button class="filter-pill">Songs</button>
+                <button class="filter-pill">Playlists</button>
+                <button class="filter-pill">Albums</button>
+                <button class="filter-pill">Artists</button>
+            </div>
+            <div class="search-content-grid">
+                <div class="top-result-col">
+                    <h2>Top result</h2>
+                    <div class="top-result-card" id="topResultCard">
+                    </div>
                 </div>
-                <div class="now-playing-meta">
-                    <div class="now-playing-label">Now Playing</div>
-                    <div class="now-playing-title" id="currentTrackTitle">No Track Selected</div>
-                    <div class="now-playing-artist" id="currentTrackArtist">Upload audio to begin</div>
-                    <div class="now-playing-playlist" id="currentPlaylistName">SQL Server DB: MusicPlayerDb</div>
+                <div class="songs-result-col">
+                    <h2>Songs</h2>
+                    <div class="search-songs-list" id="searchSongsList">
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- Browse All View -->
+        <section class="section" id="browse">
+            <div class="browse-header">
+                <h2>Browse all</h2>
+            </div>
+            <div class="browse-grid" id="browseCategoryGrid">
+                <!-- Colorful category cards populated by JS -->
+            </div>
+        </section>
+
+        <!-- Playlist Detail View -->
+        <section class="section" id="playlist-view">
+            <div class="playlist-hero">
+                <div class="playlist-cover-shadow">
+                    <img id="pvCoverArt" src="" alt="Playlist Cover">
+                </div>
+                <div class="playlist-hero-info">
+                    <span class="eyebrow">Playlist</span>
+                    <h1 id="pvTitle" class="massive-title">Playlist Title</h1>
+                    <div class="playlist-description" id="pvDescription">Description goes here</div>
                     
-                    <div class="ai-features-container" id="aiFeaturesContainer">
-                        <div class="ai-feature-pill" id="pillGenre">Genre: --</div>
-                        <div class="ai-feature-pill" id="pillMood">Mood: --</div>
-                        <div class="ai-feature-pill" id="pillTempo">Tempo: -- BPM</div>
+                    <!-- Waveform and Danmaku Container -->
+                    <div class="waveform-container" id="waveformContainer" style="display: none;">
+                        <div class="danmaku-layer" id="danmakuLayer"></div>
+                        <canvas id="waveformCanvas" width="800" height="80"></canvas>
+                        <div class="waveform-progress" id="waveformProgress"></div>
+                        <div class="comment-input-popover" id="commentPopover" style="display: none;">
+                            <input type="text" id="commentInput" placeholder="Add a comment..." onkeypress="handleCommentSubmit(event)">
+                        </div>
+                    </div>
+
+                    <div class="playlist-stats">
+                        <img id="pvCreatorAvatar" src="" class="creator-avatar" alt="User Avatar" onerror="this.style.display='none'">
+                        <span class="creator-name" id="pvCreatorName">Spotifake User</span>
+                        <span class="stats-dot">•</span>
+                        <span id="pvSongCount">0 songs</span>, 
+                        <span class="duration-text" id="pvTotalDuration">about 0 min</span>
                     </div>
                 </div>
             </div>
+            
+            <div class="playlist-action-bar">
+                <button class="big-play-btn" id="pvPlayBtn" title="Play">
+                    <svg height="28" width="28" viewBox="0 0 24 24" fill="#000"><path d="M7.05 3.606l13.49 7.788a.7.7 0 010 1.212L7.05 20.394A.7.7 0 016 19.788V4.212a.7.7 0 011.05-.606z"></path></svg>
+                </button>
+                <button class="action-icon-btn" title="Save to Your Library">
+                    <svg role="img" height="32" width="32" viewBox="0 0 24 24" fill="currentColor"><path d="M5.21 1.57a6.757 6.757 0 016.708 1.545.124.124 0 00.165 0 6.741 6.741 0 015.715-1.78l.004.001a6.802 6.802 0 015.571 5.376v.003a6.689 6.689 0 01-1.49 5.655l-7.954 9.48a.25.25 0 01-.389 0l-7.954-9.48a6.688 6.688 0 01-1.49-5.655V6.71a6.804 6.804 0 015.57-5.376h.001l.004-.001a6.741 6.741 0 011.535.242z"></path></svg>
+                </button>
+                <button class="action-icon-btn" title="More options">
+                    <svg role="img" height="32" width="32" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm15 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm-7.5 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"></path></svg>
+                </button>
+            </div>
+            
+            <div class="track-table-container">
+                <table class="track-table">
+                    <thead>
+                        <tr>
+                            <th class="col-index">#</th>
+                            <th class="col-title">Title</th>
+                            <th class="col-album">Album</th>
+                            <th class="col-date">Date added</th>
+                            <th class="col-duration">🕒</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pvTrackList">
+                        <!-- Tracks populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-            <!-- AI Feature Breakdown Detail Panel -->
-            <div class="ai-breakdown-card" id="aiBreakdownCard">
-                <div class="ai-card-header">
-                    <h3>🔬 AI Audio Analysis (Librosa Extracted)</h3>
-                    <span class="ai-badge">SQL Server Stored</span>
-                </div>
-                <div class="ai-metrics-grid">
-                    <div class="metric-item">
-                        <div class="metric-label">Energy</div>
-                        <div class="metric-bar"><div class="metric-fill" id="fillEnergy" style="width: 0%"></div></div>
-                        <div class="metric-value" id="valEnergy">0.00</div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="metric-label">Danceability</div>
-                        <div class="metric-bar"><div class="metric-fill" id="fillDanceability" style="width: 0%"></div></div>
-                        <div class="metric-value" id="valDanceability">0.00</div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="metric-label">Valence (Positivity)</div>
-                        <div class="metric-bar"><div class="metric-fill" id="fillValence" style="width: 0%"></div></div>
-                        <div class="metric-value" id="valValence">0.00</div>
-                    </div>
-                    <div class="metric-item">
-                        <div class="metric-label">Acousticness</div>
-                        <div class="metric-bar"><div class="metric-fill" id="fillAcousticness" style="width: 0%"></div></div>
-                        <div class="metric-value" id="valAcousticness">0.00</div>
-                    </div>
+        <!-- Fullscreen Lyrics View -->
+        <section class="section lyrics-view-section" id="lyrics-view" hidden>
+            <div class="lyrics-canvas" id="lyricsCanvas">
+                <div class="lyrics-text-container" id="lyricsTextContainer">
+                    <div class="lyric-line active">♪ ♪ ♪</div>
                 </div>
             </div>
         </section>
@@ -258,50 +322,93 @@
             </div>
         </section>
 
-        <!-- Queue Panel -->
-        <section class="queue-panel">
-            <div class="section-header compact">
-                <div>
-                    <div class="eyebrow">Queue</div>
-                    <h2>Up Next</h2>
+    </main>
+
+    <!-- 3. Right Side Panel -->
+    <aside class="right-side-panel" id="rightSidePanel" hidden>
+        <div class="right-panel-header">
+            <h3 id="rightPanelContextTitle">My Playlist #1</h3>
+            <button class="icon-button" onclick="toggleQueuePanel()" title="Close">×</button>
+        </div>
+        <div class="right-panel-scroll">
+            <div id="rightPanelNowPlayingView">
+                <div class="large-album-art" id="rightPanelArtContainer">
+                    <div class="large-art-placeholder" id="rightPanelArt">♪</div>
+                </div>
+                <div class="right-panel-meta">
+                    <div class="title-row">
+                        <div>
+                            <div class="track-title" id="rightPanelTrackTitle">Title</div>
+                            <div class="track-artist" id="rightPanelTrackArtist">Artist</div>
+                        </div>
+                        <button class="add-to-playlist-btn" onclick="openAddToPlaylistModal()" title="Add to playlist">+</button>
+                    </div>
+                </div>
+
+                <div class="artist-credits-card">
+                    <div class="credits-header">
+                        <h4>Credits</h4>
+                        <button class="text-link">Show all</button>
+                    </div>
+                    <div class="credits-body">
+                        <div class="credit-artist-info">
+                            <div class="credit-artist-name" id="rightPanelCreditName">Artist</div>
+                            <div class="credit-role">Main Artist</div>
+                        </div>
+                        <button class="follow-btn" id="rightPanelFollowBtn" onclick="toggleFollowArtist()">Follow</button>
+                    </div>
                 </div>
             </div>
-            <div class="queue-list" id="queueList"></div>
-        </section>
-    </main>
+
+            <div id="rightPanelQueueView" hidden>
+                <div class="queue-section-title">Now playing</div>
+                <div id="queueNowPlayingCard"></div>
+                <div class="queue-section-title" id="queueNextFromContext">Next up</div>
+                <div class="queue-list" id="queueList"></div>
+            </div>
+        </div>
+    </aside>
 </div>
 
 <footer class="player-bar">
     <div class="player-left">
         <div class="mini-art" id="miniArt">♪</div>
-        <div>
+        <div class="player-track-info">
             <div class="player-track" id="playerTrack">No Track Selected</div>
             <div class="player-artist" id="playerArtist">Upload audio to begin</div>
         </div>
+        <button class="add-to-playlist-btn" onclick="openAddToPlaylistModal()" title="Save to Your Library">+</button>
     </div>
 
     <div class="player-center">
         <div class="control-row">
-            <button class="icon-button" onclick="previousTrack()">⏮</button>
-            <button class="icon-button strong" onclick="togglePlay()" id="playPauseButton">▶</button>
-            <button class="icon-button" onclick="nextTrack()">⏭</button>
-            <button class="icon-button" id="shuffleButton" onclick="toggleShuffle()">🔀</button>
-            <button class="icon-button" id="loopButton" onclick="cycleLoop()">↻</button>
+            <button class="icon-button" id="shuffleButton" onclick="toggleShuffle()" title="Enable shuffle">🔀</button>
+            <button class="icon-button" onclick="previousTrack()" title="Previous">⏮</button>
+            <button class="icon-button strong" onclick="togglePlay()" id="playPauseButton" title="Play">▶</button>
+            <button class="icon-button" onclick="nextTrack()" title="Next">⏭</button>
+            <button class="icon-button" id="loopButton" onclick="cycleLoop()" title="Enable repeat">↻</button>
         </div>
 
         <div class="progress-wrap">
-            <span id="currentTime">0:00</span>
+            <span id="currentTime" class="time-label">0:00</span>
             <div class="progress-bar" onclick="seekFromClick(event)">
-                <div class="progress-fill" id="progressFill"></div>
+                <div class="progress-fill" id="progressFill">
+                    <div class="progress-thumb"></div>
+                </div>
             </div>
-            <span id="totalTime">0:00</span>
+            <span id="totalTime" class="time-label">0:00</span>
         </div>
     </div>
 
     <div class="player-right">
+        <button class="right-icon-btn" onclick="toggleLyricsView()" title="Lyrics">🎤</button>
+        <button class="right-icon-btn" onclick="toggleQueuePanel()" title="Queue">≡</button>
+        <button class="right-icon-btn" onclick="toggleMiniPlayer()" title="Mini Player">🗔</button>
         <div class="volume-wrap">
-            <span>🔊</span>
-            <input type="range" id="volumeControl" min="0" max="100" value="72" oninput="setVolume(this.value)">
+            <button class="right-icon-btn" onclick="toggleMute()" title="Mute">🔊</button>
+            <div class="volume-slider-bar">
+                <input type="range" id="volumeControl" min="0" max="100" value="72" oninput="setVolume(this.value)">
+            </div>
         </div>
     </div>
 </footer>

@@ -32,10 +32,10 @@ def _load_model():
         return
     base = os.path.dirname(__file__)
     candidates = [
-        os.path.join(base, 'models', 'genre18_rf.joblib'),         # 18-genre trained model (preferred)
+        os.path.join(base, 'ml_models', 'genre18_rf.joblib'),         # 18-genre trained model (preferred)
         os.path.join(base, 'datasets', 'genre18_audio', 'genre18_rf.joblib'),  # produced by downloader pipeline
-        os.path.join(base, 'models', 'gtzan_genre_rf.joblib'),     # GTZAN 10-class fallback
-        os.path.join(base, 'models', 'genre_rf.joblib'),
+        os.path.join(base, 'ml_models', 'gtzan_genre_rf.joblib'),     # GTZAN 10-class fallback
+        os.path.join(base, 'ml_models', 'genre_rf.joblib'),
     ]
     for p in candidates:
         if os.path.exists(p):
