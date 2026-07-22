@@ -1,43 +1,83 @@
-# Implementation Progress: SQL Server + Auth System
+# Migration: WebClient -> WebClientMvc ✅ COMPLETE
 
-## Phase 1: C# DataAccess Models (SQL Server Schema)
-- [x] Step 1: Update `DataAccess/Models/User.cs` - Add Username, Role, DisplayName, Bio, AvatarUrl, IsEmailVerified, UpdatedAt
-- [x] Step 2: Create `DataAccess/Models/ArtistProfile.cs` - New model
-- [x] Step 3: Create `DataAccess/Models/AdminAuditLog.cs` - New model
-- [x] Step 4: Update `DataAccess/Models/Song.cs` - Add UserID FK
-- [x] Step 5: Update `DataAccess/Models/Playlist.cs` - Add User navigation
-- [x] Step 6: Update `DataAccess/MusicPlayerContext.cs` - Register new DbSets + relationships
+## Architecture
+Browser → WebClientMvc (Views only) → JavaScript (site.js) → FastAPI REST API → SQL Server
 
-## Phase 2: Python FastAPI Backend
-- [x] Step 7: Update `BackendAI/models.py` - Add User, ArtistProfile, AdminAuditLog SQLModels
-- [x] Step 8: Update `BackendAI/schemas.py` - Add RegisterRequest/Response, update Login
-- [x] Step 9: Update `BackendAI/db.py` - Add SQL Server connection support
-- [x] Step 10: Update `BackendAI/requirements.txt` - Add bcrypt, pyodbc
-- [x] Step 11: Update `BackendAI/main.py` - Remove TEST_USERS, add register, login, role-based auth, admin endpoints
+## Completed Steps
 
-## Phase 3: Web Frontend
-- [x] Step 12: Update `WebClient/index.html` - JWT auth, registration form, role-based UI
+### ✅ Step 1: Configure appsettings.json
+- Removed server-side JWT config (Issuer, Audience, Key, ExpiresMinutes)
+- Added `ApiSettings:BaseUrl` pointing to `http://127.0.0.1:8000`
 
-## Phase 4: Final Verification — SQL Server Connection
-- [x] Step 13: Rewrote `BackendAI/db.py` — removed SQLite, DB_TYPE, os/dotenv imports, hardcoded SQL Server connection string
-- [x] Step 14: Cleaned `BackendAI/main.py` — removed `create_db_and_tables` import, duplicate `engine` import, `SQLModel` import, `create_all()` startup event
-- [x] Step 15: Verified `Spotifake/BackendAI/db.py` already uses SQL Server
-- [x] Step 16: Scanned all `.py` files for `sqlite`, `backendai.db`, `check_same_thread`, `DB_TYPE` — **zero matches found** (only an innocent comment about "no SQLite")
+### ✅ Step 2: Simplify Program.cs
+- Removed `AddAuthentication()` / `AddAuthorization()` / `UseAuthentication()` / `UseAuthorization()`
+- Removed JwtBearer middleware configuration
+- Removed all `using` statements for auth namespaces
+- MVC serves views only — no server-side auth
 
-## ✅ Backend is now fully connected to MusicPlayerDb on SQL Server(LAPTOP-12OGD3V1)
+### ✅ Step 3: Clean AuthController.cs
+- Removed all hardcoded test users (`user_test`, `artist_test`, `admin_test`)
+- Removed local JWT generation logic
+- Removed all auth endpoints (`/auth/login`, `/auth/me`)
+- Reduced to minimal controller that redirects to Home/Index
+- Auth is now handled 100% client-side via JavaScript → FastAPI
 
-### Modified files:
-1. `BackendAI/db.py` — Rewrote with only SQL Server engine
-2. `BackendAI/main.py` — Removed SQLite/startup references
+### ✅ Step 4: Update wwwroot/css/site.css (COMPLETE DARK THEME)
+- Full dark theme with Spotify-inspired styling
+- Added: auth-tabs, user-badge, loading/error/success states
+- Added: song-grid, song-card, features-grid, spotify-auth styling
+- Added: login-gate gradient background, responsive breakpoints
+- Added: tab-button, upload-area, drag-and-drop states
 
-### Connection verified:
-```
-mssql+pyodbc://@LAPTOP-12OGD3V1/MusicPlayerDb?driver=ODBC+Driver+18+for+SQL+Server&trusted_connection=yes&TrustServerCertificate=yes
-```
+### ✅ Step 5: Update wwwroot/js/site.js (COMPLETE SPA LOGIC)
+- `API_BASE = "http://127.0.0.1:8000"` - single configurable endpoint
+- `getAuthHeaders()` / `fetchWithAuth()` - auto-attaches `Authorization: Bearer <token>`
+- JWT stored in `localStorage` key `spotifake_token`
+- **Login**: calls `${API_BASE}/auth/login`, stores token
+- **Register**: calls `${API_BASE}/auth/register`, stores token
+- **Upload**: calls `${API_BASE}/songs/upload` with multipart form data
+- **Songs list**: calls `${API_BASE}/songs` with auth
+- **Spotify**: auth-url, authenticate-with-code, search, tracks, playlists, playlist tracks
+- **Recommendations**: calls `${API_BASE}/recommendations/hybrid` with seed song
+- **Classifier**: calls `${API_BASE}/classify-file` for genre prediction
+- **Health check**: calls `${API_BASE}/health`
+- **Auto-login recovery**: on page load, validates existing token via `${API_BASE}/auth/me`
+- **Logout**: clears localStorage, shows login gate
 
-### To run:
-```bash
-pip install -r BackendAI/requirements.txt
-python BackendAI/start_backend.py
-```
+### ✅ Step 6: Update Views/Home/Index.cshtml (COMPLETE SPA HTML)
+- Login/Register tabs with full forms (username, password, email, role, display name)
+- User badge with display name, role, logout button
+- Home section with stats (songs count, features)
+- Upload section with drag-and-drop file selector
+- My Songs section with song grid and audio features
+- Spotify section with tabs: Search, Liked Songs, Playlists
+- Test Classifier section with file upload and results display
+- Recommendations section with seed song selector
 
+### ✅ Step 7: Build Verification
+- `dotnet build` succeeded (6.1s)
+- No compile errors
+- No missing namespaces or references
+
+## Modified Files
+1. `WebClientMvc/WebClientMVC/WebClientMVC/appsettings.json`
+2. `WebClientMvc/WebClientMVC/WebClientMVC/Program.cs`
+3. `WebClientMvc/WebClientMVC/WebClientMVC/Controllers/AuthController.cs`
+4. `WebClientMvc/WebClientMVC/WebClientMVC/Views/Home/Index.cshtml`
+5. `WebClientMvc/WebClientMVC/WebClientMVC/wwwroot/js/site.js`
+6. `WebClientMvc/WebClientMVC/WebClientMVC/wwwroot/css/site.css`
+
+## Files NOT Modified (preserved intentionally)
+- `WebClientMvc.csproj` - No DataAccess dependency added
+- `DataAccess/` - Not referenced by WebClientMvc (correctly isolated)
+- `HomeController.cs` - Minimal, serves views only
+- `DesktopClient/` - Not affected by migration
+- `BackendAI/` - Not affected by migration
+- All model files (JwtLoginRequest.cs, JwtLoginResponse.cs, ErrorViewModel.cs)
+
+## Architecture Compliance
+✅ WebClientMvc communicates EXCLUSIVELY with FastAPI via HTTP
+✅ No direct SQL Server connection from WebClientMvc
+✅ No duplicate business logic - all logic lives in FastAPI
+✅ JWT handled client-side via localStorage
+✅ All existing features preserved (login, register, upload, Spotify, recommendations, classifier)
