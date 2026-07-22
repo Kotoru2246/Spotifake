@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from uuid import UUID
 import asyncio
+import threading
 import numpy as np
 import jwt
 from sqlmodel import Session, select
@@ -14,7 +15,7 @@ from .spotify_integration import SpotifyIntegration
 from .callback_server import start_callback_server, stop_callback_server, get_auth_code, reset_auth_code
 from .db import create_db_and_tables, engine
 from .models import Song, SongCreate, SongRead
-from .upload_handler import process_uploaded_song
+from .upload_handler import save_upload_file
 from .audio_features import categorize_genre_and_mood, extract_audio_features
 from .essentia_client import classify_with_features
 import tempfile
@@ -26,7 +27,7 @@ security = HTTPBearer(auto_error=False)
 
 JWT_SECRET = os.getenv("JWT_SECRET", "spotifake-dev-secret-change-me")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
 TEST_USERS = {
     "user_test": {"password": "User@123", "role": "user"},
@@ -256,6 +257,35 @@ def search_spotify(query: str, search_type: str = "track", limit: int = 50, curr
     return {"query": query, "type": search_type, "results": results, "count": len(results)}
 
 
+def _extract_and_update(song_id: int, file_path: str):
+    """Background task: extract audio features and update the song record."""
+    try:
+        print(f"[bg] Starting feature extraction for song {song_id}: {file_path}")
+        features = extract_audio_features(file_path)
+        genre, mood = categorize_genre_and_mood(features, file_path)
+        print(f"[bg] Done — genre={genre}, mood={mood}")
+        with Session(engine) as bg_session:
+            song = bg_session.get(Song, song_id)
+            if song:
+                song.tempo           = features.get("tempo", 0.0)
+                song.energy          = features.get("energy", 0.0)
+                song.danceability    = features.get("danceability", 0.0)
+                song.valence         = features.get("valence", 0.0)
+                song.acousticness    = features.get("acousticness", 0.0)
+                song.instrumentalness = features.get("instrumentalness", 0.0)
+                song.key             = features.get("key", 0)
+                song.mode            = features.get("mode", 0)
+                song.duration_ms     = features.get("duration_ms", song.duration_ms)
+                song.genre           = genre
+                song.mood            = mood
+                song.tags            = f"{genre},{mood}"
+                bg_session.add(song)
+                bg_session.commit()
+                print(f"[bg] Song {song_id} updated in DB.")
+    except Exception as e:
+        print(f"[bg] Feature extraction failed for song {song_id}: {e}")
+
+
 @app.post("/songs/upload", response_model=SongRead)
 async def upload_song(
     file: UploadFile = File(...),
@@ -266,23 +296,64 @@ async def upload_song(
     current_user=Depends(get_current_user)
 ):
     """
-    Upload a song file and extract audio features.
-    
-    Returns the created song with extracted features.
+    Upload a song file. Saves immediately and returns fast.
+    Feature extraction (genre/mood/tempo) runs in the background.
+    Poll GET /songs/{id}/features to check when analysis is done.
     """
     try:
-        # Process upload and extract features
-        song_create = await process_uploaded_song(file, title, artist, album)
-        
-        # Save to database using plain Python values
-        song = Song(**song_create.model_dump())
+        # 1. Save the file to disk immediately
+        file_path = await save_upload_file(file)
+
+        # 2. Save the song to DB right away with placeholder features
+        song = Song(
+            source="upload",
+            title=title,
+            artist=artist,
+            album=album,
+            file_path=file_path,
+            storage_url=file_path,
+            duration_ms=0,
+            tempo=0.0, energy=0.0, danceability=0.0,
+            valence=0.0, acousticness=0.0, instrumentalness=0.0,
+            key=0, mode=0,
+            genre="analyzing...",
+            mood="analyzing...",
+            tags="analyzing...",
+        )
         session.add(song)
         session.commit()
         session.refresh(song)
-        
+
+        # 3. Kick off feature extraction in a background thread (non-blocking)
+        t = threading.Thread(
+            target=_extract_and_update,
+            args=(song.id, file_path),
+            daemon=True
+        )
+        t.start()
+
+        # 4. Return immediately — frontend gets the song record in < 1 second
         return song
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error uploading song: {str(e)}")
+
+
+@app.get("/songs/{song_id}/features")
+def get_song_features(song_id: int, session: Session = Depends(get_session)):
+    """Poll this endpoint to check if background feature extraction is done."""
+    song = session.get(Song, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail=f"Song {song_id} not found")
+    ready = song.genre not in (None, "", "analyzing...")
+    return {
+        "ready": ready,
+        "genre": song.genre,
+        "mood": song.mood,
+        "tempo": song.tempo,
+        "energy": song.energy,
+        "danceability": song.danceability,
+        "valence": song.valence,
+    }
 
 
 @app.post("/classify-file")
@@ -335,19 +406,48 @@ async def classify_file(file: UploadFile = File(...), current_user=Depends(get_c
 
 
 @app.get("/songs", response_model=list[SongRead])
-def list_songs(session: Session = Depends(get_session), current_user=Depends(get_current_user)):
-    """List all uploaded songs."""
+def list_songs(session: Session = Depends(get_session)):
+    """List all uploaded songs from SQL Server."""
     songs = session.exec(select(Song)).all()
     return songs
 
 
 @app.get("/songs/{song_id}", response_model=SongRead)
-def get_song(song_id: int, session: Session = Depends(get_session), current_user=Depends(get_current_user)):
+def get_song(song_id: int, session: Session = Depends(get_session)):
     """Get a song by ID."""
     song = session.get(Song, song_id)
     if not song:
         raise HTTPException(status_code=404, detail=f"Song {song_id} not found")
     return song
+
+
+
+@app.get("/songs/{song_id}/stream")
+def stream_song(song_id: int, session: Session = Depends(get_session)):
+    """Stream an uploaded song audio file for web playback."""
+    song = session.get(Song, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail=f"Song {song_id} not found")
+
+    if not song.file_path or not os.path.exists(song.file_path):
+        raise HTTPException(status_code=404, detail="Audio file not found on server")
+
+    extension = os.path.splitext(song.file_path)[1].lower()
+    media_types = {
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".m4a": "audio/mp4",
+        ".flac": "audio/flac",
+    }
+    media_type = media_types.get(extension, "audio/mpeg")
+
+    return FileResponse(
+        path=song.file_path,
+        media_type=media_type,
+        filename=os.path.basename(song.file_path),
+    )
+
 
 
 @app.post("/recommendations/hybrid")

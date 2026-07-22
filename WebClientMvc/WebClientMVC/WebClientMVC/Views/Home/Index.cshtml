@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Spotifake Player";
 }
 
@@ -7,7 +7,7 @@
         <div class="brand-mark">S</div>
         <div>
             <div class="sidebar-title">Spotifake</div>
-            <div class="sidebar-subtitle">Music Player</div>
+            <div class="sidebar-subtitle">AI Music Platform</div>
         </div>
     </div>
     <div class="auth-actions">
@@ -21,46 +21,46 @@
 <div class="login-gate" id="loginGate" hidden>
     <section class="auth-panel" id="authPanel">
         <div class="login-card auth-panel-card">
-        <div class="brand-lockup">
-            <div class="brand-mark">S</div>
-            <div>
-                <h2 class="login-title" id="authPanelTitle">Sign in</h2>
-                <p class="login-subtitle" id="authPanelSubtitle">Use a demo account to unlock uploads and imports.</p>
+            <div class="brand-lockup">
+                <div class="brand-mark">S</div>
+                <div>
+                    <h2 class="login-title" id="authPanelTitle">Sign in to Spotifake</h2>
+                    <p class="login-subtitle" id="authPanelSubtitle">Connect with real JWT authentication & SQL Server.</p>
+                </div>
             </div>
-        </div>
 
-        <div class="credentials-box" id="credentialsBox">
-            <h3>Test credentials</h3>
-            <div class="credential-row"><span><span class="role-tag">User</span> user_test / user123</span></div>
-            <div class="credential-row"><span><span class="role-tag">Artist</span> artist_test / artist123</span></div>
-            <div class="credential-row"><span><span class="role-tag">Admin</span> admin_test / admin123</span></div>
-        </div>
+            <div class="credentials-box" id="credentialsBox">
+                <h3>Backend AI Credentials (SQL Server DB)</h3>
+                <div class="credential-row" onclick="fillCredentials('user_test', 'User@123', 'user')"><span><span class="role-tag">User</span> user_test / User@123</span></div>
+                <div class="credential-row" onclick="fillCredentials('artist_test', 'Artist@123', 'artist')"><span><span class="role-tag">Artist</span> artist_test / Artist@123</span></div>
+                <div class="credential-row" onclick="fillCredentials('admin_test', 'Admin@123', 'admin')"><span><span class="role-tag">Admin</span> admin_test / Admin@123</span></div>
+            </div>
 
-        <div class="auth-signup-note" id="signupNote" hidden>
-            Sign up is not connected to a backend yet. Use one of the demo accounts above to explore the project.
-        </div>
+            <div class="auth-signup-note" id="signupNote" hidden>
+                Sign up creates a demo session. Select a demo account above to sign in.
+            </div>
 
-        <form id="loginForm">
-            <div class="form-group">
-                <label for="accountType">Account Type</label>
-                <select id="accountType" name="role" required>
-                    <option value="user">User</option>
-                    <option value="artist">Artist</option>
-                    <option value="admin">Admin</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="loginUsername">Username</label>
-                <input type="text" id="loginUsername" name="username" placeholder="Enter username" required>
-            </div>
-            <div class="form-group">
-                <label for="loginPassword">Password</label>
-                <input type="password" id="loginPassword" name="password" placeholder="Enter password" required>
-            </div>
-            <button type="submit" class="full-width">Login</button>
-            <div id="loginError" class="login-error"></div>
-            <div id="loginStatus" class="login-status"></div>
-        </form>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="accountType">Account Type</label>
+                    <select id="accountType" name="role" required>
+                        <option value="user">User</option>
+                        <option value="artist">Artist</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" name="username" placeholder="Enter username" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" name="password" placeholder="Enter password" required>
+                </div>
+                <button type="submit" class="full-width primary-action">Login</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginStatus" class="login-status"></div>
+            </form>
         </div>
     </section>
 </div>
@@ -71,143 +71,179 @@
             <div class="sidebar-mark">S</div>
             <div>
                 <div class="sidebar-title">Spotifake</div>
-                <div class="sidebar-subtitle">Music Player</div>
+                <div class="sidebar-subtitle">AI Music Platform</div>
             </div>
         </div>
 
         <nav class="sidebar-nav">
-            <button class="sidebar-link active" data-section="home" onclick="showSection('home')">Home</button>
-            <button class="sidebar-link" data-section="library" onclick="showSection('library')">Library</button>
-            <button class="sidebar-link" data-section="imports" onclick="showSection('imports')">Import Songs</button>
-            <button class="sidebar-link" data-section="playlists" onclick="showSection('playlists')">Playlists</button>
+            <button class="sidebar-link active" data-section="home" onclick="showSection('home')">
+                <span class="nav-icon">🏠</span> Home
+            </button>
+            <button class="sidebar-link" data-section="library" onclick="showSection('library')">
+                <span class="nav-icon">📚</span> Library
+            </button>
+            <button class="sidebar-link" data-section="upload-ai" onclick="showSection('upload-ai')">
+                <span class="nav-icon">🎙️</span> AI Song Upload
+            </button>
+            <button class="sidebar-link" data-section="playlists" onclick="showSection('playlists')">
+                <span class="nav-icon">🎵</span> Playlists
+            </button>
             <a class="sidebar-link admin-only" id="adminNavLink" href="/admin/dashboard" hidden>Admin Dashboard</a>
         </nav>
 
         <div class="sidebar-card">
             <div class="sidebar-card-label">Now Playing</div>
-            <div class="sidebar-track-title" id="sidebarTrackTitle">Midnight Dreams</div>
-            <div class="sidebar-track-artist" id="sidebarTrackArtist">Luna Waves</div>
+            <div class="sidebar-track-title" id="sidebarTrackTitle">No Track Selected</div>
+            <div class="sidebar-track-artist" id="sidebarTrackArtist">Upload audio to begin</div>
+            <div class="sidebar-ai-tag" id="sidebarAiTag">Genre: -- | Mood: --</div>
         </div>
     </aside>
 
     <main class="main-panel">
+        <!-- Home / Player View -->
         <section class="hero-panel section active" id="home">
             <div class="hero-copy">
-                <div class="eyebrow">Featured Playlist</div>
-                <h1>Listen, shuffle, loop, and play your music in one dark Spotify-style space.</h1>
-                <p>Smart Shuffle is shown as not implemented yet, but the rest of the player works as a polished mock experience.</p>
+                <div class="eyebrow">End-to-End AI Music Engine</div>
+                <h1>Dark Spotify-Style AI Player</h1>
+                <p>Upload audio files, automatically extract Librosa AI feature vectors, categorize genre and mood, and save directly to SQL Server.</p>
                 <div class="hero-actions">
-                    <button onclick="togglePlay()" class="primary-action">Play / Pause</button>
-                    <button onclick="toggleShuffle()" class="secondary-action">Shuffle</button>
-                    <button onclick="setLoopMode('track')" class="secondary-action">Loop Track</button>
-                    <button onclick="setLoopMode('playlist')" class="secondary-action">Loop Playlist</button>
-                    <button onclick="smartShuffle()" class="secondary-action muted">Smart Shuffle (Not Implemented Yet)</button>
+                    <button onclick="togglePlay()" class="primary-action">▶ Play / Pause</button>
+                    <button onclick="showSection('upload-ai')" class="secondary-action">🎙️ Upload New Song</button>
+                    <button onclick="toggleShuffle()" class="secondary-action">🔀 Shuffle</button>
+                    <button onclick="cycleLoop()" class="secondary-action">↻ Loop</button>
                 </div>
             </div>
 
             <div class="now-playing-card">
                 <div class="album-art" id="albumArt">
-                    <div class="album-art-badge">♪</div>
+                    <div class="album-art-badge" id="albumArtBadge">♪</div>
                 </div>
                 <div class="now-playing-meta">
                     <div class="now-playing-label">Now Playing</div>
-                    <div class="now-playing-title" id="currentTrackTitle">Midnight Dreams</div>
-                    <div class="now-playing-artist" id="currentTrackArtist">Luna Waves</div>
-                    <div class="now-playing-playlist" id="currentPlaylistName">Playlist: Neon Nights</div>
+                    <div class="now-playing-title" id="currentTrackTitle">No Track Selected</div>
+                    <div class="now-playing-artist" id="currentTrackArtist">Upload audio to begin</div>
+                    <div class="now-playing-playlist" id="currentPlaylistName">SQL Server DB: MusicPlayerDb</div>
+                    
+                    <div class="ai-features-container" id="aiFeaturesContainer">
+                        <div class="ai-feature-pill" id="pillGenre">Genre: --</div>
+                        <div class="ai-feature-pill" id="pillMood">Mood: --</div>
+                        <div class="ai-feature-pill" id="pillTempo">Tempo: -- BPM</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Feature Breakdown Detail Panel -->
+            <div class="ai-breakdown-card" id="aiBreakdownCard">
+                <div class="ai-card-header">
+                    <h3>🔬 AI Audio Analysis (Librosa Extracted)</h3>
+                    <span class="ai-badge">SQL Server Stored</span>
+                </div>
+                <div class="ai-metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">Energy</div>
+                        <div class="metric-bar"><div class="metric-fill" id="fillEnergy" style="width: 0%"></div></div>
+                        <div class="metric-value" id="valEnergy">0.00</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Danceability</div>
+                        <div class="metric-bar"><div class="metric-fill" id="fillDanceability" style="width: 0%"></div></div>
+                        <div class="metric-value" id="valDanceability">0.00</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Valence (Positivity)</div>
+                        <div class="metric-bar"><div class="metric-fill" id="fillValence" style="width: 0%"></div></div>
+                        <div class="metric-value" id="valValence">0.00</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Acousticness</div>
+                        <div class="metric-bar"><div class="metric-fill" id="fillAcousticness" style="width: 0%"></div></div>
+                        <div class="metric-value" id="valAcousticness">0.00</div>
+                    </div>
                 </div>
             </div>
         </section>
 
+        <!-- Library Section -->
         <section class="library-panel section" id="library">
             <div class="section-header">
                 <div>
-                    <div class="eyebrow">Library</div>
-                    <h2>All Your Songs</h2>
+                    <div class="eyebrow">SQL Server Storage</div>
+                    <h2>Track Library</h2>
                 </div>
                 <button onclick="showSection('home')" class="secondary-action">Back to Player</button>
             </div>
 
-            <div class="library-status standalone" id="libraryStatus">Loading songs from C:\Music...</div>
-
-            <div class="search-panel">
-                <div class="import-panel-title">Search music by name</div>
-                <div class="import-panel-row">
-                    <input type="text" id="musicSearchName" placeholder="Enter an artist, song title, or keyword">
-                    <button type="button" class="secondary-action" id="musicSearchButton">Show 3-5 Songs</button>
-                </div>
-                <div class="library-status" id="musicSearchStatus">Type a name and the app will show a small set of matching songs from C:\Music.</div>
-                <div class="search-results" id="musicSearchResults"></div>
-            </div>
-
-            <div class="import-panel">
-                <div class="import-panel-title">Add music to C:\Music</div>
-                <div class="import-panel-row">
-                    <input type="file" id="backendUpload" accept="audio/*" multiple>
-                    <button type="button" class="secondary-action" id="uploadToBackendButton">Upload to Backend Folder</button>
-                </div>
-                <div class="import-panel-row">
-                    <input type="url" id="importUrl" placeholder="Paste a direct audio file URL">
-                    <button type="button" class="secondary-action" id="importUrlButton">Import Direct Audio URL</button>
-                </div>
-                <div class="library-status" id="importStatus">YouTube links are not supported for downloading or conversion. Use a direct audio URL or upload local audio files.</div>
-            </div>
+            <div class="library-status standalone" id="libraryStatus">Loading songs from SQL Server...</div>
 
             <div class="playlist-grid" id="playlistGrid"></div>
         </section>
 
-        <section class="import-songs-panel section" id="imports">
+        <!-- AI Song Upload Section -->
+        <section class="import-songs-panel section" id="upload-ai">
             <div class="section-header">
                 <div>
-                    <div class="eyebrow">Import Songs</div>
-                    <h2>Add New Music</h2>
+                    <div class="eyebrow">Real AI Upload & Feature Extraction</div>
+                    <h2>Upload Audio File</h2>
                 </div>
                 <button onclick="showSection('library')" class="secondary-action">View Library</button>
             </div>
 
-            <div class="library-toolbar">
-                <div>
-                    <div class="library-toolbar-title">Load audio files</div>
-                    <div class="library-toolbar-subtitle">Pick local MP3, WAV, OGG, or M4A files to preview them in the player.</div>
-                </div>
-                <label class="file-button" for="trackLoader">Choose Files</label>
-                <input type="file" id="trackLoader" accept="audio/*" multiple hidden>
-            </div>
+            <div class="ai-upload-card">
+                <form id="aiUploadForm" class="ai-upload-form">
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="uploadTitle">Song Title *</label>
+                            <input type="text" id="uploadTitle" placeholder="e.g. Midnight Dreams" required>
+                        </div>
+                        <div class="form-group half">
+                            <label for="uploadArtist">Artist Name *</label>
+                            <input type="text" id="uploadArtist" placeholder="e.g. Luna Waves" required>
+                        </div>
+                    </div>
 
-            <div class="import-panel">
-                <div class="import-panel-title">Add music to C:\Music</div>
-                <div class="import-panel-row">
-                    <input type="file" id="backendUpload" accept="audio/*" multiple>
-                    <button type="button" class="secondary-action" id="uploadToBackendButton">Upload to Backend Folder</button>
+                    <div class="form-group">
+                        <label for="uploadAlbum">Album Name (Optional)</label>
+                        <input type="text" id="uploadAlbum" placeholder="e.g. Neon Nights">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="uploadAudioFile">Audio File (.mp3, .wav, .flac) *</label>
+                        <input type="file" id="uploadAudioFile" accept="audio/*" required>
+                    </div>
+
+                    <button type="submit" class="primary-action full-width" id="btnUploadSubmit">
+                        🎙️ Upload & Extract AI Features (Save to SQL Server)
+                    </button>
+                </form>
+
+                <div class="library-status" id="uploadAiStatus">
+                    Select an audio file and fill in title/artist. Uploading processes audio with Librosa signal processing and saves metadata directly into SQL Server (`MusicPlayerDb`).
                 </div>
-                <div class="import-panel-row">
-                    <input type="url" id="importUrl" placeholder="Paste a direct audio file URL">
-                    <button type="button" class="secondary-action" id="importUrlButton">Import Direct Audio URL</button>
-                </div>
-                <div class="library-status" id="importStatus">YouTube links are not supported for downloading or conversion. Use a direct audio URL or upload local audio files.</div>
             </div>
         </section>
 
+        <!-- Playlists Section -->
         <section class="playlists-panel section" id="playlists">
             <div class="section-header">
                 <div>
                     <div class="eyebrow">Playlists</div>
-                    <h2>Create and Manage Playlists</h2>
+                    <h2>Create & Manage Playlists</h2>
                 </div>
                 <button onclick="showSection('home')" class="secondary-action">Back to Player</button>
             </div>
 
             <div class="import-panel">
-                <div class="import-panel-title">Create playlist</div>
+                <div class="import-panel-title">Create Playlist</div>
                 <div class="import-panel-row">
-                    <div class="library-status">Create a playlist with name, image URL, and songs in a popup window.</div>
+                    <div class="library-status">Organize uploaded songs into playlists.</div>
                     <button type="button" class="primary-action" id="createPlaylistButton">Create Playlist</button>
                 </div>
-                <div class="library-status" id="playlistStatus">Sign in as a user or artist to create playlists.</div>
+                <div class="library-status" id="playlistStatus">Sign in to manage playlists.</div>
             </div>
 
             <div class="admin-grid admin-grid-music">
                 <section class="admin-card">
-                    <div class="admin-card-subtitle">Your playlists</div>
+                    <div class="admin-card-subtitle">Your Playlists</div>
                     <div class="admin-list" id="userPlaylistList"></div>
                 </section>
                 <section class="admin-card">
@@ -222,43 +258,7 @@
             </div>
         </section>
 
-        <div class="playlist-modal" id="createPlaylistModal" hidden>
-            <div class="playlist-modal-card">
-                <h3>Create Playlist</h3>
-                <div class="form-group">
-                    <label for="createPlaylistName">Playlist Name</label>
-                    <input type="text" id="createPlaylistName" placeholder="Enter playlist name">
-                </div>
-                <div class="form-group">
-                    <label for="createPlaylistImageUrl">Image URL</label>
-                    <input type="url" id="createPlaylistImageUrl" placeholder="Paste image URL (optional)">
-                </div>
-                <div class="form-group">
-                    <label for="createPlaylistSongs">Songs To Add</label>
-                    <select id="createPlaylistSongs" multiple size="8"></select>
-                </div>
-                <div class="admin-item-actions">
-                    <button type="button" class="secondary-action" id="cancelCreatePlaylistButton">Cancel</button>
-                    <button type="button" class="primary-action" id="submitCreatePlaylistButton">Create Playlist</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="playlist-modal" id="addSongToPlaylistModal" hidden>
-            <div class="playlist-modal-card">
-                <h3>Add Song To Playlist</h3>
-                <div class="library-status" id="addSongModalTrackLabel"></div>
-                <div class="form-group">
-                    <label for="addSongPlaylistSelect">Select Playlist</label>
-                    <select id="addSongPlaylistSelect"></select>
-                </div>
-                <div class="admin-item-actions">
-                    <button type="button" class="secondary-action" id="cancelAddSongModalButton">Cancel</button>
-                    <button type="button" class="primary-action" id="confirmAddSongModalButton">Add To Playlist</button>
-                </div>
-            </div>
-        </div>
-
+        <!-- Queue Panel -->
         <section class="queue-panel">
             <div class="section-header compact">
                 <div>
@@ -273,10 +273,10 @@
 
 <footer class="player-bar">
     <div class="player-left">
-        <div class="mini-art" id="miniArt"></div>
+        <div class="mini-art" id="miniArt">♪</div>
         <div>
-            <div class="player-track" id="playerTrack">Midnight Dreams</div>
-            <div class="player-artist" id="playerArtist">Luna Waves</div>
+            <div class="player-track" id="playerTrack">No Track Selected</div>
+            <div class="player-artist" id="playerArtist">Upload audio to begin</div>
         </div>
     </div>
 
@@ -294,12 +294,11 @@
             <div class="progress-bar" onclick="seekFromClick(event)">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
-            <span id="totalTime">3:45</span>
+            <span id="totalTime">0:00</span>
         </div>
     </div>
 
     <div class="player-right">
-        <button class="smart-shuffle-button" onclick="smartShuffle()">Smart Shuffle (Not Implemented Yet)</button>
         <div class="volume-wrap">
             <span>🔊</span>
             <input type="range" id="volumeControl" min="0" max="100" value="72" oninput="setVolume(this.value)">
@@ -308,3 +307,4 @@
 </footer>
 
 <audio id="audioPlayer" preload="metadata"></audio>
+
