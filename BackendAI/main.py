@@ -122,15 +122,27 @@ def get_current_user(
 
     # Check if this is a demo/test user
     if username in TEST_USERS:
-        return User(
-            id=UUID(user_id) if isinstance(user_id, str) else user_id,
-            username=username,
-            email=f"{username}@musicplayer.local",
-            password_hash="",
-            role=token_role or TEST_USERS[username]["role"],
-            display_name=username,
-            account_status="Active"
-        )
+        user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+        # We must insert this user into the DB if they don't exist, otherwise comments will fail foreign key checks!
+        db_user = session.get(User, user_uuid)
+        if not db_user:
+            db_user = User(
+                id=user_uuid,
+                username=username,
+                email=f"{username}@musicplayer.local",
+                password_hash="testuser",
+                role=token_role or TEST_USERS[username]["role"],
+                display_name=username,
+                account_status="Active"
+            )
+            session.add(db_user)
+            try:
+                session.commit()
+                session.refresh(db_user)
+            except Exception:
+                session.rollback()
+        return db_user
+
 
     # Verify user exists in database
     try:
