@@ -1,5 +1,5 @@
 """
-GTZAN -> 18-Genre Taxonomy mapping
+GTZAN -> 11-Genre Taxonomy mapping
 
 Provides utilities to map GTZAN 10-class probabilities into
 the user's 18-genre taxonomy. This file is intended as a
@@ -12,47 +12,41 @@ Usage:
 """
 from typing import Dict
 
-# Canonical 18-genre target list (display names as provided by user)
+# Canonical 11-genre target list (display names as provided by user)
 TARGET_GENRES = [
     'Hip-Hop / Rap',
     'Pop',
     'Rock',
-    'Electronic Dance Music (EDM)',
-    'R&B (Rhythm and Blues)',
+    'R&B / Soul',
+    'Electronic / EDM',
     'Country',
     'Jazz',
+    'Blues',
     'Classical',
     'Reggae',
-    'Latin Music',
-    'K-Pop',
-    'J-Pop',
-    'Metal',
-    'Afrobeats',
-    'Folk',
-    'Blues',
-    'Soul',
-    'Funk',
-    'Indie / Alternative',
-    'Anime / Vocaloid',
+    'Latin',
 ]
 
 # A lightweight, hand-crafted mapping from GTZAN labels -> target genres
 # Each GTZAN key maps to a dict of target genres with relative weights.
 # These weights are heuristic and can be refined with validation data.
 GTZAN_TO_18 = {
-    'blues': {'Blues': 1.0, 'Soul': 0.25, 'Folk': 0.1},
+    'blues': {'Blues': 1.0, 'R&B / Soul': 0.25, 'Country': 0.1},
     'classical': {'Classical': 1.0},
-    'country': {'Country': 1.0, 'Folk': 0.35},
-    'disco': {'Funk': 0.8, 'Pop': 0.4, 'Electronic Dance Music (EDM)': 0.15},
-    'hiphop': {'Hip-Hop / Rap': 1.0, 'R&B (Rhythm and Blues)': 0.4},
-    'jazz': {'Jazz': 1.0, 'Soul': 0.3},
+    'country': {'Country': 1.0, 'Blues': 0.2},
+    'disco': {'R&B / Soul': 0.6, 'Pop': 0.4, 'Electronic / EDM': 0.15},
+    'hiphop': {'Hip-Hop / Rap': 1.0, 'R&B / Soul': 0.4},
+    'jazz': {'Jazz': 1.0, 'R&B / Soul': 0.3},
     'metal': {'Metal': 1.0, 'Rock': 0.4},
-    'pop': {'Pop': 1.0, 'K-Pop': 0.25, 'Indie / Alternative': 0.3},
-    'j-pop': {'J-Pop': 1.0, 'Pop': 0.35, 'K-Pop': 0.15},
-    'reggae': {'Reggae': 1.0, 'Afrobeats': 0.2},
-    'rock': {'Rock': 1.0, 'Indie / Alternative': 0.45},
-    'vocaloid': {'Anime / Vocaloid': 1.0, 'J-Pop': 0.25, 'Pop': 0.1},
+    'pop': {'Pop': 1.0, 'R&B / Soul': 0.25},
+    'j-pop': {'Pop': 1.0},
+    'reggae': {'Reggae': 1.0, 'Latin': 0.2},
+    'rock': {'Rock': 1.0, 'Blues': 0.25},
+    'vocaloid': {'Pop': 1.0},
 }
+
+# Fold any genre contributions that no longer exist in the 11-class taxonomy.
+GTZAN_TO_18['metal'] = {'Rock': 1.0}
 
 
 def map_gtzan_scores(gtzan_scores: Dict[str, float]) -> Dict[str, float]:

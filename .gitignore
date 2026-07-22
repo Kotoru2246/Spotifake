@@ -22,3 +22,21 @@ tempCodeRunnerFile.py
 # Windows
 Thumbs.db
 Desktop.ini
+
+# Audio / Media files
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.ogg
+*.mp4
+
+# Upload directories
+uploads/
+**/uploads/
+
+# Dataset directories & ML models
+**/datasets/
+**/spotify_dataset*/
+**/gtzan_data/
+**/*.joblib

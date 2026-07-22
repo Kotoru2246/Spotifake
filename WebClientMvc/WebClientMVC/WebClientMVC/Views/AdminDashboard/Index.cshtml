@@ -1,0 +1,47 @@
+@model WebClientMVC.Models.AdminDashboardPageViewModel
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<div class="admin-page-shell">
+    <header class="admin-page-header">
+        <div>
+            <div class="eyebrow">Control Center</div>
+            <h1>Admin Dashboard</h1>
+            <p>Manage users, artists, and music in dedicated sections.</p>
+        </div>
+        <div class="admin-page-actions">
+            <a class="secondary-action" href="/">Back To Player</a>
+        </div>
+    </header>
+
+    <nav class="admin-page-nav">
+        <a class="secondary-action" href="/admin/dashboard">Overview</a>
+        <a class="secondary-action" href="/admin/dashboard/users">Manage Users</a>
+        <a class="secondary-action" href="/admin/dashboard/artists">Manage Artists</a>
+        <a class="secondary-action" href="/admin/dashboard/music">Manage Music</a>
+    </nav>
+
+    <section class="admin-overview-grid">
+        <article class="admin-stat-card">
+            <div class="admin-stat-label">Library Tracks</div>
+            <div class="admin-stat-value">@Model.Dashboard.TotalTracks</div>
+            <div class="admin-stat-meta">@Model.Dashboard.MusicFolderPath</div>
+        </article>
+        <article class="admin-stat-card">
+            <div class="admin-stat-label">Active Users</div>
+            <div class="admin-stat-value">@Model.Dashboard.ActiveUsers</div>
+            <div class="admin-stat-meta">@Model.Dashboard.Users.Count total users</div>
+        </article>
+        <article class="admin-stat-card">
+            <div class="admin-stat-label">Active Artists</div>
+            <div class="admin-stat-value">@Model.Dashboard.ActiveArtists</div>
+            <div class="admin-stat-meta">@Model.Dashboard.Artists.Count total artists</div>
+        </article>
+        <article class="admin-stat-card">
+            <div class="admin-stat-label">Admins</div>
+            <div class="admin-stat-value">@Model.Dashboard.TotalAdmins</div>
+            <div class="admin-stat-meta">Last sync @Model.Dashboard.LastScanUtc.LocalDateTime</div>
+        </article>
+    </section>
+</div>

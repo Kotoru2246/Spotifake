@@ -92,7 +92,7 @@ def train_model_on_combined(csv_inputs: List[str], out_path: str, label_col: str
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--inputs', nargs='+', required=True, help='Input feature CSVs')
-    p.add_argument('--out', default='BackendAI/models/combined_genre_rf.joblib')
+    p.add_argument('--out', default='BackendAI/ml_models/combined_genre_rf.joblib')
     p.add_argument('--label-col', default=None)
     p.add_argument('--epochs', type=int, default=10, help='Number of progress epochs to display during training')
     args = p.parse_args()

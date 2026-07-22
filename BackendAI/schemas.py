@@ -43,3 +43,16 @@ class RegisterResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     created_at: datetime
+
+class CommentCreate(BaseModel):
+    song_id: int
+    timestamp_ms: int
+    content: str
+
+class CommentRead(BaseModel):
+    id: int
+    user_id: UUID
+    song_id: int
+    timestamp_ms: int
+    content: str
+    created_at: datetime

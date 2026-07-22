@@ -19,5 +19,7 @@ namespace DataAccess.Models
 
         // Navigation
         public User? UploadedBy { get; set; }
+        public Guid? GenreID { get; set; }  
+        public Genre? Genre { get; set; }  
     }
 }

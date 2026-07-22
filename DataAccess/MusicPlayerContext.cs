@@ -10,6 +10,11 @@ namespace DataAccess
         public DbSet<Playlist> Playlists => Set<Playlist>();
         public DbSet<PlaylistTrack> PlaylistTracks => Set<PlaylistTrack>();
         public DbSet<UserSession> UserSessions => Set<UserSession>();
+        public DbSet<UserListeningHistory> UserListeningHistories => Set<UserListeningHistory>();
+        public DbSet<UserFavorite> UserFavorites => Set<UserFavorite>();
+        public DbSet<Genre> Genres => Set<Genre>();
+        public DbSet<UserFollowing> UserFollowings => Set<UserFollowing>();
+        public DbSet<ArtistAnalytics> ArtistAnalytics => Set<ArtistAnalytics>();
         public DbSet<ArtistProfile> ArtistProfiles => Set<ArtistProfile>();
         public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
 
@@ -91,10 +96,98 @@ namespace DataAccess
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<PlaylistTrack>()
-                .HasOne(pt => pt.Song)
-                .WithMany()
-                .HasForeignKey(pt => pt.SongID)
-                .OnDelete(DeleteBehavior.Cascade);
+    .HasOne(pt => pt.Song)
+    .WithMany()
+    .HasForeignKey(pt => pt.SongID)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            // ===== UserListeningHistory Configuration =====
+            modelBuilder.Entity<UserListeningHistory>(entity =>
+            {
+                entity.HasKey(e => e.HistoryID);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Song)
+                    .WithMany()
+                    .HasForeignKey(e => e.SongID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.UserID, e.PlayedAt })
+                    .IsDescending(false, true);
+
+                entity.HasIndex(e => new { e.SongID, e.PlayedAt });
+            });
+
+            // ===== UserFavorite Configuration =====
+            modelBuilder.Entity<UserFavorite>(entity =>
+            {
+                entity.HasKey(e => e.FavoriteID);
+
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Song)
+                    .WithMany()
+                    .HasForeignKey(e => e.SongID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.UserID, e.SongID })
+                    .IsUnique();
+            });
+
+            // ===== Genre Configuration =====
+            modelBuilder.Entity<Genre>(entity =>
+            {
+                entity.HasKey(e => e.GenreID);
+
+                entity.HasIndex(e => e.Slug).IsUnique();
+
+                entity.HasMany(e => e.Songs)
+                    .WithOne(s => s.Genre)
+                    .HasForeignKey("GenreID")
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // ===== UserFollowing Configuration =====
+            modelBuilder.Entity<UserFollowing>(entity =>
+            {
+                entity.HasKey(e => e.FollowingID);
+
+                entity.HasOne(e => e.FollowerUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.FollowerUserID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.FollowedUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.FollowedUserID)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => new { e.FollowerUserID, e.FollowedUserID })
+                    .IsUnique();
+            });
+
+            // ===== ArtistAnalytics Configuration =====
+            modelBuilder.Entity<ArtistAnalytics>(entity =>
+            {
+                entity.HasKey(e => e.AnalyticsID);
+
+                entity.HasOne(e => e.Artist)
+                    .WithMany()
+                    .HasForeignKey(e => e.ArtistID)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.ArtistID, e.Date })
+                    .IsUnique();
+
+                entity.HasIndex(e => e.Date);
+            });
         }
     }
 }

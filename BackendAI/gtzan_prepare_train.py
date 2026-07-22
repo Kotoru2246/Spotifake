@@ -41,7 +41,7 @@ def main() -> None:
     audio_root = base / "gtzan_data" / "Data" / "genres_original"
     labels_csv = base / "gtzan_data" / "labels.csv"
     features_csv = base / "gtzan_data" / "features.csv"
-    model_out = base / "models" / "gtzan_genre_rf.joblib"
+    model_out = base / "ml_models" / "gtzan_genre_rf.joblib"
 
     if not audio_root.exists():
         raise FileNotFoundError(f"GTZAN audio root not found: {audio_root}")

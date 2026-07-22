@@ -1,0 +1,88 @@
+@model WebClientMVC.Models.AdminUserPlaylistsViewModel
+@{
+    ViewData["Title"] = $"{Model.Username} Playlists";
+}
+
+<div class="admin-page-shell">
+    <header class="admin-page-header">
+        <div>
+            <div class="eyebrow">User Playlists</div>
+            <h1>@Model.Username</h1>
+            <p>Create playlists and manage songs for this user.</p>
+        </div>
+        <a class="secondary-action" href="/admin/dashboard/users">Back To Users</a>
+    </header>
+
+    <section class="admin-card">
+        <form method="post" action="/admin/dashboard/users/@Uri.EscapeDataString(Model.Username)/playlists" class="playlist-create-row">
+            @Html.AntiForgeryToken()
+            <input type="text" name="name" placeholder="New playlist name" required>
+            <button type="submit" class="primary-action">Create Playlist</button>
+        </form>
+    </section>
+
+    <section class="admin-card">
+        <div class="admin-list">
+            @if (Model.Playlists.Count == 0)
+            {
+                <div class="admin-empty-state">This user has no playlists yet.</div>
+            }
+            else
+            {
+                foreach (var playlist in Model.Playlists)
+                {
+                    <article class="admin-list-item">
+                        <div class="admin-item-main">
+                            <div class="admin-item-header">
+                                <div class="admin-item-title">@playlist.Name</div>
+                                <span class="admin-badge is-featured">@playlist.Songs.Count songs</span>
+                            </div>
+                        </div>
+
+                        <div class="playlist-create-row">
+                            <form method="post" action="/admin/dashboard/users/@Uri.EscapeDataString(Model.Username)/playlists/@Uri.EscapeDataString(playlist.Id)/songs" class="playlist-create-row">
+                                @Html.AntiForgeryToken()
+                                <select name="fileName" required>
+                                    <option value="">Select a song</option>
+                                    @foreach (var song in Model.LibrarySongs)
+                                    {
+                                        <option value="@song.FileName">@song.DisplayName - @song.Artist</option>
+                                    }
+                                </select>
+                                <button type="submit" class="secondary-action">Add Song</button>
+                            </form>
+
+                            <form method="post" action="/admin/dashboard/users/@Uri.EscapeDataString(Model.Username)/playlists/@Uri.EscapeDataString(playlist.Id)/delete">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="secondary-action danger-action">Delete Playlist</button>
+                            </form>
+                        </div>
+
+                        <div class="admin-list">
+                            @if (playlist.Songs.Count == 0)
+                            {
+                                <div class="admin-empty-state">No songs in this playlist.</div>
+                            }
+                            else
+                            {
+                                foreach (var song in playlist.Songs)
+                                {
+                                    <article class="admin-list-item">
+                                        <div class="admin-item-main">
+                                            <div class="admin-item-title">@song.DisplayName</div>
+                                            <div class="admin-item-meta">@song.Artist • @song.FileName</div>
+                                        </div>
+                                        <form method="post" action="/admin/dashboard/users/@Uri.EscapeDataString(Model.Username)/playlists/@Uri.EscapeDataString(playlist.Id)/songs/@Uri.EscapeDataString(song.FileName)/delete">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="secondary-action">Remove Song</button>
+                                        </form>
+                                    </article>
+                                }
+                            }
+                        </div>
+                    </article>
+                }
+            }
+        </div>
+    </section>
+</div>

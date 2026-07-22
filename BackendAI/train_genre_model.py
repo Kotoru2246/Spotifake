@@ -69,7 +69,7 @@ def train_model(features_csv: str, out_path: str, label_col: str = None, epochs:
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--features', required=True)
-    p.add_argument('--out', default='models/genre_rf.joblib')
+    p.add_argument('--out', default='ml_models/genre_rf.joblib')
     p.add_argument('--label-col', default=None)
     p.add_argument('--epochs', type=int, default=10, help='Number of progress epochs to display during training')
     args = p.parse_args()

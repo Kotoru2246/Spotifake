@@ -1,16 +1,16 @@
-"""Build an 18-genre training dataset from audio files.
+"""Build an 11-genre training dataset from audio files.
 
 Pipeline:
-1. Auto-label audio files with Spotify heuristics into the 18-genre taxonomy.
+1. Auto-label audio files with Spotify heuristics into the 11-genre taxonomy.
 2. Extract audio features for labeled files.
 3. Save labels and features CSVs for training.
 4. Optionally train a model from the generated features.
 
 Usage:
-    python build_18_genre_dataset.py --audio-dir ../uploads --workdir BackendAI/datasets/genre18
+    python build_18_genre_dataset.py --audio-dir ../uploads --workdir BackendAI/datasets/genre11
 
 Optional:
-    python build_18_genre_dataset.py --audio-dir ../uploads --workdir BackendAI/datasets/genre18 --train
+    python build_18_genre_dataset.py --audio-dir ../uploads --workdir BackendAI/datasets/genre11 --train
 """
 
 from __future__ import annotations
@@ -46,26 +46,32 @@ def normalize_genre(value: str) -> str:
         'hip-hop': 'Hip-Hop / Rap',
         'hip hop': 'Hip-Hop / Rap',
         'rap': 'Hip-Hop / Rap',
-        'edm': 'Electronic Dance Music (EDM)',
-        'electronic': 'Electronic Dance Music (EDM)',
-        'dance': 'Electronic Dance Music (EDM)',
-        'r&b': 'R&B (Rhythm and Blues)',
-        'rnb': 'R&B (Rhythm and Blues)',
-        'rhythm and blues': 'R&B (Rhythm and Blues)',
-        'latin': 'Latin Music',
-        'latin music': 'Latin Music',
-        'k-pop': 'K-Pop',
-        'kpop': 'K-Pop',
-        'j-pop': 'J-Pop',
-        'jpop': 'J-Pop',
-        'japanese pop': 'J-Pop',
-        'afrobeats': 'Afrobeats',
-        'afrobeat': 'Afrobeats',
-        'indie': 'Indie / Alternative',
-        'alternative': 'Indie / Alternative',
-        'anime': 'Anime / Vocaloid',
-        'vocaloid': 'Anime / Vocaloid',
-        'anime / vocaloid': 'Anime / Vocaloid',
+        'edm': 'Electronic / EDM',
+        'electronic': 'Electronic / EDM',
+        'dance': 'Electronic / EDM',
+        'electronic dance music (edm)': 'Electronic / EDM',
+        'electronic / edm': 'Electronic / EDM',
+        'r&b': 'R&B / Soul',
+        'rnb': 'R&B / Soul',
+        'rhythm and blues': 'R&B / Soul',
+        'r&b (rhythm and blues)': 'R&B / Soul',
+        'soul': 'R&B / Soul',
+        'funk': 'R&B / Soul',
+        'latin': 'Latin',
+        'latin music': 'Latin',
+        'reggaeton': 'Latin',
+        'indie': 'Rock',
+        'alternative': 'Rock',
+        'metal': 'Rock',
+        'folk': 'Country',
+        'afrobeats': 'Reggae',
+        'afrobeat': 'Reggae',
+        'k-pop': 'Pop',
+        'kpop': 'Pop',
+        'j-pop': 'Pop',
+        'jpop': 'Pop',
+        'anime': 'Pop',
+        'vocaloid': 'Pop',
     }
     if value in TARGET_GENRES:
         return value
@@ -73,7 +79,7 @@ def normalize_genre(value: str) -> str:
 
 
 def rebuild_labels(input_labels_csv: str, output_labels_csv: str) -> int:
-    """Normalize a labels CSV to the exact 18-genre taxonomy and drop unknowns."""
+    """Normalize a labels CSV to the exact 11-genre taxonomy and drop unknowns."""
     rows: List[Dict[str, str]] = []
     with open(input_labels_csv, newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
@@ -123,21 +129,21 @@ def build_dataset(audio_dir: str, workdir: str, train: bool = False) -> Dict[str
         )
 
     labels_raw = work / 'labels_raw.csv'
-    labels_csv = work / 'labels_18.csv'
-    features_csv = work / 'features_18.csv'
-    model_out = work / 'genre18_rf.joblib'
+    labels_csv = work / 'labels_11.csv'
+    features_csv = work / 'features_11.csv'
+    model_out = work / 'genre11_rf.joblib'
 
     print(f"[1/4] Auto-labeling files in {audio_dir}")
     auto_label(audio_dir, str(labels_raw), dry_run=False)
 
-    print(f"[2/4] Normalizing labels to the 18-genre taxonomy")
+    print(f"[2/4] Normalizing labels to the 11-genre taxonomy")
     kept = rebuild_labels(str(labels_raw), str(labels_csv))
     print(f"Kept {kept} labeled rows in {labels_csv}")
 
     if kept == 0:
         raise ValueError(
-            "No valid 18-genre labels were produced. "
-            "Set Spotify credentials (SPOTIPY_CLIENT_ID/SECRET), or manually curate labels_18.csv."
+            "No valid 11-genre labels were produced. "
+            "Set Spotify credentials (SPOTIPY_CLIENT_ID/SECRET), or manually curate labels_11.csv."
         )
 
     label_counts = summarize_label_distribution(str(labels_csv))
@@ -166,9 +172,9 @@ def build_dataset(audio_dir: str, workdir: str, train: bool = False) -> Dict[str
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Build an 18-genre training dataset path')
+    parser = argparse.ArgumentParser(description='Build an 11-genre training dataset path')
     parser.add_argument('--audio-dir', required=True, help='Directory containing audio files to label and extract')
-    parser.add_argument('--workdir', default='BackendAI/datasets/genre18', help='Output workspace for labels/features/model')
+    parser.add_argument('--workdir', default='BackendAI/datasets/genre11', help='Output workspace for labels/features/model')
     parser.add_argument('--train', action='store_true', help='Train a model after building features')
     args = parser.parse_args()
 
