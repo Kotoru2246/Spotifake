@@ -74,8 +74,3 @@ if __name__ == '__main__':
     p.add_argument('--epochs', type=int, default=10, help='Number of progress epochs to display during training')
     args = p.parse_args()
     train_model(args.features, args.out, args.label_col, args.epochs)
-
-
---- VERSION ---
-
-    p.add_argument('--out', default='ml_models/genre_rf.joblib')

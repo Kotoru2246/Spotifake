@@ -222,26 +222,3 @@ save_data = {
 
 joblib.dump(save_data, out_path)
 print(f"Successfully saved the winning model ({best_model_name}) and assets to {out_path}!")
-
-
-
---- VERSION ---
-
-# Find intersection of columns to safely merge them
-common_cols = list(set(df_fma.columns) & set(df_gtzan.columns))
-
-# Check for custom training data contributed by users
-custom_path = 'fma_data/custom_training_data.csv'
-if os.path.exists(custom_path):
-    print("Loading user-contributed custom training data...")
-    df_custom = pd.read_csv(custom_path)
-    # Ensure sample_weight column is available in df if it wasn't
-    if 'sample_weight' not in common_cols:
-        common_cols.append('sample_weight')
-        df_fma['sample_weight'] = 1.0
-        df_gtzan['sample_weight'] = 1.0
-    df = pd.concat([df_fma[common_cols], df_gtzan[common_cols], df_custom[common_cols]], ignore_index=True)
-else:
-    df = pd.concat([df_fma[common_cols], df_gtzan[common_cols]], ignore_index=True)
-
-print(f"Combined dataset shape: {df.shape}")

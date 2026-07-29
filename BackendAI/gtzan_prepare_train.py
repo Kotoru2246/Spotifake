@@ -55,8 +55,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
---- VERSION ---
-
-    model_out = base / "ml_models" / "gtzan_genre_rf.joblib"

@@ -1051,8 +1051,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
---- VERSION ---
-
-    print(f'  python BackendAI/train_combined_model.py --inputs BackendAI/datasets/genre18_audio/features.csv --out BackendAI/ml_models/genre11_rf.joblib')

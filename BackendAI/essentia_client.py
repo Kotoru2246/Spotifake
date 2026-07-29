@@ -216,11 +216,3 @@ if __name__ == '__main__':
     print(f"✓ Confidence: {data['confidence']:.2%}")
     print(f"✓ Genres: {data['genre_scores']}")
     print(f"✓ Mood: {data['tags']}")
-
-
---- VERSION ---
-
-        os.path.join(base, 'ml_models', 'genre18_rf.joblib'),         # 18-genre trained model (preferred)
-        os.path.join(base, 'datasets', 'genre18_audio', 'genre18_rf.joblib'),  # produced by downloader pipeline
-        os.path.join(base, 'ml_models', 'gtzan_genre_rf.joblib'),     # GTZAN 10-class fallback
-        os.path.join(base, 'ml_models', 'genre_rf.joblib'),
