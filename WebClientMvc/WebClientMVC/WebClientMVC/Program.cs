@@ -31,7 +31,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 if (context.Request.Cookies.ContainsKey("access_token"))
                 {
                     context.Token = context.Request.Cookies["access_token"];
+                    Console.WriteLine("Token found in cookies: " + context.Token.Substring(0, Math.Min(15, context.Token.Length)) + "...");
                 }
+                else
+                {
+                    Console.WriteLine("No access_token cookie found.");
+                }
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine("Authentication failed: " + context.Exception.Message);
                 return Task.CompletedTask;
             }
         };
