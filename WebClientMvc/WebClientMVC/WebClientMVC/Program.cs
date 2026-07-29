@@ -48,6 +48,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddDbContext<DataAccess.MusicPlayerContext>();
+builder.Services.AddScoped<WebClientMVC.Services.AdminDashboardService>();
+builder.Services.AddScoped<WebClientMVC.Services.MusicLibraryService>();
+builder.Services.AddScoped<WebClientMVC.Services.SongListenLogService>();
+builder.Services.AddScoped<WebClientMVC.Services.UserPlaylistService>();
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
