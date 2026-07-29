@@ -23,8 +23,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
             ClockSkew = TimeSpan.Zero,
-            NameClaimType = "sub",
-            RoleClaimType = "role"
+            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier,
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role
         };
 
         options.Events = new JwtBearerEvents

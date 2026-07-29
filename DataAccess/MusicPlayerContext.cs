@@ -33,7 +33,7 @@ namespace DataAccess
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSqlServer("Server=localhost;Database=MusicPlayerDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=True;");
+                optionsBuilder.UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=MusicPlayerDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=True;");
             }
         }
 
