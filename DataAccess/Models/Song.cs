@@ -47,12 +47,12 @@ namespace DataAccess.Models
         public string? Tags { get; set; }
 
         // Acoustic Features
-        public float? Tempo { get; set; }
-        public float? Energy { get; set; }
-        public float? Danceability { get; set; }
-        public float? Valence { get; set; }
-        public float? Acousticness { get; set; }
-        public float? Instrumentalness { get; set; }
+        public double? Tempo { get; set; }
+        public double? Energy { get; set; }
+        public double? Danceability { get; set; }
+        public double? Valence { get; set; }
+        public double? Acousticness { get; set; }
+        public double? Instrumentalness { get; set; }
         public int? Key { get; set; }
         public int? Mode { get; set; }
 
