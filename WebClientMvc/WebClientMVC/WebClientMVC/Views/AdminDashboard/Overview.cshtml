@@ -1,0 +1,150 @@
+
+
+--- VERSION ---
+
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<!-- Stat Cards -->
+<div class="dash-stats-grid">
+    <div class="dash-stat-card">
+        <div class="stat-icon blue"><i class="bi bi-people-fill"></i></div>
+        <div class="stat-label">Total Users</div>
+        <div class="stat-value dash-number">@(((int)ViewBag.TotalUsers).ToString("N0"))</div>
+    </div>
+    <div class="dash-stat-card">
+        <div class="stat-icon purple"><i class="bi bi-mic-fill"></i></div>
+        <div class="stat-label">Total Artists</div>
+        <div class="stat-value dash-number">@(((int)ViewBag.TotalArtists).ToString("N0"))</div>
+    </div>
+    <div class="dash-stat-card">
+        <div class="stat-icon cyan"><i class="bi bi-music-note-beamed"></i></div>
+        <div class="stat-label">Total Songs</div>
+        <div class="stat-value dash-number">@(((int)ViewBag.TotalSongs).ToString("N0"))</div>
+    </div>
+    <div class="dash-stat-card">
+        <div class="stat-icon green"><i class="bi bi-disc-fill"></i></div>
+        <div class="stat-label">Total Albums</div>
+        <div class="stat-value dash-number">@(((int)ViewBag.TotalAlbums).ToString("N0"))</div>
+    </div>
+    <div class="dash-stat-card">
+        <div class="stat-icon yellow"><i class="bi bi-headphones"></i></div>
+        <div class="stat-label">Total Streams</div>
+        <div class="stat-value dash-number">@(((long)ViewBag.TotalStreams).ToString("N0"))</div>
+    </div>
+    <div class="dash-stat-card">
+        <div class="stat-icon red"><i class="bi bi-star-fill"></i></div>
+        <div class="stat-label">Premium Users</div>
+        <div class="stat-value dash-number">@(((int)ViewBag.PremiumUsers).ToString("N0"))</div>
+    </div>
+</div>
+
+<!-- Growth Chart -->
+<div class="dash-card">
+    <div class="dash-card-header">
+        <h3><i class="bi bi-graph-up"></i> Growth Over Time</h3>
+        <div class="dash-sort-bar" style="margin-bottom: 0;">
+            <button class="dash-sort-btn active" onclick="loadChart('all')">All Time</button>
+            <button class="dash-sort-btn" onclick="loadChart('year')">Year</button>
+            <button class="dash-sort-btn" onclick="loadChart('month')">Month</button>
+            <button class="dash-sort-btn" onclick="loadChart('week')">Week</button>
+            <button class="dash-sort-btn" onclick="loadChart('today')">Today</button>
+        </div>
+    </div>
+    <div class="dash-card-body">
+        <div class="dash-chart-container">
+            <canvas id="growthChart"></canvas>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let growthChart = null;
+
+async function loadChart(period) {
+    // Update active button
+    document.querySelectorAll('.dash-sort-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    try {
+        const resp = await fetch('/admin/dashboard/chart-data?period=' + period);
+        const data = await resp.json();
+
+        const ctx = document.getElementById('growthChart').getContext('2d');
+        
+        if (growthChart) growthChart.destroy();
+
+        growthChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: 'Users',
+                        data: data.users,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#3b82f6'
+                    },
+                    {
+                        label: 'Songs',
+                        data: data.songs,
+                        borderColor: '#4fd1c5',
+                        backgroundColor: 'rgba(79, 209, 197, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#4fd1c5'
+                    },
+                    {
+                        label: 'Artists',
+                        data: data.artists,
+                        borderColor: '#7c3aed',
+                        backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#7c3aed'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: { color: '#a0aec0', font: { family: 'Inter', weight: '600' } }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#4a5568', font: { family: 'Inter' } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { color: '#4a5568', font: { family: 'Inter' } }
+                    }
+                }
+            }
+        });
+    } catch(e) {
+        console.error('Chart load error:', e);
+    }
+}
+
+// Load default chart
+document.addEventListener('DOMContentLoaded', () => {
+    // Simulate click on "All Time"
+    document.querySelector('.dash-sort-btn.active').click();
+});
+</script>
+}

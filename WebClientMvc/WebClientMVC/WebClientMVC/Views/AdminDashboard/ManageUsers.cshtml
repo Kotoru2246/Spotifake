@@ -1,0 +1,191 @@
+
+
+--- VERSION ---
+
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    var users = (List<DataAccess.Models.User>)ViewBag.Users;
+    var search = ViewBag.Search as string ?? "";
+    var sort = ViewBag.Sort as string ?? "name";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div style="background: rgba(29,185,84,0.15); border: 1px solid rgba(29,185,84,0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: #1db954;">
+        <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+    </div>
+}
+
+<!-- Search & Sort -->
+<div class="dash-action-bar">
+    <form method="get" action="/admin/dashboard/users" style="display: flex; gap: 0.75rem; flex: 1; max-width: 500px;">
+        <div class="dash-search-wrapper" style="flex: 1; margin-bottom: 0;">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" class="dash-search-input" placeholder="Search by username, name, or email..." value="@search">
+        </div>
+        <input type="hidden" name="sort" value="@sort">
+        <button type="submit" class="dash-btn dash-btn-secondary">Search</button>
+    </form>
+</div>
+<div class="dash-sort-bar">
+    <a href="/admin/dashboard/users?search=@search&sort=name" class="dash-sort-btn @(sort == "name" ? "active" : "")">Name</a>
+    <a href="/admin/dashboard/users?search=@search&sort=date" class="dash-sort-btn @(sort == "date" ? "active" : "")">Date Created</a>
+    <a href="/admin/dashboard/users?search=@search&sort=role" class="dash-sort-btn @(sort == "role" ? "active" : "")">Role</a>
+    <a href="/admin/dashboard/users?search=@search&sort=status" class="dash-sort-btn @(sort == "status" ? "active" : "")">Status</a>
+</div>
+
+<!-- Users Table -->
+<div class="dash-card">
+    <div class="dash-card-body no-pad">
+        @if (users != null && users.Any())
+        {
+            <table class="dash-table">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Display Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Premium</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr class="@(user.IsDeleted ? "deleted-row" : "")">
+                            <td><strong>@user.Username</strong></td>
+                            <td>@user.DisplayName</td>
+                            <td>@user.Email</td>
+                            <td><span class="dash-badge @(user.Role == "admin" ? "red" : user.Role == "artist" ? "purple" : "blue")">@user.Role</span></td>
+                            <td>
+                                @if (user.IsPremium)
+                                {
+                                    <span class="dash-badge yellow">Premium</span>
+                                }
+                                else
+                                {
+                                    <span style="color: var(--text-muted);">Free</span>
+                                }
+                            </td>
+                            <td><span class="dash-badge @(user.AccountStatus == "Active" ? "green" : "red")">@user.AccountStatus</span></td>
+                            <td>@user.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <button class="dash-btn-icon" title="Edit" onclick="openEditUser('@user.UserID', '@user.DisplayName.Replace("'", "\\'")', '@user.Email.Replace("'", "\\'")', '@user.Role', '@(user.Bio?.Replace("'", "\\'") ?? "")', '@user.Nationality', '@user.Gender', '@(user.DateOfBirth?.ToString("yyyy-MM-dd") ?? "")', '@user.AccountStatus', '@user.SubscriptionTier')">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </button>
+                                @if (!user.IsDeleted)
+                                {
+                                    <form method="post" action="/admin/dashboard/users/@user.UserID/delete" style="display: inline;" onsubmit="return confirm('Soft-delete this user?')">
+                                        <button type="submit" class="dash-btn-icon" title="Delete" style="color: var(--accent-red);">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="dash-empty">
+                <i class="bi bi-people"></i>
+                <p>No users found.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="dash-modal-overlay" id="editUserModal">
+    <div class="dash-modal">
+        <div class="dash-modal-header">
+            <h3><i class="bi bi-pencil-fill"></i> Edit User</h3>
+            <button class="dash-modal-close" onclick="document.getElementById('editUserModal').classList.remove('show')">&times;</button>
+        </div>
+        <form method="post" id="editUserForm">
+            <div class="dash-modal-body">
+                <div class="dash-form-grid">
+                    <div class="dash-form-group">
+                        <label class="dash-label">Display Name</label>
+                        <input type="text" name="displayName" id="euDisplayName" class="dash-input">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Email</label>
+                        <input type="email" name="email" id="euEmail" class="dash-input">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Role</label>
+                        <select name="role" id="euRole" class="dash-select">
+                            <option value="user">User</option>
+                            <option value="artist">Artist</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Account Status</label>
+                        <select name="accountStatus" id="euStatus" class="dash-select">
+                            <option value="Active">Active</option>
+                            <option value="Suspended">Suspended</option>
+                            <option value="Deleted">Deleted</option>
+                        </select>
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Nationality</label>
+                        <input type="text" name="nationality" id="euNationality" class="dash-input">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Gender</label>
+                        <select name="gender" id="euGender" class="dash-select">
+                            <option value="">—</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Date of Birth</label>
+                        <input type="date" name="dateOfBirth" id="euDob" class="dash-input">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Subscription Tier</label>
+                        <select name="subscriptionTier" id="euSub" class="dash-select">
+                            <option value="Free">Free</option>
+                            <option value="Premium">Premium</option>
+                        </select>
+                    </div>
+                    <div class="dash-form-group full-width">
+                        <label class="dash-label">Bio</label>
+                        <textarea name="bio" id="euBio" class="dash-textarea" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="dash-modal-footer">
+                <button type="button" class="dash-btn dash-btn-secondary" onclick="document.getElementById('editUserModal').classList.remove('show')">Cancel</button>
+                <button type="submit" class="dash-btn dash-btn-primary"><i class="bi bi-check-lg"></i> Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function openEditUser(id, name, email, role, bio, nationality, gender, dob, status, sub) {
+    document.getElementById('editUserForm').action = '/admin/dashboard/users/' + id + '/update';
+    document.getElementById('euDisplayName').value = name;
+    document.getElementById('euEmail').value = email;
+    document.getElementById('euRole').value = role;
+    document.getElementById('euBio').value = bio;
+    document.getElementById('euNationality').value = nationality;
+    document.getElementById('euGender').value = gender;
+    document.getElementById('euDob').value = dob;
+    document.getElementById('euStatus').value = status;
+    document.getElementById('euSub').value = sub;
+    document.getElementById('editUserModal').classList.add('show');
+}
+</script>
+}

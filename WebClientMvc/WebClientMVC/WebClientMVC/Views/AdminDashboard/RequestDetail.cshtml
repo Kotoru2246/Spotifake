@@ -1,0 +1,161 @@
+
+
+--- VERSION ---
+
+@model DataAccess.Models.ArtistRequest
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+<!-- Applicant Info -->
+<div class="dash-card">
+    <div class="dash-card-header">
+        <h3><i class="bi bi-person-fill"></i> Applicant Information</h3>
+        <span class="dash-badge @(Model.Status == "Pending" ? "yellow" : Model.Status == "Approved" ? "green" : "red")">@Model.Status</span>
+    </div>
+    <div class="dash-card-body">
+        <div class="dash-detail-grid">
+            <div class="dash-detail-item">
+                <div class="detail-label">Username</div>
+                <div class="detail-value">@(Model.User?.Username ?? "—")</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Email</div>
+                <div class="detail-value">@(Model.User?.Email ?? "—")</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Requested Stage Name</div>
+                <div class="detail-value" style="font-size: 1.2rem; font-weight: 700;">@Model.StageName</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Submitted</div>
+                <div class="detail-value">@Model.CreatedAt.ToString("MMMM dd, yyyy 'at' HH:mm")</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Display Name</div>
+                <div class="detail-value">@(Model.User?.DisplayName ?? "—")</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Date of Birth</div>
+                <div class="detail-value">@(Model.User?.DateOfBirth?.ToString("MMM dd, yyyy") ?? "—")</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Nationality</div>
+                <div class="detail-value">@(string.IsNullOrEmpty(Model.User?.Nationality) ? "—" : Model.User.Nationality)</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Gender</div>
+                <div class="detail-value">@(string.IsNullOrEmpty(Model.User?.Gender) ? "—" : Model.User.Gender)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CV & Demo -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+    <!-- CV -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <h3><i class="bi bi-file-earmark-text-fill"></i> CV / Resume</h3>
+        </div>
+        <div class="dash-card-body" style="text-align: center;">
+            @if (Model.CvFileData != null && Model.CvFileData.Length > 0)
+            {
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    <i class="bi bi-file-earmark-check"></i> <strong>@Model.CvFileName</strong>
+                    <br><span style="font-size: 0.8rem;">(@(Model.CvFileData.Length / 1024) KB)</span>
+                </p>
+                <a href="/admin/dashboard/requests/@Model.RequestID/cv" class="dash-btn dash-btn-secondary" download>
+                    <i class="bi bi-download"></i> Download CV
+                </a>
+            }
+            else
+            {
+                <div class="dash-empty" style="padding: 2rem;">
+                    <i class="bi bi-file-earmark-x" style="font-size: 2rem;"></i>
+                    <p>No CV uploaded.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Demo -->
+    <div class="dash-card">
+        <div class="dash-card-header">
+            <h3><i class="bi bi-music-note-beamed"></i> Demo Track</h3>
+        </div>
+        <div class="dash-card-body" style="text-align: center;">
+            @if (Model.DemoFileData != null && Model.DemoFileData.Length > 0)
+            {
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    <i class="bi bi-file-earmark-music"></i> <strong>@Model.DemoFileName</strong>
+                    <br><span style="font-size: 0.8rem;">(@(Model.DemoFileData.Length / 1024) KB)</span>
+                </p>
+                <audio controls class="dash-audio-player" style="width: 100%;">
+                    <source src="/admin/dashboard/requests/@Model.RequestID/demo" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                </audio>
+            }
+            else
+            {
+                <div class="dash-empty" style="padding: 2rem;">
+                    <i class="bi bi-file-earmark-x" style="font-size: 2rem;"></i>
+                    <p>No demo uploaded.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Admin Actions -->
+@if (Model.Status == "Pending")
+{
+    <div class="dash-card" style="margin-top: 1.5rem;">
+        <div class="dash-card-header">
+            <h3><i class="bi bi-shield-check"></i> Admin Decision</h3>
+        </div>
+        <div class="dash-card-body">
+            <div class="dash-form-group">
+                <label class="dash-label">Admin Notes (optional, shown if rejected)</label>
+                <textarea class="dash-textarea" id="adminNotes" rows="3" placeholder="Reason for rejection, feedback, etc..."></textarea>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <form method="post" action="/admin/dashboard/requests/@Model.RequestID/approve" style="flex: 1;">
+                    <button type="submit" class="dash-btn dash-btn-primary" style="width: 100%; justify-content: center; padding: 1rem; font-size: 1rem;" onclick="return confirm('Approve this artist?')">
+                        <i class="bi bi-check-circle-fill"></i> Approve Artist
+                    </button>
+                </form>
+                <form method="post" action="/admin/dashboard/requests/@Model.RequestID/reject" style="flex: 1;" onsubmit="document.getElementById('rejectNotes').value = document.getElementById('adminNotes').value;">
+                    <input type="hidden" name="adminNotes" id="rejectNotes">
+                    <button type="submit" class="dash-btn dash-btn-danger" style="width: 100%; justify-content: center; padding: 1rem; font-size: 1rem;" onclick="return confirm('Reject this application?')">
+                        <i class="bi bi-x-circle-fill"></i> Reject Application
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="dash-card" style="margin-top: 1.5rem;">
+        <div class="dash-card-body">
+            <div class="dash-detail-grid">
+                <div class="dash-detail-item">
+                    <div class="detail-label">Decision</div>
+                    <div class="detail-value"><span class="dash-badge @(Model.Status == "Approved" ? "green" : "red")">@Model.Status</span></div>
+                </div>
+                <div class="dash-detail-item">
+                    <div class="detail-label">Resolved At</div>
+                    <div class="detail-value">@(Model.ResolvedAt?.ToString("MMM dd, yyyy HH:mm") ?? "—")</div>
+                </div>
+                @if (!string.IsNullOrEmpty(Model.AdminNotes))
+                {
+                    <div class="dash-detail-item" style="grid-column: 1 / -1;">
+                        <div class="detail-label">Admin Notes</div>
+                        <div class="detail-value">@Model.AdminNotes</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}

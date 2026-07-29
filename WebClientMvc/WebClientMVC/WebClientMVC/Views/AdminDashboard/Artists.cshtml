@@ -48,3 +48,45 @@
         </div>
     </section>
 </div>
+
+
+--- VERSION ---
+
+    <nav class="admin-page-nav">
+        <a class="secondary-action" href="/admin/dashboard/users">Users</a>
+        <a class="secondary-action" href="/admin/dashboard/artists">Artists</a>
+        <a class="secondary-action" href="/admin/dashboard/music">Music</a>
+    </nav>
+
+    @if (ViewBag.PendingArtists != null)
+    {
+        var pending = (IEnumerable<dynamic>)ViewBag.PendingArtists;
+        if (pending.Any())
+        {
+            <section class="admin-card mb-4">
+                <h3 class="admin-card-subtitle">Pending Applications</h3>
+                <div class="admin-list">
+                    @foreach (var p in pending)
+                    {
+                        <article class="admin-list-item">
+                            <div class="admin-item-main">
+                                <div class="admin-item-header">
+                                    <div class="admin-item-title">@p.StageName</div>
+                                    <span class="admin-badge is-idle">Pending</span>
+                                </div>
+                                <div class="admin-item-meta">Applied on @p.CreatedAt</div>
+                                <div class="admin-item-note">@p.Bio</div>
+                            </div>
+                            <div class="admin-item-actions">
+                                <form method="post" action="/admin/dashboard/artists/@p.UserID/approve">
+                                    <button type="submit" class="secondary-action" style="background-color: var(--primary); color: #000; border: none;">Approve</button>
+                                </form>
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+    }
+
+    <section class="admin-card">

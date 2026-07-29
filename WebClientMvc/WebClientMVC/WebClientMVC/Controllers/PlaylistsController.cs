@@ -79,3 +79,63 @@ public class PlaylistsController : Controller
         return User.Identity?.Name ?? throw new InvalidOperationException("Authenticated user name is required.");
     }
 }
+
+
+--- VERSION ---
+
+    [HttpDelete("my/{playlistId}/songs/{fileName}")]
+    public IActionResult RemoveSong(string playlistId, string fileName)
+    {
+        try
+        {
+            return Ok(_userPlaylistService.RemoveSong(GetCurrentUser(), playlistId, fileName));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
+    }
+
+    [HttpPost("my/liked/toggle")]
+    public IActionResult ToggleLiked([FromBody] PlaylistSongRequest request)
+    {
+        try
+        {
+            return Ok(_userPlaylistService.ToggleLikedSong(GetCurrentUser(), request.FileName));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
+    }
+
+--- VERSION ---
+
+    private string GetCurrentUser()
+    {
+        var name = User.Identity?.Name 
+                   ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                   ?? User.FindFirst("sub")?.Value;
+                   
+        return name ?? throw new InvalidOperationException("Authenticated user name is required.");
+    }
+
+--- VERSION ---
+
+    [HttpPost("my/liked/toggle")]
+    public IActionResult ToggleLiked([FromBody] PlaylistSongRequest request)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.FileName))
+        {
+            return BadRequest(new { detail = "File name is required." });
+        }
+
+        try
+        {
+            return Ok(_userPlaylistService.ToggleLikedSong(GetCurrentUser(), request.FileName));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
+    }

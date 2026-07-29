@@ -27,3 +27,23 @@ namespace DataAccess.Models
         public List<AdminAuditLog> AdminActions { get; set; } = new();
     }
 }
+
+
+--- VERSION ---
+
+        public string SubscriptionTier { get; set; } = "Free";
+        public bool IsIncognito { get; set; }
+        public string AccountStatus { get; set; } = "Active";
+        public bool IsEmailVerified { get; set; } = false;
+
+        // Profile fields
+        public DateTime? DateOfBirth { get; set; }
+        public string Nationality { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
+
+        // Soft-delete
+        public bool IsDeleted { get; set; } = false;
+
+        // Premium
+        public bool IsPremium { get; set; } = false;
+        public DateTime? PremiumExpiresAt { get; set; }

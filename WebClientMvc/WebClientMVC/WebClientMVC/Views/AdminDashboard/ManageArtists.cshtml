@@ -1,0 +1,83 @@
+
+
+--- VERSION ---
+
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    var artists = (List<DataAccess.Models.ArtistProfile>)ViewBag.Artists;
+    var search = ViewBag.Search as string ?? "";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div style="background: rgba(29,185,84,0.15); border: 1px solid rgba(29,185,84,0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: #1db954;">
+        <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+    </div>
+}
+
+<!-- Search -->
+<div class="dash-action-bar">
+    <form method="get" action="/admin/dashboard/artists" style="display: flex; gap: 0.75rem; flex: 1; max-width: 500px;">
+        <div class="dash-search-wrapper" style="flex: 1; margin-bottom: 0;">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" class="dash-search-input" placeholder="Search by stage name or username..." value="@search">
+        </div>
+        <button type="submit" class="dash-btn dash-btn-secondary">Search</button>
+    </form>
+</div>
+
+<!-- Artists Table -->
+<div class="dash-card">
+    <div class="dash-card-body no-pad">
+        @if (artists != null && artists.Any())
+        {
+            <table class="dash-table">
+                <thead>
+                    <tr>
+                        <th>Stage Name</th>
+                        <th>User Account</th>
+                        <th>Verified</th>
+                        <th>Status</th>
+                        <th>Followers</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var artist in artists)
+                    {
+                        <tr class="@(artist.IsDeleted ? "deleted-row" : "")">
+                            <td><strong>@artist.StageName</strong></td>
+                            <td>@(artist.User?.Username ?? "—")</td>
+                            <td>
+                                @if (artist.Verified)
+                                {
+                                    <span class="dash-badge green">✅ Verified</span>
+                                }
+                                else
+                                {
+                                    <span style="color: var(--text-muted);">No</span>
+                                }
+                            </td>
+                            <td><span class="dash-badge @(artist.Status == "Approved" ? "green" : artist.Status == "Pending" ? "yellow" : "red")">@artist.Status</span></td>
+                            <td class="dash-number">@artist.FollowersCount.ToString("N0")</td>
+                            <td>@artist.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <a href="/admin/dashboard/artists/@artist.ArtistID" class="dash-btn dash-btn-secondary dash-btn-sm">
+                                    <i class="bi bi-eye-fill"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="dash-empty">
+                <i class="bi bi-mic"></i>
+                <p>No artists found.</p>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,121 @@
+
+
+--- VERSION ---
+
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    var requests = (List<DataAccess.Models.ArtistRequest>)ViewBag.Requests;
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div style="background: rgba(29,185,84,0.15); border: 1px solid rgba(29,185,84,0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: #1db954;">
+        <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+    </div>
+}
+
+<div class="dash-card">
+    <div class="dash-card-header">
+        <h3><i class="bi bi-clipboard-check-fill"></i> Pending Applications</h3>
+    </div>
+    <div class="dash-card-body no-pad">
+        @{
+            var pending = requests?.Where(r => r.Status == "Pending").ToList();
+        }
+        @if (pending != null && pending.Any())
+        {
+            <table class="dash-table">
+                <thead>
+                    <tr>
+                        <th>Applicant</th>
+                        <th>Stage Name</th>
+                        <th>CV</th>
+                        <th>Demo</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var req in pending)
+                    {
+                        <tr>
+                            <td><strong>@(req.User?.Username ?? "—")</strong></td>
+                            <td>@req.StageName</td>
+                            <td>
+                                @if (req.CvFileData != null && req.CvFileData.Length > 0)
+                                {
+                                    <span class="dash-badge green">✓ Uploaded</span>
+                                }
+                                else
+                                {
+                                    <span style="color: var(--text-muted);">None</span>
+                                }
+                            </td>
+                            <td>
+                                @if (req.DemoFileData != null && req.DemoFileData.Length > 0)
+                                {
+                                    <span class="dash-badge green">✓ Uploaded</span>
+                                }
+                                else
+                                {
+                                    <span style="color: var(--text-muted);">None</span>
+                                }
+                            </td>
+                            <td>@req.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <a href="/admin/dashboard/requests/@req.RequestID" class="dash-btn dash-btn-primary dash-btn-sm">
+                                    <i class="bi bi-eye-fill"></i> Review
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="dash-empty">
+                <i class="bi bi-clipboard-check"></i>
+                <p>No pending applications.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Past Requests -->
+@{
+    var resolved = requests?.Where(r => r.Status != "Pending").OrderByDescending(r => r.ResolvedAt).ToList();
+}
+@if (resolved != null && resolved.Any())
+{
+    <div class="dash-card" style="margin-top: 1.5rem;">
+        <div class="dash-card-header">
+            <h3><i class="bi bi-clock-history"></i> Past Requests</h3>
+        </div>
+        <div class="dash-card-body no-pad">
+            <table class="dash-table">
+                <thead>
+                    <tr>
+                        <th>Applicant</th>
+                        <th>Stage Name</th>
+                        <th>Status</th>
+                        <th>Resolved</th>
+                        <th>Admin Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var req in resolved)
+                    {
+                        <tr>
+                            <td>@(req.User?.Username ?? "—")</td>
+                            <td>@req.StageName</td>
+                            <td><span class="dash-badge @(req.Status == "Approved" ? "green" : "red")">@req.Status</span></td>
+                            <td>@(req.ResolvedAt?.ToString("MMM dd, yyyy") ?? "—")</td>
+                            <td>@(string.IsNullOrEmpty(req.AdminNotes) ? "—" : req.AdminNotes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

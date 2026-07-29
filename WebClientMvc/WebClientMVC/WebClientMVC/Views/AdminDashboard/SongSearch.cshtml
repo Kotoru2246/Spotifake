@@ -1,0 +1,81 @@
+
+
+--- VERSION ---
+
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    var songs = (List<DataAccess.Models.Song>)ViewBag.Songs;
+    var search = ViewBag.Search as string ?? "";
+}
+
+<!-- Search -->
+<div class="dash-action-bar">
+    <form method="get" action="/admin/dashboard/songs" style="display: flex; gap: 0.75rem; flex: 1; max-width: 600px;">
+        <div class="dash-search-wrapper" style="flex: 1; margin-bottom: 0;">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" class="dash-search-input" placeholder="Search any song by title or artist name..." value="@search" autofocus>
+        </div>
+        <button type="submit" class="dash-btn dash-btn-primary">Search</button>
+    </form>
+</div>
+
+<!-- Results Table -->
+<div class="dash-card">
+    <div class="dash-card-header">
+        <h3><i class="bi bi-music-note-list"></i> Results @(songs != null ? $"({songs.Count})" : "")</h3>
+    </div>
+    <div class="dash-card-body no-pad">
+        @if (songs != null && songs.Any())
+        {
+            <table class="dash-table">
+                <thead>
+                    <tr>
+                        <th>Song Title</th>
+                        <th>Artist</th>
+                        <th>Album</th>
+                        <th>Genre</th>
+                        <th>Streams</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var song in songs)
+                    {
+                        <tr class="@(song.IsDeleted ? "deleted-row" : "")">
+                            <td><strong>@song.Title</strong></td>
+                            <td>@song.ArtistName</td>
+                            <td>@(song.AlbumEntity?.Title ?? "—")</td>
+                            <td><span class="dash-badge cyan">@(song.Tags ?? "—")</span></td>
+                            <td class="dash-number">@song.PlayCount.ToString("N0")</td>
+                            <td><span class="dash-badge @(song.IsDeleted ? "red" : "green")">@(song.IsDeleted ? "Deleted" : "Active")</span></td>
+                            <td>
+                                @if (song.UploadedBy != null)
+                                {
+                                    @* Find the ArtistProfile by UserID to get the ArtistID for the link *@
+                                    <a href="/admin/dashboard/artists?search=@Uri.EscapeDataString(song.ArtistName)" class="dash-btn dash-btn-secondary dash-btn-sm">
+                                        <i class="bi bi-arrow-right"></i> Go To Artist
+                                    </a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else if (!string.IsNullOrEmpty(search))
+        {
+            <div class="dash-empty">
+                <i class="bi bi-search"></i>
+                <p>No songs found for "@search".</p>
+            </div>
+        }
+        else
+        {
+            <div class="dash-empty">
+                <i class="bi bi-search"></i>
+                <p>Type a song title or artist name to search.</p>
+            </div>
+        }
+    </div>
+</div>

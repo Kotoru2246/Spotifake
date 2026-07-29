@@ -23,3 +23,62 @@ namespace DataAccess.Models
         public Genre? Genre { get; set; }  
     }
 }
+
+
+--- VERSION ---
+
+        // Navigation
+        public User? UploadedBy { get; set; }
+        public Guid? GenreID { get; set; }  
+        public Genre? Genre { get; set; }  
+
+        // New properties for advanced song upload
+        public Guid? AlbumID { get; set; }
+        public Album? AlbumEntity { get; set; }
+        
+        public string? CoverArtUrl { get; set; }
+        public byte[]? CoverArtData { get; set; }
+        
+        public byte[]? FileData { get; set; }
+        
+        public DateTime? ReleaseDate { get; set; }
+        public string? Credits { get; set; }
+        public string? CollabArtists { get; set; }
+        public string? Lyrics { get; set; }
+    }
+
+--- VERSION ---
+
+        public byte[]? FileData { get; set; }
+        
+        public DateTime? ReleaseDate { get; set; }
+        public string? Credits { get; set; }
+        public string? CollabArtists { get; set; }
+        public string? Lyrics { get; set; }
+
+        // AI and Feature fields
+        public string? Language { get; set; }
+        public string? Mood { get; set; }
+        public string? Tags { get; set; }
+
+        // Acoustic Features
+        public float? Tempo { get; set; }
+        public float? Energy { get; set; }
+        public float? Danceability { get; set; }
+        public float? Valence { get; set; }
+        public float? Acousticness { get; set; }
+        public float? Instrumentalness { get; set; }
+        public int? Key { get; set; }
+        public int? Mode { get; set; }
+
+        // Metadata
+        public int? Popularity { get; set; }
+        public string? StorageUrl { get; set; }
+        public DateTime? UploadedAt { get; set; }
+    }
+
+--- VERSION ---
+
+        public long PlayCount { get; set; }
+        public bool IsHidden { get; set; }
+        public bool IsDeleted { get; set; } = false;

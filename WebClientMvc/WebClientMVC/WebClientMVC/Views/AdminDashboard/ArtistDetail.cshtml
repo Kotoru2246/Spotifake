@@ -1,0 +1,239 @@
+
+
+--- VERSION ---
+
+@model DataAccess.Models.ArtistProfile
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    var songs = (List<DataAccess.Models.Song>)ViewBag.Songs;
+    var albums = (List<DataAccess.Models.Album>)ViewBag.Albums;
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div style="background: rgba(29,185,84,0.15); border: 1px solid rgba(29,185,84,0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: #1db954;">
+        <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+    </div>
+}
+
+<!-- Artist Info Card -->
+<div class="dash-card" style="margin-bottom: 2rem;">
+    <div class="dash-card-header">
+        <h3><i class="bi bi-person-fill"></i> Artist Info</h3>
+    </div>
+    <div class="dash-card-body">
+        <div class="dash-detail-grid">
+            <div class="dash-detail-item">
+                <div class="detail-label">Stage Name</div>
+                <div class="detail-value">@Model.StageName</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">User Account</div>
+                <div class="detail-value">@(Model.User?.Username ?? "—")</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Nationality</div>
+                <div class="detail-value">@(string.IsNullOrEmpty(Model.Nationality) ? "—" : Model.Nationality)</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Website</div>
+                <div class="detail-value">@(string.IsNullOrEmpty(Model.Website) ? "—" : Model.Website)</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Followers</div>
+                <div class="detail-value">@Model.FollowersCount.ToString("N0")</div>
+            </div>
+            <div class="dash-detail-item">
+                <div class="detail-label">Status</div>
+                <div class="detail-value"><span class="dash-badge @(Model.Status == "Approved" ? "green" : "yellow")">@Model.Status</span></div>
+            </div>
+        </div>
+        @if (!string.IsNullOrEmpty(Model.Bio))
+        {
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <div class="detail-label" style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Bio</div>
+                <p style="color: var(--text-secondary); margin: 0;">@Model.Bio</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="dash-tabs" id="artistTabs">
+    <button class="dash-tab active" onclick="switchTab('albums')">Albums (@(albums?.Count ?? 0))</button>
+    <button class="dash-tab" onclick="switchTab('songs')">Songs (@(songs?.Count ?? 0))</button>
+</div>
+
+<!-- Albums Section -->
+<div id="albumsSection">
+    <div class="dash-card">
+        <div class="dash-card-body no-pad">
+            @if (albums != null && albums.Any())
+            {
+                <table class="dash-table">
+                    <thead>
+                        <tr>
+                            <th>Album Title</th>
+                            <th>Songs</th>
+                            <th>Total Streams</th>
+                            <th>Created</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var album in albums)
+                        {
+                            var activeSongs = album.Songs?.Where(s => !s.IsDeleted).Count() ?? 0;
+                            var totalStreams = album.Songs?.Sum(s => s.PlayCount) ?? 0;
+                            <tr class="@(album.IsDeleted ? "deleted-row" : "")">
+                                <td><strong>@album.Title</strong></td>
+                                <td class="dash-number">@activeSongs</td>
+                                <td class="dash-number">@totalStreams.ToString("N0")</td>
+                                <td>@album.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                <td><span class="dash-badge @(album.IsDeleted ? "red" : "green")">@(album.IsDeleted ? "Deleted" : "Active")</span></td>
+                                <td>
+                                    @if (!album.IsDeleted)
+                                    {
+                                        <form method="post" action="/admin/dashboard/artists/@Model.ArtistID/albums/@album.AlbumID/delete" style="display: inline;" onsubmit="return confirm('Delete this album and all its songs?')">
+                                            <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">
+                                                <i class="bi bi-trash-fill"></i> Delete
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="dash-empty">
+                    <i class="bi bi-disc"></i>
+                    <p>No albums.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Songs Section -->
+<div id="songsSection" style="display: none;">
+    <div class="dash-card">
+        <div class="dash-card-body no-pad">
+            @if (songs != null && songs.Any())
+            {
+                <table class="dash-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Album</th>
+                            <th>Genre</th>
+                            <th>Mood</th>
+                            <th>Streams</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var song in songs)
+                        {
+                            <tr class="@(song.IsDeleted ? "deleted-row" : "")">
+                                <td><strong>@song.Title</strong></td>
+                                <td>@(song.AlbumEntity?.Title ?? "—")</td>
+                                <td><span class="dash-badge cyan">@(song.Tags ?? "—")</span></td>
+                                <td><span class="dash-badge yellow">@(song.Mood ?? "—")</span></td>
+                                <td class="dash-number">@song.PlayCount.ToString("N0")</td>
+                                <td><span class="dash-badge @(song.IsDeleted ? "red" : "green")">@(song.IsDeleted ? "Deleted" : "Active")</span></td>
+                                <td>
+                                    @if (!song.IsDeleted)
+                                    {
+                                        <button class="dash-btn-icon" title="Edit" onclick="openEditSong('@song.SongID', '@song.Title.Replace("'", "\\'")', '@(song.Mood ?? "")', '@(song.Language ?? "")', '@(song.Tags ?? "")')">
+                                            <i class="bi bi-pencil-fill"></i>
+                                        </button>
+                                        <form method="post" action="/admin/dashboard/artists/@Model.ArtistID/songs/@song.SongID/delete" style="display: inline;" onsubmit="return confirm('Delete this song?')">
+                                            <button type="submit" class="dash-btn-icon" title="Delete" style="color: var(--accent-red);">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div class="dash-empty">
+                    <i class="bi bi-music-note-list"></i>
+                    <p>No songs.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Edit Song Modal (Admin - no create, just update) -->
+<div class="dash-modal-overlay" id="editSongModal">
+    <div class="dash-modal">
+        <div class="dash-modal-header">
+            <h3><i class="bi bi-pencil-fill"></i> Edit Song</h3>
+            <button class="dash-modal-close" onclick="document.getElementById('editSongModal').classList.remove('show')">&times;</button>
+        </div>
+        <form method="post" id="editSongForm">
+            <div class="dash-modal-body">
+                <div class="dash-form-grid">
+                    <div class="dash-form-group">
+                        <label class="dash-label">Title</label>
+                        <input type="text" name="title" id="editSongTitle" class="dash-input">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Genre</label>
+                        <input type="text" name="customGenre" id="editSongGenre" class="dash-input">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Mood</label>
+                        <select name="mood" id="editSongMood" class="dash-select">
+                            <option value="">—</option>
+                            <option value="happy">Happy</option>
+                            <option value="sad">Sad</option>
+                            <option value="energetic">Energetic</option>
+                            <option value="calm">Calm</option>
+                            <option value="angry">Angry</option>
+                            <option value="neutral">Neutral</option>
+                        </select>
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Language</label>
+                        <input type="text" name="language" id="editSongLang" class="dash-input">
+                    </div>
+                </div>
+            </div>
+            <div class="dash-modal-footer">
+                <button type="button" class="dash-btn dash-btn-secondary" onclick="document.getElementById('editSongModal').classList.remove('show')">Cancel</button>
+                <button type="submit" class="dash-btn dash-btn-primary"><i class="bi bi-check-lg"></i> Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function switchTab(tab) {
+    document.getElementById('albumsSection').style.display = tab === 'albums' ? 'block' : 'none';
+    document.getElementById('songsSection').style.display = tab === 'songs' ? 'block' : 'none';
+    document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+}
+function openEditSong(id, title, mood, lang, genre) {
+    document.getElementById('editSongForm').action = '/admin/dashboard/artists/@Model.ArtistID/songs/' + id + '/update';
+    document.getElementById('editSongTitle').value = title;
+    document.getElementById('editSongGenre').value = genre;
+    document.getElementById('editSongMood').value = mood;
+    document.getElementById('editSongLang').value = lang;
+    document.getElementById('editSongModal').classList.add('show');
+}
+</script>
+}
