@@ -75,6 +75,13 @@ public class AuthController : Controller
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
+        Response.Cookies.Append("access_token", tokenString, new CookieOptions 
+        { 
+            HttpOnly = true, 
+            Path = "/", 
+            MaxAge = TimeSpan.FromMinutes(expiresMinutes) 
+        });
+
         return Ok(new
         {
             access_token = tokenString,
@@ -98,9 +105,9 @@ public class AuthController : Controller
 
     [HttpPost("logout")]
     [Authorize]
-    public async Task<IActionResult> Logout()
+    public IActionResult Logout()
     {
-        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        Response.Cookies.Delete("access_token");
         return Ok(new { detail = "Logged out." });
     }
 }
