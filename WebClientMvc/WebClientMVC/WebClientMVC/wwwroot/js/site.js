@@ -200,10 +200,12 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem(authTokenKey, authToken);
       localStorage.setItem(authUserKey, username || '');
       localStorage.setItem(authRoleKey, role || '');
+      document.cookie = "access_token=" + authToken + "; path=/; max-age=86400; samesite=strict";
     } else {
       localStorage.removeItem(authTokenKey);
       localStorage.removeItem(authUserKey);
       localStorage.removeItem(authRoleKey);
+      document.cookie = "access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     }
   }
 
