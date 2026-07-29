@@ -52,6 +52,7 @@ builder.Services.AddScoped<WebClientMVC.Services.AdminDashboardService>();
 builder.Services.AddScoped<WebClientMVC.Services.MusicLibraryService>();
 builder.Services.AddScoped<WebClientMVC.Services.SongListenLogService>();
 builder.Services.AddScoped<WebClientMVC.Services.UserPlaylistService>();
+builder.Services.AddHttpClient();
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
