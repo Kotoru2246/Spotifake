@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace DataAccess.Models
 {
@@ -12,6 +13,7 @@ namespace DataAccess.Models
         public string FilePath { get; set; } = string.Empty;
         public long PlayCount { get; set; }
         public bool IsHidden { get; set; }
+        public bool IsDeleted { get; set; } = false;
 
         // Aliases for compatibility with UI bindings
         public string Name => Title;
@@ -19,38 +21,21 @@ namespace DataAccess.Models
 
         // Navigation
         public User? UploadedBy { get; set; }
-        public Guid? GenreID { get; set; }  
-        public Genre? Genre { get; set; }  
-    }
-}
+        public Guid? GenreID { get; set; }
+        public Genre? Genre { get; set; }
 
-
---- VERSION ---
-
-        // Navigation
-        public User? UploadedBy { get; set; }
-        public Guid? GenreID { get; set; }  
-        public Genre? Genre { get; set; }  
-
-        // New properties for advanced song upload
+        // Album relationship
         public Guid? AlbumID { get; set; }
         public Album? AlbumEntity { get; set; }
-        
+
+        // Cover art
         public string? CoverArtUrl { get; set; }
         public byte[]? CoverArtData { get; set; }
-        
-        public byte[]? FileData { get; set; }
-        
-        public DateTime? ReleaseDate { get; set; }
-        public string? Credits { get; set; }
-        public string? CollabArtists { get; set; }
-        public string? Lyrics { get; set; }
-    }
 
---- VERSION ---
-
+        // Audio file data (for direct DB storage)
         public byte[]? FileData { get; set; }
-        
+
+        // Metadata
         public DateTime? ReleaseDate { get; set; }
         public string? Credits { get; set; }
         public string? CollabArtists { get; set; }
@@ -71,14 +56,9 @@ namespace DataAccess.Models
         public int? Key { get; set; }
         public int? Mode { get; set; }
 
-        // Metadata
+        // More metadata
         public int? Popularity { get; set; }
         public string? StorageUrl { get; set; }
         public DateTime? UploadedAt { get; set; }
     }
-
---- VERSION ---
-
-        public long PlayCount { get; set; }
-        public bool IsHidden { get; set; }
-        public bool IsDeleted { get; set; } = false;
+}

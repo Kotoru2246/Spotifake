@@ -1,7 +1,3 @@
-
-
---- VERSION ---
-
 using System;
 
 namespace DataAccess.Models
@@ -20,7 +16,7 @@ namespace DataAccess.Models
         public byte[]? DemoFileData { get; set; }
         public string DemoFileName { get; set; } = string.Empty;
 
-        // Status: Pending, Approved, Rejected
+        // Request status: Pending, Approved, Rejected
         public string Status { get; set; } = "Pending";
         public string AdminNotes { get; set; } = string.Empty;
 

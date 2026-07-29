@@ -1,8 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 
 namespace WebClientMVC.Controllers;
 
@@ -102,41 +105,5 @@ public class AuthController : Controller
     }
 }
 
+public record JwtLoginRequest(string Username, string Password, string? Role);
 
---- VERSION ---
-
-    [HttpGet("me")]
-    [Authorize]
-    public IActionResult Me()
-    {
-        var username = User.Identity?.Name 
-                       ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-                       ?? User.FindFirst("sub")?.Value;
-
-        return Ok(new
-        {
-            username = username,
-            role = User.FindFirst(ClaimTypes.Role)?.Value
-        });
-    }
-
---- VERSION ---
-
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using WebClientMVC.Models;
-
-
-
---- VERSION ---
-
-namespace WebClientMVC.Controllers;
-
-[Route("auth")]
-public class AuthController : Controller

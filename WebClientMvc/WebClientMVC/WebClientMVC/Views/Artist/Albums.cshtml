@@ -1,0 +1,173 @@
+@model DataAccess.Models.ArtistProfile
+@{
+    Layout = "_DashboardLayout";
+    var albums = ViewBag.Albums as List<DataAccess.Models.Album> ?? new List<DataAccess.Models.Album>();
+    var search = ViewBag.Search as string;
+}
+
+<div class="dash-card">
+    <div class="dash-card-header">
+        <h3 class="dash-card-title">Album Manager</h3>
+        <button class="dash-btn dash-btn-primary" onclick="openModal('createAlbumModal')">
+            <i class="bi bi-plus-lg"></i> Create New Album
+        </button>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="dash-toast dash-toast-success">@TempData["SuccessMessage"]</div>
+    }
+
+    <!-- Search Bar -->
+    <form method="get" action="/artist/manager/albums" class="dash-search-bar">
+        <input type="text" name="search" class="dash-search-input" placeholder="Search albums by title..." value="@search" />
+        <button type="submit" class="dash-btn dash-btn-secondary">Search</button>
+        @if (!string.IsNullOrEmpty(search))
+        {
+            <a href="/artist/manager/albums" class="dash-btn dash-btn-secondary">Clear</a>
+        }
+    </form>
+
+    @if (albums.Any())
+    {
+        <table class="dash-table">
+            <thead>
+                <tr>
+                    <th>Cover</th>
+                    <th>Album Title</th>
+                    <th>Songs</th>
+                    <th>Total Streams</th>
+                    <th>Created</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var album in albums)
+                {
+                    var activeSongs = album.Songs?.Where(s => !s.IsDeleted).ToList() ?? new List<DataAccess.Models.Song>();
+                    var totalStreams = activeSongs.Sum(s => s.PlayCount);
+
+                    <tr class="@(album.IsDeleted ? "is-deleted" : "")">
+                        <td style="width: 50px;">
+                            @if (!string.IsNullOrEmpty(album.CoverArtUrl))
+                            {
+                                <img src="@album.CoverArtUrl" alt="Cover" style="width:40px; height:40px; border-radius:8px; object-fit:cover;" />
+                            }
+                            else
+                            {
+                                <div style="width:40px; height:40px; border-radius:8px; background:var(--bg-input); display:flex; align-items:center; justify-content:center; color:var(--text-muted);">
+                                    <i class="bi bi-disc"></i>
+                                </div>
+                            }
+                        </td>
+                        <td>
+                            <strong>@album.Title</strong>
+                            @if (!string.IsNullOrEmpty(album.Description))
+                            {
+                                <br /><small style="color:var(--text-muted);">@album.Description</small>
+                            }
+                        </td>
+                        <td>@activeSongs.Count song(s)</td>
+                        <td>@totalStreams.ToString("N0")</td>
+                        <td>@album.CreatedAt.ToString("MMM dd, yyyy")</td>
+                        <td>
+                            @if (album.IsDeleted)
+                            {
+                                <span class="dash-badge dash-badge-red">Deleted</span>
+                            }
+                            else
+                            {
+                                <span class="dash-badge dash-badge-green">Active</span>
+                            }
+                        </td>
+                        <td class="col-actions">
+                            @if (!album.IsDeleted)
+                            {
+                                <button class="dash-btn dash-btn-secondary dash-btn-sm" onclick="editAlbum('@album.AlbumID', '@JavaScriptEncoder.Default.Encode(album.Title)', '@JavaScriptEncoder.Default.Encode(album.Description ?? "")', '@JavaScriptEncoder.Default.Encode(album.CoverArtUrl ?? "")')">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </button>
+                                <form method="post" action="/artist/manager/albums/@album.AlbumID/delete" style="display:inline;" onsubmit="return confirm('Are you sure? This will soft-delete the album and all its songs!');">
+                                    <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="dash-empty">
+            <i class="bi bi-disc"></i>
+            <p>No albums found. Click "Create New Album" to get started!</p>
+        </div>
+    }
+</div>
+
+<!-- Modal: Create Album -->
+<div id="createAlbumModal" class="dash-modal-backdrop" style="display:none;">
+    <div class="dash-modal">
+        <h3 class="dash-modal-title">Create New Album</h3>
+        <form method="post" action="/artist/manager/albums/create">
+            <div class="dash-form-group">
+                <label class="dash-form-label">Album Title</label>
+                <input type="text" name="title" class="dash-form-input" required placeholder="e.g. Summer Hits 2026" />
+            </div>
+            <div class="dash-form-group">
+                <label class="dash-form-label">Cover Art URL</label>
+                <input type="url" name="coverArtUrl" class="dash-form-input" placeholder="https://example.com/cover.jpg" />
+            </div>
+            <div class="dash-form-group">
+                <label class="dash-form-label">Description</label>
+                <textarea name="description" class="dash-form-textarea" placeholder="Album description or liner notes..."></textarea>
+            </div>
+            <div class="dash-modal-actions">
+                <button type="button" class="dash-btn dash-btn-secondary" onclick="closeModal('createAlbumModal')">Cancel</button>
+                <button type="submit" class="dash-btn dash-btn-primary">Create Album</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Edit Album -->
+<div id="editAlbumModal" class="dash-modal-backdrop" style="display:none;">
+    <div class="dash-modal">
+        <h3 class="dash-modal-title">Edit Album</h3>
+        <form id="editAlbumForm" method="post">
+            <div class="dash-form-group">
+                <label class="dash-form-label">Album Title</label>
+                <input type="text" id="editAlbumTitle" name="title" class="dash-form-input" required />
+            </div>
+            <div class="dash-form-group">
+                <label class="dash-form-label">Cover Art URL</label>
+                <input type="url" id="editAlbumCover" name="coverArtUrl" class="dash-form-input" />
+            </div>
+            <div class="dash-form-group">
+                <label class="dash-form-label">Description</label>
+                <textarea id="editAlbumDesc" name="description" class="dash-form-textarea"></textarea>
+            </div>
+            <div class="dash-modal-actions">
+                <button type="button" class="dash-btn dash-btn-secondary" onclick="closeModal('editAlbumModal')">Cancel</button>
+                <button type="submit" class="dash-btn dash-btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function editAlbum(id, title, desc, cover) {
+            document.getElementById('editAlbumForm').action = '/artist/manager/albums/' + id + '/update';
+            document.getElementById('editAlbumTitle').value = title;
+            document.getElementById('editAlbumDesc').value = desc;
+            document.getElementById('editAlbumCover').value = cover;
+            openModal('editAlbumModal');
+        }
+    </script>
+}

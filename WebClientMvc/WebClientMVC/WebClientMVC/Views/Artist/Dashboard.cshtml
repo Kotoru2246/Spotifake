@@ -1,0 +1,77 @@
+@{
+    Layout = "_DashboardLayout";
+}
+
+<!-- Stat Cards -->
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Streams</div>
+        <div class="stat-value">@(((long)ViewBag.TotalStreams).ToString("N0"))</div>
+        <div class="stat-meta">Across all your uploaded songs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Songs</div>
+        <div class="stat-value">@ViewBag.TotalSongs</div>
+        <div class="stat-meta">Active published tracks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Albums</div>
+        <div class="stat-value">@ViewBag.TotalAlbums</div>
+        <div class="stat-meta">Discography releases</div>
+    </div>
+</div>
+
+<!-- Recent Activity / Recent Uploads -->
+<div class="dash-card">
+    <div class="dash-card-header">
+        <h3 class="dash-card-title">Recent Songs</h3>
+        <a href="/artist/manager/songs" class="dash-btn dash-btn-secondary dash-btn-sm">View All Songs</a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="dash-toast dash-toast-success">@TempData["SuccessMessage"]</div>
+    }
+
+    @{
+        var recentSongs = ViewBag.RecentSongs as List<DataAccess.Models.Song>;
+    }
+
+    @if (recentSongs != null && recentSongs.Any())
+    {
+        <table class="dash-table">
+            <thead>
+                <tr>
+                    <th>Song Title</th>
+                    <th>Mood</th>
+                    <th>Language</th>
+                    <th>Streams</th>
+                    <th>Uploaded</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var song in recentSongs)
+                {
+                    <tr>
+                        <td>
+                            <strong>@song.Title</strong>
+                        </td>
+                        <td>
+                            <span class="dash-badge dash-badge-cyan">@(song.Mood ?? "Neutral")</span>
+                        </td>
+                        <td>@(song.Language ?? "en")</td>
+                        <td>@song.PlayCount.ToString("N0")</td>
+                        <td>@(song.UploadedAt?.ToString("MMM dd, yyyy") ?? "N/A")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="dash-empty">
+            <i class="bi bi-music-note-list"></i>
+            <p>No songs uploaded yet. Head over to the Player to upload your first track!</p>
+        </div>
+    }
+</div>

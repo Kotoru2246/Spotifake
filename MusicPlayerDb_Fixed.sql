@@ -45,7 +45,9 @@ DROP TABLE IF EXISTS UserFavorites;
 DROP TABLE IF EXISTS UserSessions;
 DROP TABLE IF EXISTS PlaylistTracks;
 DROP TABLE IF EXISTS Playlists;
+DROP TABLE IF EXISTS ArtistRequests;
 DROP TABLE IF EXISTS Songs;
+DROP TABLE IF EXISTS Albums;
 DROP TABLE IF EXISTS ArtistProfiles;
 DROP TABLE IF EXISTS Genres;
 DROP TABLE IF EXISTS Users;
@@ -175,6 +177,75 @@ CREATE TABLE ArtistProfiles
 );
 GO
 
+/*=========================================================
+ ALBUMS
+=========================================================*/
+CREATE TABLE Albums
+(
+    AlbumID UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT PK_Albums PRIMARY KEY
+        DEFAULT NEWID(),
+
+    ArtistID UNIQUEIDENTIFIER NOT NULL,
+
+    Title NVARCHAR(255) NOT NULL,
+
+    Description NVARCHAR(MAX) NOT NULL
+        CONSTRAINT DF_Albums_Description DEFAULT(''),
+
+    CoverArtUrl NVARCHAR(1000) NULL,
+
+    CoverArtData VARBINARY(MAX) NULL,
+
+    IsDeleted BIT NOT NULL
+        CONSTRAINT DF_Albums_IsDeleted DEFAULT(0),
+
+    CreatedAt DATETIME2 NOT NULL
+        CONSTRAINT DF_Albums_CreatedAt DEFAULT(GETUTCDATE()),
+
+    CONSTRAINT FK_Albums_ArtistProfiles FOREIGN KEY (ArtistID)
+        REFERENCES ArtistProfiles (ArtistID) ON DELETE CASCADE
+);
+GO
+
+/*=========================================================
+ ARTIST REQUESTS
+=========================================================*/
+CREATE TABLE ArtistRequests
+(
+    RequestID UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT PK_ArtistRequests PRIMARY KEY
+        DEFAULT NEWID(),
+
+    UserID UNIQUEIDENTIFIER NOT NULL,
+
+    StageName NVARCHAR(150) NOT NULL,
+
+    CvFileData VARBINARY(MAX) NULL,
+
+    CvFileName NVARCHAR(255) NOT NULL
+        CONSTRAINT DF_Requests_CvFileName DEFAULT(''),
+
+    DemoFileData VARBINARY(MAX) NULL,
+
+    DemoFileName NVARCHAR(255) NOT NULL
+        CONSTRAINT DF_Requests_DemoFileName DEFAULT(''),
+
+    Status NVARCHAR(50) NOT NULL
+        CONSTRAINT DF_Requests_Status DEFAULT('Pending'),
+
+    AdminNotes NVARCHAR(MAX) NOT NULL
+        CONSTRAINT DF_Requests_AdminNotes DEFAULT(''),
+
+    CreatedAt DATETIME2 NOT NULL
+        CONSTRAINT DF_Requests_CreatedAt DEFAULT(GETUTCDATE()),
+
+    ResolvedAt DATETIME2 NULL,
+
+    CONSTRAINT FK_ArtistRequests_Users FOREIGN KEY (UserID)
+        REFERENCES Users (UserID) ON DELETE CASCADE
+);
+GO
 
 /*=========================================================
  SONGS (Includes Extended Attributes)

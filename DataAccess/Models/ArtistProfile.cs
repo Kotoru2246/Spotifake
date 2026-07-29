@@ -12,27 +12,6 @@ namespace DataAccess.Models
         public bool Verified { get; set; } = false;
         public int FollowersCount { get; set; } = 0;
         public string Website { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        // Navigation
-        public User User { get; set; } = null!;
-    }
-}
-
-
-
---- VERSION ---
-
-        public int FollowersCount { get; set; } = 0;
-        public string Website { get; set; } = string.Empty;
-        public string Status { get; set; } = "Pending";
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
---- VERSION ---
-
-        public bool Verified { get; set; } = false;
-        public int FollowersCount { get; set; } = 0;
-        public string Website { get; set; } = string.Empty;
         public string Status { get; set; } = "Pending";
 
         // New fields
@@ -42,3 +21,8 @@ namespace DataAccess.Models
         public string ProfileImageUrl { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navigation
+        public User User { get; set; } = null!;
+    }
+}

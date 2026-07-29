@@ -17,6 +17,8 @@ namespace DataAccess
         public DbSet<ArtistAnalytics> ArtistAnalytics => Set<ArtistAnalytics>();
         public DbSet<ArtistProfile> ArtistProfiles => Set<ArtistProfile>();
         public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
+        public DbSet<Album> Albums => Set<Album>();
+        public DbSet<ArtistRequest> ArtistRequests => Set<ArtistRequest>();
 
         public MusicPlayerContext()
         {
@@ -45,6 +47,8 @@ namespace DataAccess
             modelBuilder.Entity<UserSession>().HasKey(us => us.SessionID);
             modelBuilder.Entity<ArtistProfile>().HasKey(ap => ap.ArtistID);
             modelBuilder.Entity<AdminAuditLog>().HasKey(al => al.LogID);
+            modelBuilder.Entity<Album>().HasKey(a => a.AlbumID);
+            modelBuilder.Entity<ArtistRequest>().HasKey(r => r.RequestID);
 
             // Unique constraints
             modelBuilder.Entity<User>().HasIndex(u => u.Username).IsUnique();
@@ -88,6 +92,26 @@ namespace DataAccess
                 .HasForeignKey(s => s.UserID)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // --- Album relationships ---
+            modelBuilder.Entity<Album>()
+                .HasOne(a => a.ArtistProfile)
+                .WithMany()
+                .HasForeignKey(a => a.ArtistID)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Song>()
+                .HasOne(s => s.AlbumEntity)
+                .WithMany(a => a.Songs)
+                .HasForeignKey(s => s.AlbumID)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // --- ArtistRequest relationships ---
+            modelBuilder.Entity<ArtistRequest>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserID)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // --- Existing PlaylistTrack relationships ---
             modelBuilder.Entity<PlaylistTrack>()
                 .HasOne(pt => pt.Playlist)
@@ -96,10 +120,10 @@ namespace DataAccess
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<PlaylistTrack>()
-    .HasOne(pt => pt.Song)
-    .WithMany()
-    .HasForeignKey(pt => pt.SongID)
-    .OnDelete(DeleteBehavior.Cascade);
+                .HasOne(pt => pt.Song)
+                .WithMany()
+                .HasForeignKey(pt => pt.SongID)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // ===== UserListeningHistory Configuration =====
             modelBuilder.Entity<UserListeningHistory>(entity =>

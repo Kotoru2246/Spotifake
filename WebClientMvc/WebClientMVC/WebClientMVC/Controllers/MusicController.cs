@@ -127,15 +127,3 @@ public class MusicController : Controller
         };
     }
 }
-
---- VERSION ---
-
-    public async Task<IActionResult> PostComment(string id, [FromBody] CommentRequest request)
-    {
-        var username = User.Identity?.Name 
-                       ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
-                       ?? User.FindFirst("sub")?.Value 
-                       ?? "anonymous";
-        var userId = User.Identity?.IsAuthenticated == true ? username : "anonymous";
-
-        var commentsFile = Path.Combine(_dataFolder, "comments.json");
