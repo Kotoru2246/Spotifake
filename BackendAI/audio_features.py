@@ -187,7 +187,11 @@ def extract_audio_features(file_path: str) -> Dict[str, float]:
     # Feature derivations
     danceability = float(np.clip(0.4 + (tempo / 200.0) * 0.3 + (energy * 0.3), 0.0, 1.0))
     acousticness = float(np.clip(1.0 - (energy * 0.7) - (sc_mean / 10000.0), 0.0, 1.0))
-    valence = float(np.clip(0.3 + (energy * 0.4) + (danceability * 0.3), 0.0, 1.0))
+    
+    # Decouple valence from energy: use spectral brightness (sc_mean) as primary indicator of positivity
+    base_valence = float(np.clip((sc_mean - 1000.0) / 3000.0, 0.0, 1.0))
+    valence = float(np.clip(base_valence * 0.7 + energy * 0.3, 0.0, 1.0))
+    
     instrumentalness = float(np.clip((1.0 - zcr_val) * 0.5 + 0.3, 0.0, 1.0))
     key = int(np.argmax(np.abs(np.fft.rfft(y[:min(len(y), 22050)]))) % 12)
     mode = 1 if np.mean(y) >= 0 else 0
@@ -328,39 +332,68 @@ def extract_mood_from_tags(tags: list) -> str:
     return 'neutral'
 
 
-def categorize_genre_and_mood_rule_based(features: Dict[str, float]) -> tuple:
+def categorize_genre_and_mood_rule_based(features: Dict[str, float], override_genre: str = None) -> tuple:
     """
     Rule-based genre and mood categorization based on features.
-    This is the fallback when Essentia service is unavailable.
+    If override_genre is provided (e.g., from CNN), it strongly influences the mood.
     """
-    tempo = features.get("tempo", 0)
-    energy = features.get("energy", 0)
-    danceability = features.get("danceability", 0)
-    valence = features.get("valence", 0)
-    acousticness = features.get("acousticness", 0)
+    tempo = features.get("tempo", 120)
+    energy = features.get("energy", 0.5)
+    danceability = features.get("danceability", 0.5)
+    valence = features.get("valence", 0.5)
+    acousticness = features.get("acousticness", 0.5)
     
     # Genre categorization
-    if acousticness > 0.7:
+    if override_genre:
+        genre = override_genre
+    elif acousticness > 0.7:
         genre = "acoustic"
     elif tempo > 140 and danceability > 0.6:
-        genre = "edm" if energy > 0.7 else "dance"
+        genre = "electronic" if energy > 0.7 else "pop"
     elif tempo < 90:
-        genre = "ambient" if energy < 0.4 else "hip-hop"
+        genre = "ambient" if energy < 0.4 else "hiphop"
     elif acousticness < 0.3 and energy > 0.7:
         genre = "rock"
     else:
         genre = "pop"
     
-    # Mood categorization
-    if valence > 0.6 and energy > 0.5:
-        mood = "happy"
-    elif valence < 0.4 and energy < 0.5:
-        mood = "sad"
-    elif valence > 0.6 and energy < 0.4:
-        mood = "calm"
-    elif valence < 0.4 and energy > 0.6:
-        mood = "aggressive"
+    # Mood categorization using Genre context
+    g = genre.lower()
+    
+    if g in ['metal', 'rock', 'punk']:
+        # High energy rock/metal is usually aggressive or energetic
+        if energy > 0.7:
+            mood = "aggressive"
+        else:
+            mood = "neutral"
+            
+    elif g in ['ambient', 'classical', 'acoustic']:
+        # These genres tend to be calm or sad
+        if valence > 0.5:
+            mood = "calm"
+        else:
+            mood = "sad"
+            
+    elif g in ['electronic', 'edm', 'disco']:
+        # Dance music is usually energetic or happy
+        if valence > 0.6:
+            mood = "happy"
+        else:
+            mood = "energetic"
+            
     else:
-        mood = "neutral"
+        # Standard fallback for Pop, Country, HipHop, etc.
+        if valence > 0.6 and energy > 0.6:
+            mood = "happy"
+        elif valence < 0.4 and energy < 0.5:
+            mood = "sad"
+        elif valence > 0.5 and energy < 0.45:
+            mood = "calm"
+        elif valence < 0.4 and energy > 0.7:
+            mood = "aggressive"
+        elif energy > 0.7:
+            mood = "energetic"
+        else:
+            mood = "neutral"
     
     return genre, mood

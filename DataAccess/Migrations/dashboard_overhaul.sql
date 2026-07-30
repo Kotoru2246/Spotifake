@@ -1,7 +1,3 @@
-
-
---- VERSION ---
-
 -- Dashboard Overhaul: Add new columns to existing tables
 -- Run against MusicPlayerDb
 

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WebClientMVC.Models;
 using WebClientMVC.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebClientMVC.Controllers;
 
@@ -57,6 +58,34 @@ public class MusicController : Controller
         return PhysicalFile(filePath, contentType, fileDownloadName: Path.GetFileName(filePath), enableRangeProcessing: true);
     }
 
+    [HttpPost("record-play")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RecordPlay([FromBody] MusicListenRequest request, [FromServices] DataAccess.MusicPlayerContext context)
+    {
+        DataAccess.Models.Song? song = null;
+        
+        if (!string.IsNullOrWhiteSpace(request.Id) && Guid.TryParse(request.Id, out var songId))
+        {
+            song = await context.Songs.FirstOrDefaultAsync(s => s.SongID == songId);
+        }
+        else
+        {
+            var fileName = Path.GetFileName(request.FileName ?? string.Empty);
+            if (!string.IsNullOrWhiteSpace(fileName))
+            {
+                song = await context.Songs.FirstOrDefaultAsync(s => s.FilePath == fileName);
+            }
+        }
+
+        if (song != null)
+        {
+            song.PlayCount++;
+            await context.SaveChangesAsync();
+            return Ok();
+        }
+        return NotFound();
+    }
+
     [HttpPost("upload")]
     [Authorize]
     [RequestSizeLimit(200_000_000)]
@@ -106,12 +135,80 @@ public class MusicController : Controller
             return NotFound(new { detail = "The selected song was not found." });
         }
 
-        var userId = User.Identity?.IsAuthenticated == true
-            ? (User.Identity?.Name ?? "anonymous")
-            : "anonymous";
+        var username = User.Identity?.Name 
+                       ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                       ?? User.FindFirst("sub")?.Value 
+                       ?? "anonymous";
+        var userId = User.Identity?.IsAuthenticated == true ? username : "anonymous";
 
         _songListenLogService.RecordListen(fileName, userId);
         return Ok(new { detail = "Listen event recorded." });
+    }
+
+    [HttpPost("albums/save/{albumId}")]
+    [Authorize]
+    public IActionResult SaveAlbum(string albumId, [FromServices] DataAccess.MusicPlayerContext context)
+    {
+        try
+        {
+            var username = User.Identity?.Name 
+                           ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                           ?? User.FindFirst("sub")?.Value;
+            var user = context.Users.FirstOrDefault(u => u.Username == username);
+            if (user == null) return Unauthorized();
+            
+            if (Guid.TryParse(albumId, out var id))
+            {
+                var existing = context.UserSavedAlbums.FirstOrDefault(sa => sa.UserID == user.UserID && sa.AlbumID == id);
+                if (existing == null)
+                {
+                    context.UserSavedAlbums.Add(new DataAccess.Models.UserSavedAlbum
+                    {
+                        SavedID = Guid.NewGuid(),
+                        UserID = user.UserID,
+                        AlbumID = id,
+                        SavedAt = DateTime.UtcNow
+                    });
+                    context.SaveChanges();
+                }
+                return Ok(new { detail = "Album saved." });
+            }
+            return BadRequest("Invalid album ID.");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
+    }
+
+    [HttpPost("albums/unsave/{albumId}")]
+    [Authorize]
+    public IActionResult UnsaveAlbum(string albumId, [FromServices] DataAccess.MusicPlayerContext context)
+    {
+        try
+        {
+            var username = User.Identity?.Name 
+                           ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                           ?? User.FindFirst("sub")?.Value;
+            var user = context.Users.FirstOrDefault(u => u.Username == username);
+            if (user == null) return Unauthorized();
+            
+            if (Guid.TryParse(albumId, out var id))
+            {
+                var existing = context.UserSavedAlbums.FirstOrDefault(sa => sa.UserID == user.UserID && sa.AlbumID == id);
+                if (existing != null)
+                {
+                    context.UserSavedAlbums.Remove(existing);
+                    context.SaveChanges();
+                }
+                return Ok(new { detail = "Album unsaved." });
+            }
+            return BadRequest("Invalid album ID.");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { detail = ex.Message });
+        }
     }
 
     private static string GetContentType(string filePath)

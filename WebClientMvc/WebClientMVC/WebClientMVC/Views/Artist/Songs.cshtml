@@ -1,181 +1,374 @@
 @model DataAccess.Models.ArtistProfile
 @{
-    Layout = "_DashboardLayout";
-    var songs = ViewBag.Songs as List<DataAccess.Models.Song> ?? new List<DataAccess.Models.Song>();
-    var albums = ViewBag.Albums as List<DataAccess.Models.Album> ?? new List<DataAccess.Models.Album>();
-    var search = ViewBag.Search as string;
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+    var songs = (List<DataAccess.Models.Song>)ViewBag.Songs;
+    var albums = (List<DataAccess.Models.Album>)ViewBag.Albums;
 }
 
-<div class="dash-card">
-    <div class="dash-card-header">
-        <h3 class="dash-card-title">Song Manager</h3>
-        <a href="/" class="dash-btn dash-btn-primary">
-            <i class="bi bi-upload"></i> Upload New Song (Player)
-        </a>
+@if (TempData["SuccessMessage"] != null)
+{
+    <div style="background: rgba(29,185,84,0.15); border: 1px solid rgba(29,185,84,0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: #1db954;">
+        <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
     </div>
+}
 
-    @if (TempData["SuccessMessage"] != null)
-    {
-        <div class="dash-toast dash-toast-success">@TempData["SuccessMessage"]</div>
-    }
-
-    <!-- Search Bar -->
-    <form method="get" action="/artist/manager/songs" class="dash-search-bar">
-        <input type="text" name="search" class="dash-search-input" placeholder="Search songs by title..." value="@search" />
-        <button type="submit" class="dash-btn dash-btn-secondary">Search</button>
-        @if (!string.IsNullOrEmpty(search))
-        {
-            <a href="/artist/manager/songs" class="dash-btn dash-btn-secondary">Clear</a>
-        }
-    </form>
-
-    @if (songs.Any())
-    {
-        <table class="dash-table">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Album</th>
-                    <th>Mood</th>
-                    <th>Language</th>
-                    <th>Streams</th>
-                    <th>Uploaded</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var song in songs)
-                {
-                    <tr class="@(song.IsDeleted ? "is-deleted" : "")">
-                        <td>
-                            <strong>@song.Title</strong>
-                            @if (!string.IsNullOrEmpty(song.Tags))
-                            {
-                                <br /><small style="color:var(--text-muted);">Genre: @song.Tags</small>
-                            }
-                        </td>
-                        <td>@(song.AlbumEntity?.Title ?? "Single")</td>
-                        <td>
-                            <span class="dash-badge dash-badge-cyan">@(song.Mood ?? "Neutral")</span>
-                        </td>
-                        <td>@(song.Language ?? "en")</td>
-                        <td>@song.PlayCount.ToString("N0")</td>
-                        <td>@(song.UploadedAt?.ToString("MMM dd, yyyy") ?? "N/A")</td>
-                        <td>
-                            @if (song.IsDeleted)
-                            {
-                                <span class="dash-badge dash-badge-red">Deleted</span>
-                            }
-                            else
-                            {
-                                <span class="dash-badge dash-badge-green">Active</span>
-                            }
-                        </td>
-                        <td class="col-actions">
-                            @if (!song.IsDeleted)
-                            {
-                                <button class="dash-btn dash-btn-secondary dash-btn-sm" onclick="editSong('@song.SongID', '@JavaScriptEncoder.Default.Encode(song.Title)', '@JavaScriptEncoder.Default.Encode(song.Mood ?? "")', '@JavaScriptEncoder.Default.Encode(song.Language ?? "")', '@JavaScriptEncoder.Default.Encode(song.Lyrics ?? "")', '@JavaScriptEncoder.Default.Encode(song.Credits ?? "")', '@(song.AlbumID?.ToString() ?? "")', '@JavaScriptEncoder.Default.Encode(song.CoverArtUrl ?? "")')">
-                                    <i class="bi bi-pencil"></i> Edit
-                                </button>
-                                <form method="post" action="/artist/manager/songs/@song.SongID/delete" style="display:inline;" onsubmit="return confirm('Are you sure you want to soft-delete this song?');">
-                                    <button type="submit" class="dash-btn dash-btn-danger dash-btn-sm">
-                                        <i class="bi bi-trash"></i> Delete
-                                    </button>
-                                </form>
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-    else
-    {
-        <div class="dash-empty">
-            <i class="bi bi-music-note-beamed"></i>
-            <p>No songs found. Head over to the Player to upload songs!</p>
-        </div>
-    }
+<!-- Action Bar -->
+<div class="dash-action-bar">
+    <div class="dash-search-wrapper" style="flex: 1; max-width: 400px; margin-bottom: 0;">
+        <i class="bi bi-search"></i>
+        <input type="text" class="dash-search-input" id="songSearch" placeholder="Search songs..." oninput="filterSongTable()">
+    </div>
+    <button class="dash-btn dash-btn-primary" onclick="document.getElementById('uploadSongModal').classList.add('show')">
+        <i class="bi bi-cloud-arrow-up-fill"></i> Upload New Song
+    </button>
 </div>
 
-<!-- Modal: Edit Song -->
-<div id="editSongModal" class="dash-modal-backdrop" style="display:none;">
-    <div class="dash-modal" style="max-width: 650px;">
-        <h3 class="dash-modal-title">Edit Song Details</h3>
-        <form id="editSongForm" method="post">
-            <div class="dash-form-row">
-                <div class="dash-form-group">
-                    <label class="dash-form-label">Song Title</label>
-                    <input type="text" id="editSongTitle" name="title" class="dash-form-input" required />
+<!-- Songs Table -->
+<div class="dash-card">
+    <div class="dash-card-body no-pad">
+        @if (songs != null && songs.Any())
+        {
+            <table class="dash-table" id="songTable">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Album</th>
+                        <th>Genre</th>
+                        <th>Mood</th>
+                        <th>Language</th>
+                        <th>Streams</th>
+                        <th>Uploaded</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var song in songs)
+                    {
+                        <tr class="@(song.IsDeleted ? "deleted-row" : "")" data-name="@song.Title.ToLower()">
+                            <td><strong>@song.Title</strong></td>
+                            <td>@(song.AlbumEntity?.Title ?? "—")</td>
+                            <td><span class="dash-badge cyan">@(song.Tags ?? "analyzing...")</span></td>
+                            <td><span class="dash-badge yellow">@(song.Mood ?? "—")</span></td>
+                            <td>@(song.Language ?? "—")</td>
+                            <td class="dash-number">@song.PlayCount.ToString("N0")</td>
+                            <td>@(song.UploadedAt?.ToString("MMM dd") ?? "—")</td>
+                            <td>
+                                @if (song.IsDeleted)
+                                {
+                                    <span class="dash-badge red">Deleted</span>
+                                }
+                                else
+                                {
+                                    <span class="dash-badge green">Active</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!song.IsDeleted)
+                                {
+                                    <button class="dash-btn-icon" title="Edit" onclick="openEditSong('@song.SongID', '@song.Title.Replace("'", "\\'")', '@(song.Mood ?? "")', '@(song.Language ?? "")', '@(song.Lyrics?.Replace("'", "\\'").Replace("\n", "\\n") ?? "")', '@(song.Credits?.Replace("'", "\\'") ?? "")', '@(song.Tags ?? "")', '@(song.AlbumID?.ToString() ?? "")')">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                    <form method="post" action="/artist/manager/songs/@song.SongID/delete" style="display: inline;" onsubmit="return confirm('Delete this song?')">
+                                        <button type="submit" class="dash-btn-icon" title="Delete" style="color: var(--accent-red);">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form method="post" action="/artist/manager/songs/@song.SongID/restore" style="display: inline;" onsubmit="return confirm('Restore this song?')">
+                                        <button type="submit" class="dash-btn-icon" title="Restore" style="color: var(--accent-green);">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="dash-empty">
+                <i class="bi bi-music-note-list"></i>
+                <p>No songs uploaded yet.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Edit Song Modal -->
+<div class="dash-modal-overlay" id="editSongModal">
+    <div class="dash-modal">
+        <div class="dash-modal-header">
+            <h3><i class="bi bi-pencil-fill"></i> Edit Song</h3>
+            <button class="dash-modal-close" onclick="document.getElementById('editSongModal').classList.remove('show')">&times;</button>
+        </div>
+        <form method="post" id="editSongForm">
+            <div class="dash-modal-body">
+                <div class="dash-form-grid">
+                    <div class="dash-form-group">
+                        <label class="dash-label">Title</label>
+                        <input type="text" name="title" id="editSongTitle" class="dash-input">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Genre</label>
+                        <input type="text" name="customGenre" id="editSongGenre" class="dash-input" placeholder="e.g. Pop, Rock">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Mood</label>
+                        <select name="mood" id="editSongMood" class="dash-select">
+                            <option value="">-- Select Mood --</option>
+                            <option value="happy">Happy</option>
+                            <option value="sad">Sad</option>
+                            <option value="energetic">Energetic</option>
+                            <option value="calm">Calm</option>
+                            <option value="angry">Angry</option>
+                            <option value="neutral">Neutral</option>
+                        </select>
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Language</label>
+                        <input type="text" name="language" id="editSongLanguage" class="dash-input" placeholder="e.g. en, th, ko">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Album</label>
+                        <select name="albumId" id="editSongAlbum" class="dash-select">
+                            <option value="">None (Single)</option>
+                            @if (albums != null)
+                            {
+                                @foreach (var album in albums)
+                                {
+                                    <option value="@album.AlbumID">@album.Title</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="dash-form-group full-width">
+                        <label class="dash-label">Credits</label>
+                        <input type="text" name="credits" id="editSongCredits" class="dash-input" placeholder="Producer, Writer, etc.">
+                    </div>
+                    <div class="dash-form-group full-width">
+                        <label class="dash-label">Lyrics</label>
+                        <textarea name="lyrics" id="editSongLyrics" class="dash-textarea" rows="4"></textarea>
+                    </div>
                 </div>
-                <div class="dash-form-group">
-                    <label class="dash-form-label">Album Assignment</label>
-                    <select id="editSongAlbum" name="albumId" class="dash-form-select">
-                        <option value="">-- Single (No Album) --</option>
-                        @foreach (var alb in albums)
-                        {
-                            <option value="@alb.AlbumID">@alb.Title</option>
-                        }
-                    </select>
+            </div>
+            <div class="dash-modal-footer">
+                <button type="button" class="dash-btn dash-btn-secondary" onclick="document.getElementById('editSongModal').classList.remove('show')">Cancel</button>
+                <button type="submit" class="dash-btn dash-btn-primary"><i class="bi bi-check-lg"></i> Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Upload Song Modal -->
+<div class="dash-modal-overlay" id="uploadSongModal">
+    <div class="dash-modal" style="max-width: 800px;">
+        <div class="dash-modal-header">
+            <h3><i class="bi bi-cloud-arrow-up-fill"></i> Upload Song</h3>
+            <button class="dash-modal-close" onclick="document.getElementById('uploadSongModal').classList.remove('show')">&times;</button>
+        </div>
+        <form id="uploadSongForm" class="row g-4" style="padding: 20px;">
+            <div class="dash-modal-body">
+                <div class="dash-form-grid">
+                    <div class="dash-form-group">
+                        <label class="dash-label">Song Title *</label>
+                        <input type="text" class="dash-input" name="title" required>
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Artist Name *</label>
+                        <input type="text" class="dash-input" name="artist" value="@Model.StageName" required>
+                    </div>
+                    <div class="dash-form-group full-width">
+                        <label class="dash-label">Collaborating Artists (comma separated)</label>
+                        <input type="text" class="dash-input" name="collab_artists" placeholder="e.g. Snoop Dogg, Dr. Dre">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Album / EP (Optional)</label>
+                        <select class="dash-select" name="album_id" id="albumSelect">
+                            <option value="">None (Single)</option>
+                            @if (albums != null)
+                            {
+                                @foreach (var album in albums)
+                                {
+                                    <option value="@album.AlbumID">@album.Title</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Release Date</label>
+                        <input type="date" class="dash-input" name="release_date">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Cover Art URL (Optional)</label>
+                        <input type="url" class="dash-input" name="cover_art_url" placeholder="https://...">
+                    </div>
+                    <div class="dash-form-group">
+                        <label class="dash-label">Or Upload Cover Art</label>
+                        <input type="file" class="dash-input" name="cover_art_file" accept="image/*">
+                    </div>
+                    <div class="dash-form-group full-width">
+                        <div class="mb-2 mt-2 d-flex align-items-center">
+                            <input type="checkbox" id="overrideGenreCheck" onchange="document.getElementById('customGenreContainer').style.display = this.checked ? 'block' : 'none'" style="width: 20px; height: 20px; cursor: pointer;">
+                            <label class="dash-label ms-2 mb-0" for="overrideGenreCheck" style="cursor: pointer; margin-left: 10px;">Provide custom genre manually (Override AI)</label>
+                        </div>
+                        <div id="customGenreContainer" style="display: none;" class="mb-4 mt-2">
+                            <input type="text" class="dash-input" name="custom_genre" placeholder="e.g. Synthwave, Lofi Hip Hop">
+                        </div>
+                        
+                        <div class="mb-2 mt-2 d-flex align-items-center">
+                            <input type="checkbox" name="contribute_to_ai" id="contributeAiCheck" value="true" onchange="document.getElementById('trainingGenreContainer').style.display = this.checked ? 'block' : 'none'" style="width: 20px; height: 20px; cursor: pointer;">
+                            <label class="dash-label ms-2 mb-0" for="contributeAiCheck" style="cursor: pointer; margin-left: 10px;">Contribute this song to AI recommendation dataset</label>
+                        </div>
+                        <div id="trainingGenreContainer" style="display: none;" class="mb-4 mt-2">
+                            <label class="dash-label">SELECT GROUND TRUTH GENRE</label>
+                            <select class="dash-select" name="training_genre">
+                                <option value="">-- Select Genre --</option>
+                                <option value="acoustic">Acoustic</option>
+                                <option value="ambient">Ambient</option>
+                                <option value="blues">Blues</option>
+                                <option value="classical">Classical</option>
+                                <option value="country">Country</option>
+                                <option value="disco">Disco</option>
+                                <option value="electronic">Electronic</option>
+                                <option value="folk">Folk</option>
+                                <option value="hip-hop">Hip-Hop</option>
+                                <option value="indie">Indie</option>
+                                <option value="jazz">Jazz</option>
+                                <option value="metal">Metal</option>
+                                <option value="pop">Pop</option>
+                                <option value="reggae">Reggae</option>
+                                <option value="rock">Rock</option>
+                                <option value="soul">Soul</option>
+                            </select>
+                            <small style="color: var(--text-muted); display: block; margin-top: 5px;">If opted in, this song's audio features will be extracted from 3 different segments and appended to our custom training dataset with a high sample weight.</small>
+                        </div>
+                    </div>
+                    <div class="dash-form-group full-width">
+                        <label class="dash-label">Audio File *</label>
+                        <input type="file" class="dash-input" name="file" accept="audio/*" required>
+                    </div>
+                    <div class="dash-form-group full-width mt-3">
+                        <div style="padding: 15px; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(0,0,0,0.2);">
+                            <div class="d-flex align-items-center">
+                                <input type="checkbox" id="testUploadCheck" style="width: 22px; height: 22px; cursor: pointer;">
+                                <label class="dash-label ms-2 mb-0" for="testUploadCheck" style="cursor: pointer; margin-left: 10px; color: var(--accent-red);">TEST UPLOAD MODE (Do not save to database)</label>
+                            </div>
+                            <small style="color: var(--text-muted); display: block; margin-top: 5px; margin-left: 32px;">If checked, the AI will analyze your song and show you the results directly on the screen. The song will <b>not</b> be saved to your library.</small>
+                        </div>
+                    </div>
+                    <div class="dash-form-group full-width">
+                        <label class="dash-label">Credits</label>
+                        <textarea class="dash-textarea" name="credits" rows="2" placeholder="Producer, Writer, etc."></textarea>
+                    </div>
                 </div>
             </div>
-
-            <div class="dash-form-row">
-                <div class="dash-form-group">
-                    <label class="dash-form-label">Mood</label>
-                    <select id="editSongMood" name="mood" class="dash-form-select">
-                        <option value="happy">Happy</option>
-                        <option value="energetic">Energetic</option>
-                        <option value="calm">Calm</option>
-                        <option value="sad">Sad</option>
-                        <option value="angry">Angry</option>
-                        <option value="neutral">Neutral</option>
-                    </select>
-                </div>
-                <div class="dash-form-group">
-                    <label class="dash-form-label">Language</label>
-                    <input type="text" id="editSongLang" name="language" class="dash-form-input" placeholder="e.g. en, vi, ja" />
-                </div>
-            </div>
-
-            <div class="dash-form-group">
-                <label class="dash-form-label">Cover Art URL</label>
-                <input type="url" id="editSongCover" name="coverArtUrl" class="dash-form-input" placeholder="https://example.com/cover.jpg" />
-            </div>
-
-            <div class="dash-form-group">
-                <label class="dash-form-label">Lyrics</label>
-                <textarea id="editSongLyrics" name="lyrics" class="dash-form-textarea" placeholder="Song lyrics..."></textarea>
-            </div>
-
-            <div class="dash-form-group">
-                <label class="dash-form-label">Credits & Production Notes</label>
-                <textarea id="editSongCredits" name="credits" class="dash-form-textarea" placeholder="Producer, songwriter, mixing credits..."></textarea>
-            </div>
-
-            <div class="dash-modal-actions">
-                <button type="button" class="dash-btn dash-btn-secondary" onclick="closeModal('editSongModal')">Cancel</button>
-                <button type="submit" class="dash-btn dash-btn-primary">Save Changes</button>
+            <div class="dash-modal-footer" style="width: 100%;">
+                <div id="uploadStatus" style="flex: 1; text-align: left; font-weight: bold;"></div>
+                <button type="button" class="dash-btn dash-btn-secondary" onclick="document.getElementById('uploadSongModal').classList.remove('show')">Cancel</button>
+                <button type="submit" class="dash-btn dash-btn-primary" id="uploadBtn"><i class="bi bi-upload"></i> Upload</button>
             </div>
         </form>
     </div>
 </div>
 
 @section Scripts {
-    <script>
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-        function editSong(id, title, mood, lang, lyrics, credits, albumId, cover) {
-            document.getElementById('editSongForm').action = '/artist/manager/songs/' + id + '/update';
-            document.getElementById('editSongTitle').value = title;
-            document.getElementById('editSongMood').value = mood;
-            document.getElementById('editSongLang').value = lang;
-            document.getElementById('editSongLyrics').value = lyrics;
-            document.getElementById('editSongCredits').value = credits;
-            document.getElementById('editSongAlbum').value = albumId;
-            document.getElementById('editSongCover').value = cover;
-            openModal('editSongModal');
+<script>
+function filterSongTable() {
+    const q = document.getElementById('songSearch').value.toLowerCase();
+    document.querySelectorAll('#songTable tbody tr').forEach(row => {
+        row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+    });
+}
+function openEditSong(id, title, mood, lang, lyrics, credits, genre, albumId) {
+    document.getElementById('editSongForm').action = '/artist/manager/songs/' + id + '/update';
+    document.getElementById('editSongTitle').value = title;
+    document.getElementById('editSongGenre').value = genre;
+    document.getElementById('editSongLanguage').value = lang;
+    document.getElementById('editSongCredits').value = credits;
+    document.getElementById('editSongLyrics').value = lyrics;
+    document.getElementById('editSongMood').value = mood;
+    document.getElementById('editSongAlbum').value = albumId;
+    document.getElementById('editSongModal').classList.add('show');
+}
+function getAuthToken() {
+    let t = localStorage.getItem('spotifake.jwt') || localStorage.getItem('token');
+    if (!t || t === 'null' || t === 'undefined') {
+        const match = document.cookie.match(/(?:^|; )jwt_token=([^;]*)/);
+        if (match) t = match[1];
+    }
+    return t;
+}
+
+document.getElementById('uploadSongForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const btn = document.getElementById('uploadBtn');
+    const status = document.getElementById('uploadStatus');
+    btn.disabled = true;
+
+    const isTestMode = document.getElementById('testUploadCheck') && document.getElementById('testUploadCheck').checked;
+    
+    if (isTestMode) {
+        status.innerHTML = '<span style="color: var(--accent-cyan);">Test Upload in progress... Analyzing AI features...</span>';
+    } else {
+        status.innerHTML = '<span style="color: var(--accent-cyan);">Uploading to AI processing server...</span>';
+    }
+
+    const formData = new FormData(this);
+    const targetUrl = isTestMode ? 'http://127.0.0.1:8000/songs/test_upload' : 'http://127.0.0.1:8000/songs/upload';
+
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            status.innerHTML = `<span style="color: var(--accent-red);">Failed: Not logged in (token missing)</span>`;
+            btn.disabled = false;
+            return;
         }
-    </script>
+        
+        const response = await fetch(targetUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token
+            },
+            body: formData
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (isTestMode) {
+                let scoresHtml = '';
+                if (data.genre_scores && Object.keys(data.genre_scores).length > 0) {
+                    const sortedScores = Object.entries(data.genre_scores).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                    sortedScores.forEach(([g, score]) => {
+                        const pct = (score * 100).toFixed(1);
+                        scoresHtml += `<div style="font-size: 0.8rem; margin-top: 5px;">${g.toUpperCase()}: ${pct}%</div>`;
+                    });
+                }
+                
+                status.innerHTML = `<span style="color: var(--accent-green);">Test Complete!</span>
+                <div style="font-size: 0.85rem; margin-top: 10px; line-height: 1.4;">
+                    <strong>Genre:</strong> ${data.genre}<br>
+                    <strong>Mood:</strong> ${data.mood}<br>
+                    <strong>Lang:</strong> ${data.language}
+                    ${scoresHtml}
+                </div>`;
+            } else {
+                status.innerHTML = `<span style="color: var(--accent-green);">Upload successful! Processing via AI.</span>`;
+                this.reset();
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        } else {
+            const error = await response.json();
+            status.innerHTML = `<span style="color: var(--accent-red);">Upload failed: ${error.detail || 'Unknown error'}</span>`;
+        }
+    } catch (err) {
+        status.innerHTML = `<span style="color: var(--accent-red);">Connection error: ${err.message}</span>`;
+    }
+    btn.disabled = false;
+});
+</script>
 }

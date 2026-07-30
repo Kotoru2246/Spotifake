@@ -1,18 +1,17 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using WebClientMVC.Models;
+
 
 namespace WebClientMVC.Controllers;
 
-/// <summary>
-/// Auth is handled entirely client-side via JavaScript calling FastAPI directly.
-/// This controller exists only for Razor view routing.
-/// </summary>
+[Route("auth")]
 public class AuthController : Controller
 {
     private readonly IConfiguration _configuration;
@@ -75,13 +74,6 @@ public class AuthController : Controller
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
 
-        Response.Cookies.Append("access_token", tokenString, new CookieOptions 
-        { 
-            HttpOnly = true, 
-            Path = "/", 
-            MaxAge = TimeSpan.FromMinutes(expiresMinutes) 
-        });
-
         return Ok(new
         {
             access_token = tokenString,
@@ -96,21 +88,22 @@ public class AuthController : Controller
     [Authorize]
     public IActionResult Me()
     {
+        var username = User.Identity?.Name 
+                       ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                       ?? User.FindFirst("sub")?.Value;
+
         return Ok(new
         {
-            username = User.Identity?.Name,
+            username = username,
             role = User.FindFirst(ClaimTypes.Role)?.Value
         });
     }
 
     [HttpPost("logout")]
     [Authorize]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout()
     {
-        Response.Cookies.Delete("access_token");
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return Ok(new { detail = "Logged out." });
     }
 }
-
-public record JwtLoginRequest(string Username, string Password, string? Role);
-

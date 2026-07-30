@@ -5,7 +5,8 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from uuid import UUID
-import asyncio
+import os
+import tempfile
 import threading
 import numpy as np
 import jwt
@@ -15,12 +16,24 @@ from .schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterRespo
 from .spotify_integration import SpotifyIntegration
 from .callback_server import start_callback_server, stop_callback_server, get_auth_code, reset_auth_code
 from .db import create_db_and_tables, engine
-from .models import Song, SongCreate, SongRead, User, UserCreate, UserRead, ArtistProfile, AdminAuditLog, Comment
+from .models import Song, SongCreate, SongRead, User, UserCreate, UserRead, ArtistProfile, AdminAuditLog, Comment, Album, AlbumCreate, AlbumRead
 from .upload_handler import save_upload_file
 from .audio_features import categorize_genre_and_mood, extract_audio_features
+from .genre_classifier_advanced import GenreClassifierV4
+from .cnn_spectrogram_classifier import CnnSpectrogramClassifier
+from .language_detector import detect_language
+from .recommendation_engine import recommendation_service
 from .essentia_client import classify_with_features
 import tempfile
 import os
+
+# Initialize Advanced AI Models
+genre_classifier = GenreClassifierV4()
+try:
+    cnn_classifier = CnnSpectrogramClassifier()
+except Exception as e:
+    print(f"Warning: CNN Classifier disabled: {e}")
+    cnn_classifier = None
 
 app = FastAPI(title="Music Player AI Bridge")
 
@@ -32,7 +45,7 @@ except Exception as e:
     spotify = None
 security = HTTPBearer(auto_error=False)
 
-JWT_SECRET = os.getenv("JWT_SECRET", "spotifake-dev-secret-change-me-123456")
+JWT_SECRET = os.getenv("JWT_SECRET", "spotifake-dev-secret-change-me-12345")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 
@@ -95,17 +108,18 @@ def get_current_user(
     token = credentials.credentials
 
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"verify_aud": False, "verify_iss": False})
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.PyJWTError:
+    except jwt.PyJWTError as e:
+        print("JWT Decode Error:", repr(e))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
+            detail=f"Invalid token: {repr(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -146,8 +160,9 @@ def get_current_user(
 
     # Verify user exists in database
     try:
-        db_user = session.get(User, user_id)
-        if db_user and db_user.username == username and db_user.account_status == "Active":
+        user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
+        db_user = session.get(User, user_uuid)
+        if db_user and db_user.account_status == "Active":
             return db_user
     except Exception:
         pass
@@ -232,27 +247,7 @@ def register(request: RegisterRequest, session: Session = Depends(get_session)):
 @app.post("/auth/login", response_model=LoginResponse)
 def login(request: LoginRequest, session: Session = Depends(get_session)):
     """Verify username/password against database or test users and issue a JWT."""
-    # 1. Check demo/test users first
-    if request.username in TEST_USERS:
-        user_info = TEST_USERS[request.username]
-        if request.password == user_info["password"]:
-            role = user_info["role"]
-            if request.role and request.role != role:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Account type does not match the selected role",
-                )
-            access_token, expires_in = create_access_token(user_info["id"], request.username, role)
-            return LoginResponse(
-                access_token=access_token,
-                token_type="bearer",
-                username=request.username,
-                role=role,
-                user_id=str(user_info["id"]),
-                expires_in=expires_in,
-            )
-
-    # 2. Check SQL Server database
+    # 1. Check SQL Server database
     try:
         db_user = session.exec(select(User).where(User.username == request.username)).first()
         if db_user:
@@ -285,6 +280,26 @@ def login(request: LoginRequest, session: Session = Depends(get_session)):
     except Exception as e:
         print(f"⚠ DB login check warning: {e}")
 
+    # 2. Check demo/test users fallback
+    if request.username in TEST_USERS:
+        user_info = TEST_USERS[request.username]
+        if request.password == user_info["password"]:
+            role = user_info["role"]
+            if request.role and request.role != role:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Account type does not match the selected role",
+                )
+            access_token, expires_in = create_access_token(user_info["id"], request.username, role)
+            return LoginResponse(
+                access_token=access_token,
+                token_type="bearer",
+                username=request.username,
+                role=role,
+                user_id=str(user_info["id"]),
+                expires_in=expires_in,
+            )
+
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid username or password",
@@ -293,7 +308,12 @@ def login(request: LoginRequest, session: Session = Depends(get_session)):
 # Start the allback server when the app starts
 @app.on_event("startup")
 async def startup_event():
-    """Start the callback server on app startup."""
+    """Start the callback server and initialize database tables on app startup."""
+    try:
+        create_db_and_tables()
+        print("Database tables initialized successfully.")
+    except Exception as e:
+        print(f"Warning: Database table creation note: {e}")
     try:
         start_callback_server(port=8888)
     except Exception as e:
@@ -408,13 +428,81 @@ def search_spotify(query: str, search_type: str = "track", limit: int = 50, curr
     return {"query": query, "type": search_type, "results": results, "count": len(results)}
 
 
-def _extract_and_update(song_id: int, file_path: str):
+def _extract_and_update(song_id: UUID, training_genre: str = ""):
     """Background task: extract audio features and update the song record."""
+    tmp_path = None
     try:
-        print(f"[bg] Starting feature extraction for song {song_id}: {file_path}")
-        features = extract_audio_features(file_path)
-        genre, mood = categorize_genre_and_mood(features, file_path)
-        print(f"[bg] Done — genre={genre}, mood={mood}")
+        print(f"[bg] Starting feature extraction for song {song_id}")
+        with Session(engine) as bg_session:
+            song = bg_session.get(Song, song_id)
+            if not song:
+                print(f"[bg] Song {song_id} not found.")
+                return
+            
+            if song.file_data:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+                    tmp.write(song.file_data)
+                    tmp_path = tmp.name
+            elif song.file_path and os.path.exists(song.file_path):
+                tmp_path = song.file_path
+            else:
+                print(f"[bg] Song {song_id} missing file_data and valid file_path.")
+                return
+
+        # 1. Base features
+        features = extract_audio_features(tmp_path)
+        
+        # 2. Extract AI Genre
+        if cnn_classifier:
+            pred = cnn_classifier.predict(tmp_path)
+            primary_genre = pred['genre']
+            all_scores = pred['all_probs']
+        else:
+            primary_genre, details = genre_classifier.classify_genre(tmp_path)
+            all_scores = details.get('all_scores', {})
+            
+        genre = primary_genre
+        if all_scores:
+            high_conf_genres = [g for g, score in all_scores.items() if score > 0.2]
+            if high_conf_genres:
+                genre = ", ".join(high_conf_genres)
+        
+        # 3. Extract Mood using the AI Genre as context
+        from .audio_features import categorize_genre_and_mood_rule_based
+        _, mood = categorize_genre_and_mood_rule_based(features, override_genre=primary_genre)
+        
+        # 4. Extract AI Language using Whisper (offset by 50%)
+        language = detect_language(tmp_path)
+        
+        print(f"[bg] Done — genre={genre}, mood={mood}, language={language}")
+        
+        # 4. Handle Dataset Contribution if requested
+        if training_genre:
+            import pandas as pd
+            print(f"[bg] User contributed song to dataset as: {training_genre}")
+            csv_path = os.path.join(os.path.dirname(__file__), 'fma_data', 'custom_training_data.csv')
+            
+            # Use raw_features from 25%, 50%, and 75% marks
+            all_features = []
+            for pct in [0.25, 0.50, 0.75]:
+                from .audio_features_advanced import extract_audio_features as ext_adv
+                raw = ext_adv(tmp_path, offset_pct=pct)
+                if raw:
+                    raw['mapped_genre'] = training_genre
+                    raw['sample_weight'] = 5.0 # High weight for user contributions
+                    all_features.append(raw)
+                    
+            if all_features:
+                df_new = pd.DataFrame(all_features)
+                if os.path.exists(csv_path):
+                    df_new.to_csv(csv_path, mode='a', header=False, index=False)
+                else:
+                    df_new.to_csv(csv_path, index=False)
+                print(f"[bg] Added {len(all_features)} rows to custom training dataset.")
+        
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
         with Session(engine) as bg_session:
             song = bg_session.get(Song, song_id)
             if song:
@@ -427,47 +515,153 @@ def _extract_and_update(song_id: int, file_path: str):
                 song.key             = features.get("key", 0)
                 song.mode            = features.get("mode", 0)
                 song.duration_ms     = features.get("duration_ms", song.duration_ms)
-                song.genre           = genre
-                song.mood            = mood
-                song.tags            = f"{genre},{mood}"
+                
+                # Only auto-tag if genre wasn't provided or was analyzing
+                if not song.genre or song.genre == "analyzing...":
+                    song.genre = genre
+                    song.tags = f"{genre},{mood},{language}"
+                
+                song.mood = mood
+                song.language = language
                 bg_session.add(song)
                 bg_session.commit()
                 print(f"[bg] Song {song_id} updated in DB.")
     except Exception as e:
         print(f"[bg] Feature extraction failed for song {song_id}: {e}")
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
+# ============================================================
+# Album Management Endpoints
+# ============================================================
+
+@app.post("/api/albums", response_model=AlbumRead)
+def create_album(
+    album: AlbumCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_role("artist"))
+):
+    """Create a new album for the currently authenticated artist."""
+    # Look up the ArtistProfile to get the correct ArtistID
+    artist_profile = session.exec(select(ArtistProfile).where(ArtistProfile.user_id == current_user.id)).first()
+    if not artist_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Artist profile not found for the current user."
+        )
+
+    db_album = Album(
+        title=album.title,
+        artist_id=artist_profile.id,
+        cover_art_url=album.cover_art_url
+    )
+    session.add(db_album)
+    session.commit()
+    session.refresh(db_album)
+    return db_album
+
+@app.get("/api/artists/{artist_id}/albums", response_model=list[AlbumRead])
+def get_artist_albums(
+    artist_id: UUID,
+    session: Session = Depends(get_session)
+):
+    """Get all albums for a specific artist. Fallback to UserID if ArtistID returns nothing."""
+    print(f"[DEBUG] Fetching albums for artist_id: {artist_id}")
+    albums = session.exec(select(Album).where(Album.artist_id == artist_id)).all()
+    
+    # Workaround: If no albums found, check if the ID passed was actually a UserID 
+    # (this happens because the C# Razor view is cached and still sending UserID)
+    if not albums:
+        profile = session.exec(select(ArtistProfile).where(ArtistProfile.user_id == artist_id)).first()
+        if profile:
+            albums = session.exec(select(Album).where(Album.artist_id == profile.id)).all()
+            
+    print(f"[DEBUG] Found {len(albums)} albums: {albums}")
+    return albums
+
+@app.get("/api/albums/{album_id}", response_model=AlbumRead)
+def get_album(
+    album_id: UUID,
+    session: Session = Depends(get_session)
+):
+    """Get album by ID."""
+    album = session.get(Album, album_id)
+    if not album:
+        raise HTTPException(status_code=404, detail="Album not found")
+    return album
+
+
+@app.post("/songs/{song_id}/extract")
+def trigger_extraction(
+    song_id: UUID,
+    session: Session = Depends(get_session)
+):
+    """Trigger background feature extraction for an existing song."""
+    song = session.get(Song, song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+        
+    _extract_and_update(song.id, "")
+    return {"status": "Extraction completed"}
 
 @app.post("/songs/upload", response_model=SongRead)
 async def upload_song(
     file: UploadFile = File(...),
+    cover_art_file: UploadFile = File(None),
     title: str = Form(...),
     artist: str = Form(...),
+    collab_artists: str = Form(default=""),
     album: str = Form(default=""),
+    album_id: str = Form(default=""),
+    cover_art_url: str = Form(default=""),
+    release_date: str = Form(default=""),
+    credits: str = Form(default=""),
+    lyrics: str = Form(default=""),
+    custom_genre: str = Form(default=""),
+    training_genre: str = Form(default=""),
     session: Session = Depends(get_session),
     current_user=Depends(get_current_user)
 ):
     """
     Upload a song file. Saves immediately and returns fast.
     Feature extraction (genre/mood/tempo) runs in the background.
-    Poll GET /songs/{id}/features to check when analysis is done.
     """
     try:
-        # 1. Save the file to disk immediately
-        file_path = await save_upload_file(file)
+        file_data = await file.read()
+        cover_art_data = await cover_art_file.read() if cover_art_file else None
+        
+        parsed_album_id = UUID(album_id) if album_id else None
+        parsed_release_date = datetime.fromisoformat(release_date) if release_date else datetime.utcnow()
+        
+        # Inherit cover art from album if none provided
+        if not cover_art_data and not cover_art_url and parsed_album_id:
+            db_album = session.get(Album, parsed_album_id)
+            if db_album:
+                cover_art_data = db_album.cover_art_data
+                cover_art_url = db_album.cover_art_url
+        
+        # Determine the user ID based on current_user
+        user_uuid = current_user.id if current_user else None
 
-        # 2. Save the song to DB right away with placeholder features
         song = Song(
             source="upload",
             title=title,
             artist=artist,
+            collab_artists=collab_artists,
             album=album,
-            file_path=file_path,
-            storage_url=file_path,
+            album_id=parsed_album_id,
+            file_data=file_data,
+            cover_art_url=cover_art_url,
+            cover_art_data=cover_art_data,
+            release_date=parsed_release_date,
+            credits=credits,
+            lyrics=lyrics,
+            user_id=user_uuid,
             duration_ms=0,
             tempo=0.0, energy=0.0, danceability=0.0,
             valence=0.0, acousticness=0.0, instrumentalness=0.0,
             key=0, mode=0,
-            genre="analyzing...",
+            genre=custom_genre if custom_genre else "analyzing...",
             mood="analyzing...",
             tags="analyzing...",
         )
@@ -475,22 +669,78 @@ async def upload_song(
         session.commit()
         session.refresh(song)
 
-        # 3. Kick off feature extraction in a background thread (non-blocking)
         t = threading.Thread(
             target=_extract_and_update,
-            args=(song.id, file_path),
+            args=(song.id, training_genre),
             daemon=True
         )
         t.start()
 
-        # 4. Return immediately — frontend gets the song record in < 1 second
         return song
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error uploading song: {str(e)}")
 
 
+@app.post("/songs/test_upload")
+async def test_upload(
+    file: UploadFile = File(...),
+    current_user=Depends(get_current_user)
+):
+    """
+    Test upload: analyze the song synchronously and return results without saving to DB.
+    """
+    tmp_path = None
+    try:
+        file_data = await file.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
+            tmp.write(file_data)
+            tmp_path = tmp.name
+        
+        print(f"[test_upload] Testing file: {tmp_path}")
+        # 1. Base features
+        features = extract_audio_features(tmp_path)
+        
+        # 2. Genre Extraction
+        if cnn_classifier:
+            pred = cnn_classifier.predict(tmp_path)
+            primary_genre = pred['genre']
+            all_scores = pred['all_probs']
+        else:
+            primary_genre, details = genre_classifier.classify_genre(tmp_path)
+            all_scores = details.get('all_scores', {})
+            
+        genre = primary_genre
+        if all_scores:
+            high_conf_genres = [g for g, score in all_scores.items() if score > 0.2]
+            if high_conf_genres:
+                genre = ", ".join(high_conf_genres)
+                
+        # 3. Extract Mood using the AI Genre as context
+        from .audio_features import categorize_genre_and_mood_rule_based
+        _, mood = categorize_genre_and_mood_rule_based(features, override_genre=primary_genre)
+                
+        # 4. Language
+        language = detect_language(tmp_path)
+        
+        print(f"[test_upload] Results -> Genre: {genre}, Mood: {mood}, Language: {language}")
+        
+        return {
+            "genre": genre,
+            "mood": mood,
+            "language": language,
+            "genre_scores": all_scores,
+            "success": True
+        }
+    except Exception as e:
+        print(f"[test_upload] Error: {e}")
+        raise HTTPException(status_code=400, detail=f"Error in test upload: {str(e)}")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
 @app.get("/songs/{song_id}/features")
-def get_song_features(song_id: int, session: Session = Depends(get_session)):
+def get_song_features(song_id: UUID, session: Session = Depends(get_session)):
     """Poll this endpoint to check if background feature extraction is done."""
     song = session.get(Song, song_id)
     if not song:
@@ -564,7 +814,7 @@ def list_songs(session: Session = Depends(get_session)):
 
 
 @app.delete("/songs/{song_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_song(song_id: int, session: Session = Depends(get_session)):
+def delete_song(song_id: UUID, session: Session = Depends(get_session)):
     song = session.get(Song, song_id)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
@@ -573,47 +823,11 @@ def delete_song(song_id: int, session: Session = Depends(get_session)):
     session.commit()
     return
 
-@app.post("/songs/{song_id}/comments", response_model=CommentRead)
-def create_comment(
-    song_id: int,
-    comment: CommentCreate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
-):
-    song = session.get(Song, song_id)
-    if not song:
-        # Allow commenting on frontend hardcoded tracks by automatically creating them in the DB
-        song = Song(id=song_id, title=f"Track {song_id}")
-        session.add(song)
-        try:
-            session.commit()
-        except Exception:
-            session.rollback()
-            raise HTTPException(status_code=500, detail="Failed to initialize track for commenting")
-    
-    db_comment = Comment(
-        user_id=current_user.id,
-        song_id=song_id,
-        timestamp_ms=comment.timestamp_ms,
-        content=comment.content
-    )
-    session.add(db_comment)
-    session.commit()
-    session.refresh(db_comment)
-    return db_comment
 
-@app.get("/songs/{song_id}/comments", response_model=list[CommentRead])
-def get_comments(song_id: int, session: Session = Depends(get_session)):
-    song = session.get(Song, song_id)
-    if not song:
-        raise HTTPException(status_code=404, detail="Song not found")
-    
-    comments = session.exec(select(Comment).where(Comment.song_id == song_id).order_by(Comment.timestamp_ms)).all()
-    return comments
 
 
 @app.get("/songs/{song_id}", response_model=SongRead)
-def get_song(song_id: int, session: Session = Depends(get_session)):
+def get_song(song_id: UUID, session: Session = Depends(get_session)):
     """Get a song by ID."""
     song = session.get(Song, song_id)
     if not song:
@@ -623,29 +837,25 @@ def get_song(song_id: int, session: Session = Depends(get_session)):
 
 
 @app.get("/songs/{song_id}/stream")
-def stream_song(song_id: int, session: Session = Depends(get_session)):
-    """Stream an uploaded song audio file for web playback."""
+def stream_song(song_id: UUID, session: Session = Depends(get_session)):
+    """Stream an uploaded song audio file from database for web playback."""
+    from fastapi.responses import StreamingResponse
+    import io
+
     song = session.get(Song, song_id)
     if not song:
         raise HTTPException(status_code=404, detail=f"Song {song_id} not found")
 
-    if not song.file_path or not os.path.exists(song.file_path):
-        raise HTTPException(status_code=404, detail="Audio file not found on server")
+    if not song.file_data:
+        raise HTTPException(status_code=404, detail="Audio file data not found in database")
 
-    extension = os.path.splitext(song.file_path)[1].lower()
-    media_types = {
-        ".mp3": "audio/mpeg",
-        ".wav": "audio/wav",
-        ".ogg": "audio/ogg",
-        ".m4a": "audio/mp4",
-        ".flac": "audio/flac",
-    }
-    media_type = media_types.get(extension, "audio/mpeg")
-
-    return FileResponse(
-        path=song.file_path,
-        media_type=media_type,
-        filename=os.path.basename(song.file_path),
+    return StreamingResponse(
+        io.BytesIO(song.file_data),
+        media_type="audio/mpeg",
+        headers={
+            "Content-Disposition": f'inline; filename="{song.title or song_id}.mp3"',
+            "Accept-Ranges": "bytes"
+        }
     )
 
 
@@ -745,22 +955,52 @@ def get_hybrid_recommendations(
     return recommendations
 
 @app.post('/api/smart-shuffle', response_model=SmartShuffleResponse)
-def smart_shuffle(request: SmartShuffleRequest):
+def smart_shuffle(request: SmartShuffleRequest, session: Session = Depends(get_session)):
     """
     Smart Shuffle endpoint.
-    Accepts a seed song ID and returns similar song recommendations.
-    Currently returns placeholder data; integrate ChromaDB for real vector search.
+    Accepts a single song_id or a list of playlist_song_ids.
+    Returns similar song recommendations using the ML Acoustic Recommendation Engine.
     """
-    seed_id = request.song_id
-    if seed_id not in SONG_NEIGHBORS:
-        raise HTTPException(
-            status_code=404,
-            detail=f'Seed song {seed_id} not found in vector store. Please add sample data to SONG_NEIGHBORS.'
-        )
-
-    neighbor_ids = SONG_NEIGHBORS[seed_id]
-    response = SmartShuffleResponse(song_ids=neighbor_ids)
-    return response
+    # 1. Determine the input seed(s)
+    seed_ids = []
+    if request.playlist_song_ids and len(request.playlist_song_ids) > 0:
+        seed_ids = request.playlist_song_ids
+    elif request.song_id:
+        seed_ids = [request.song_id]
+    else:
+        raise HTTPException(status_code=400, detail="Must provide either song_id or playlist_song_ids")
+        
+    # 2. Fetch the seed songs to build the 'Vibe'
+    seed_songs = session.exec(select(Song).where(Song.id.in_(seed_ids))).all()
+    if not seed_songs:
+        raise HTTPException(status_code=404, detail="Seed songs not found in database")
+        
+    playlist_vectors = np.array([
+        [s.tempo, s.energy, s.danceability, s.valence, s.acousticness, s.instrumentalness]
+        for s in seed_songs
+    ])
+    
+    # 3. Fetch candidate songs (all other songs)
+    candidate_songs = session.exec(select(Song).where(Song.id.not_in(seed_ids))).all()
+    if not candidate_songs:
+        # If there are no other songs, just return an empty list
+        return SmartShuffleResponse(song_ids=[])
+        
+    candidate_vectors = np.array([
+        [s.tempo, s.energy, s.danceability, s.valence, s.acousticness, s.instrumentalness]
+        for s in candidate_songs
+    ])
+    candidate_ids = [s.id for s in candidate_songs]
+    
+    # 4. Generate recommendations using KNN Cosine Similarity
+    recommendations = recommendation_service.get_smart_shuffle(
+        playlist_vectors=playlist_vectors,
+        candidate_vectors=candidate_vectors,
+        candidate_ids=candidate_ids,
+        n_recommendations=3  # User asked for "after 3 songs" or similar, returning top 3 is safe
+    )
+    
+    return SmartShuffleResponse(song_ids=recommendations)
 
 
 # ============================================================
@@ -887,42 +1127,69 @@ def admin_get_audit_logs(
     return logs
 
 
+def parse_frontend_song_id(song_id: str) -> UUID:
+    try:
+        return UUID(str(song_id))
+    except (ValueError, AttributeError):
+        try:
+            s_int = int(song_id)
+            return UUID(int=s_int)
+        except ValueError:
+            return UUID("00000000-0000-0000-0000-000000000011")
+
 @app.post("/songs/{song_id}/comments", response_model=CommentRead)
 def create_comment(
-    song_id: int,
+    song_id: str,
     comment: CommentCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    song = session.get(Song, song_id)
-    if not song:
-        # Allow commenting on frontend hardcoded tracks by automatically creating them in the DB
-        song = Song(id=song_id, title=f"Track {song_id}")
-        session.add(song)
+    s_uuid = parse_frontend_song_id(song_id)
+    
+    from sqlalchemy import text
+    song_exists = session.execute(
+        text("SELECT 1 FROM Songs WHERE SongID = :sid"),
+        {"sid": str(s_uuid)}
+    ).fetchone()
+    
+    if not song_exists:
         try:
+            session.execute(
+                text("""
+                    INSERT INTO Songs (SongID, Title, ArtistName, FilePath)
+                    VALUES (:sid, :title, :artist, :filepath)
+                """),
+                {
+                    "sid": str(s_uuid),
+                    "title": f"Track {song_id}",
+                    "artist": "Demo Artist",
+                    "filepath": f"/music/track{song_id}.mp3"
+                }
+            )
             session.commit()
         except Exception:
             session.rollback()
-            raise HTTPException(status_code=500, detail="Failed to initialize track for commenting")
-    
+
     db_comment = Comment(
         user_id=current_user.id,
-        song_id=song_id,
+        song_id=s_uuid,
         timestamp_ms=comment.timestamp_ms,
         content=comment.content
     )
     session.add(db_comment)
-    session.commit()
-    session.refresh(db_comment)
+    try:
+        session.commit()
+        session.refresh(db_comment)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
     return db_comment
 
+
 @app.get("/songs/{song_id}/comments", response_model=list[CommentRead])
-def get_comments(song_id: int, session: Session = Depends(get_session)):
-    song = session.get(Song, song_id)
-    if not song:
-        raise HTTPException(status_code=404, detail="Song not found")
-    
-    comments = session.exec(select(Comment).where(Comment.song_id == song_id).order_by(Comment.timestamp_ms)).all()
+def get_comments(song_id: str, session: Session = Depends(get_session)):
+    s_uuid = parse_frontend_song_id(song_id)
+    comments = session.exec(select(Comment).where(Comment.song_id == s_uuid).order_by(Comment.timestamp_ms)).all()
     return comments
 
 if __name__ == "__main__":

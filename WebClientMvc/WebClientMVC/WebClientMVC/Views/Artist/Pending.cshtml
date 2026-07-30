@@ -1,0 +1,48 @@
+@{
+    ViewData["Title"] = "Artist Application Pending";
+}
+
+<style>
+    .pending-container {
+        max-width: 500px;
+        margin: 6rem auto;
+        background: #181818;
+        border-radius: 12px;
+        padding: 3rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .btn-outline-spotify {
+        color: #fff;
+        border: 1px solid #727272;
+        border-radius: 500px;
+        padding: 10px 32px;
+        font-weight: bold;
+        transition: transform 0.2s, border-color 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn-outline-spotify:hover {
+        border-color: #fff;
+        color: #fff;
+        transform: scale(1.04);
+    }
+    .status-badge {
+        display: inline-block;
+        padding: 6px 16px;
+        background: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+        border-radius: 20px;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+</style>
+
+<div class="pending-container text-light text-center">
+    <div class="status-badge">⏳ Pending Review</div>
+    <h2 class="fw-bold mb-3" style="letter-spacing: -0.5px;">Application Received</h2>
+    <p class="text-secondary mb-4">Please wait for an administrator to review your request. You'll be able to access the Artist Manager once approved.</p>
+    <p class="text-muted small">Current status: @ViewBag.PendingMessage</p>
+    <div class="mt-4">
+        <a href="/" class="btn-outline-spotify">Return to Home</a>
+    </div>
+</div>

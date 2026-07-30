@@ -1,5 +1,32 @@
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, Float, LargeBinary
+from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
+from datetime import datetime
+from typing import Optional, List
+from uuid import UUID, uuid4
+
+class Album(SQLModel, table=True):
+    __tablename__ = "Albums"
+    id: Optional[UUID] = Field(
+        default_factory=uuid4,
+        sa_column=Column("AlbumID", UNIQUEIDENTIFIER, primary_key=True)
+    )
+    title: str = Field(sa_column=Column("Title", String(255)))
+    artist_id: UUID = Field(sa_column=Column("ArtistID", UNIQUEIDENTIFIER, ForeignKey("ArtistProfiles.ArtistID")))
+    cover_art_url: str = Field(default="", sa_column=Column("CoverArtUrl", String(1000)))
+    cover_art_data: Optional[bytes] = Field(default=None, sa_column=Column("CoverArtData", LargeBinary))
+    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column("CreatedAt", DateTime))
+
+class AlbumCreate(SQLModel):
+    title: str
+    cover_art_url: str = ""
+
+class AlbumRead(SQLModel):
+    id: UUID
+    title: str
+    artist_id: UUID
+    cover_art_url: str
+    created_at: datetime
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from datetime import datetime
 from typing import Optional
@@ -7,29 +34,48 @@ from uuid import UUID, uuid4
 
 
 class Song(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    source: str = Field(default="upload")
-    source_id: str = Field(default="")
-    title: str = Field(default="")
-    artist: str = Field(default="")
-    album: str = Field(default="")
-    duration_ms: int = Field(default=0)
-    uri: str = Field(default="")
-    popularity: int = Field(default=0)
-    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
-    genre: str = Field(default="")
-    mood: str = Field(default="")
-    tempo: float = Field(default=0.0)
-    energy: float = Field(default=0.0)
-    danceability: float = Field(default=0.0)
-    valence: float = Field(default=0.0)
-    acousticness: float = Field(default=0.0)
-    instrumentalness: float = Field(default=0.0)
-    key: int = Field(default=0)
-    mode: int = Field(default=0)
-    tags: str = Field(default="")
-    file_path: str = Field(default="")
-    storage_url: str = Field(default="")
+    __tablename__ = "Songs"
+    id: Optional[UUID] = Field(
+        default_factory=uuid4,
+        sa_column=Column(
+            "SongID",
+            UNIQUEIDENTIFIER,
+            primary_key=True
+        )
+    )
+    user_id: Optional[UUID] = Field(sa_column=Column("UserID", UNIQUEIDENTIFIER))
+    genre_id: Optional[UUID] = Field(sa_column=Column("GenreID", UNIQUEIDENTIFIER))
+    album_id: Optional[UUID] = Field(sa_column=Column("AlbumID", UNIQUEIDENTIFIER))
+    source: str = Field(default="upload", sa_column=Column("Source", String(50)))
+    source_id: str = Field(default="", sa_column=Column("SourceID", String(255)))
+    title: str = Field(default="", sa_column=Column("Title", String(255)))
+    artist: str = Field(sa_column=Column("ArtistName", String(255)))
+    collab_artists: str = Field(default="", sa_column=Column("CollabArtists", String(1000)))
+    album: str = Field(default="", sa_column=Column("Album", String(255)))
+    duration_ms: int = Field(default=0, sa_column=Column("DurationSeconds", Integer))
+    uri: str = Field(default="", sa_column=Column("Uri", String(500)))
+    popularity: int = Field(default=0, sa_column=Column("Popularity", Integer))
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column("UploadedAt", DateTime))
+    genre: str = Field(default="", sa_column=Column("Genre", String(100)))
+    mood: str = Field(default="", sa_column=Column("Mood", String(100)))
+    language: str = Field(default="", sa_column=Column("Language", String(50)))
+    tempo: float = Field(default=0.0, sa_column=Column("Tempo", Float))
+    energy: float = Field(default=0.0, sa_column=Column("Energy", Float))
+    danceability: float = Field(default=0.0, sa_column=Column("Danceability", Float))
+    valence: float = Field(default=0.0, sa_column=Column("Valence", Float))
+    acousticness: float = Field(default=0.0, sa_column=Column("Acousticness", Float))
+    instrumentalness: float = Field(default=0.0, sa_column=Column("Instrumentalness", Float))
+    key: int = Field(default=0, sa_column=Column("Key", Integer))
+    mode: int = Field(default=0, sa_column=Column("Mode", Integer))
+    tags: str = Field(default="", sa_column=Column("Tags", String(1000)))
+    file_path: str = Field(default="", sa_column=Column("FilePath", String(1000)))
+    file_data: Optional[bytes] = Field(default=None, sa_column=Column("FileData", LargeBinary))
+    cover_art_url: str = Field(default="", sa_column=Column("CoverArtUrl", String(1000)))
+    cover_art_data: Optional[bytes] = Field(default=None, sa_column=Column("CoverArtData", LargeBinary))
+    release_date: Optional[datetime] = Field(default=None, sa_column=Column("ReleaseDate", DateTime))
+    credits: str = Field(default="", sa_column=Column("Credits", String(1000)))
+    lyrics: str = Field(default="", sa_column=Column("Lyrics", String))
+    storage_url: str = Field(default="", sa_column=Column("StorageUrl", String(1000)))
 
 
 class SongCreate(SQLModel):
@@ -37,12 +83,15 @@ class SongCreate(SQLModel):
     source_id: str = ""
     title: str = ""
     artist: str = ""
+    collab_artists: str = ""
     album: str = ""
+    album_id: Optional[UUID] = None
     duration_ms: int = 0
     uri: str = ""
     popularity: int = 0
     genre: str = ""
     mood: str = ""
+    language: str = ""
     tempo: float = 0.0
     energy: float = 0.0
     danceability: float = 0.0
@@ -54,20 +103,26 @@ class SongCreate(SQLModel):
     tags: str = ""
     file_path: str = ""
     storage_url: str = ""
+    cover_art_url: str = ""
+    release_date: Optional[datetime] = None
+    credits: str = ""
+    lyrics: str = ""
 
 
 class SongRead(SQLModel):
-    id: int
+    id: UUID
     source: str
     source_id: str
     title: str
     artist: str
+    collab_artists: str
     album: str
     duration_ms: int
     uri: str
     popularity: int
     genre: str
     mood: str
+    language: str
     tempo: float
     energy: float
     danceability: float
@@ -78,6 +133,9 @@ class SongRead(SQLModel):
     mode: int
     tags: str
     storage_url: str
+    cover_art_url: str
+    release_date: Optional[datetime]
+    credits: str
 
 
 class User(SQLModel, table=True):
@@ -181,20 +239,22 @@ class ArtistProfile(SQLModel, table=True):
     id: Optional[UUID] = Field(
         default_factory=uuid4,
         sa_column=Column(
-            "ArtistProfileID",
+            "ArtistID",
             UNIQUEIDENTIFIER,
             primary_key=True
         )
-)
+    )
+    user_id: UUID = Field(sa_column=Column("UserID", UNIQUEIDENTIFIER, ForeignKey("Users.UserID")))
     
 
-    stage_name: str = Field(default="")
-    bio: str = Field(default="")
-    genre: str = Field(default="")
-    verified: bool = Field(default=False)
-    followers_count: int = Field(default=0)
-    website: str = Field(default="")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    stage_name: str = Field(default="", sa_column=Column("StageName", String(255)))
+    bio: str = Field(default="", sa_column=Column("Bio", String(2000)))
+    genre: str = Field(default="", sa_column=Column("Genre", String(100)))
+    verified: bool = Field(default=False, sa_column=Column("Verified", Boolean))
+    status: str = Field(default="Pending", sa_column=Column("Status", String(50)))
+    followers_count: int = Field(default=0, sa_column=Column("FollowersCount", Integer))
+    website: str = Field(default="", sa_column=Column("Website", String(500)))
+    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column("CreatedAt", DateTime))
 
 class AdminAuditLog(SQLModel, table=True):
     id: Optional[UUID] = Field(
@@ -226,16 +286,38 @@ class AdminAuditLog(SQLModel, table=True):
 
 class Comment(SQLModel, table=True):
     __tablename__ = "Comments"
-    id: Optional[int] = Field(default=None, primary_key=True)
+    
+    id: Optional[UUID] = Field(
+        default_factory=uuid4,
+        sa_column=Column(
+            "CommentID",
+            UNIQUEIDENTIFIER,
+            primary_key=True
+        )
+    )
     user_id: UUID = Field(
         sa_column=Column(
             "UserID",
             UNIQUEIDENTIFIER,
-            ForeignKey("Users.UserID"),
             nullable=False
         )
     )
-    song_id: int = Field(foreign_key="song.id")
-    timestamp_ms: int = Field(default=0)
-    content: str = Field(default="")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    song_id: UUID = Field(
+        sa_column=Column(
+            "SongID",
+            UNIQUEIDENTIFIER,
+            nullable=False
+        )
+    )
+    timestamp_ms: int = Field(
+        default=0,
+        sa_column=Column("TimestampMS", Integer, nullable=False, default=0)
+    )
+    content: str = Field(
+        default="",
+        sa_column=Column("Content", String(2000), nullable=False, default="")
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column=Column("CreatedAt", DateTime, nullable=False, default=datetime.utcnow)
+    )

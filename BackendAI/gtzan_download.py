@@ -18,7 +18,7 @@ from pathlib import Path
 import requests
 
 
-GTZAN_URL = "https://opihi.cs.uvic.ca/sound/genres.tar.gz"
+GTZAN_URL = "https://huggingface.co/datasets/marsyas/gtzan/resolve/main/data/genres.tar.gz"
 
 
 def download_file(url: str, dest_path: Path) -> None:
@@ -58,7 +58,9 @@ def build_labels(audio_root: Path, labels_csv: Path) -> None:
         if not genre_dir.is_dir():
             continue
         genre = genre_dir.name
-        for audio_file in sorted(genre_dir.glob("*.au")):
+        for audio_file in sorted(genre_dir.glob("*.wav")):
+            if audio_file.name.startswith("._"):
+                continue
             rows.append({"filename": str(audio_file.relative_to(audio_root)), "genre": genre})
 
     labels_csv.parent.mkdir(parents=True, exist_ok=True)

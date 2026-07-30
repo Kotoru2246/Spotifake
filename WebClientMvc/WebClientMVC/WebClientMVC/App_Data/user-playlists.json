@@ -1,6 +1,15 @@
 {
   "user_test": [
     {
+      "Id": "liked-songs-user_test",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": [
+        "Attention",
+        "APT"
+      ]
+    },
+    {
       "Id": "5e755b2b8b244ce089e92d26c68badde",
       "Name": "Oh no",
       "ImageUrl": "",
@@ -25,6 +34,77 @@
       "Songs": [
         "Attention.mp3"
       ]
+    }
+  ],
+  "newuser123": [
+    {
+      "Id": "liked-songs-newuser123",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": []
+    }
+  ],
+  "John": [
+    {
+      "Id": "liked-songs-John",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": [
+        "Attention",
+        "APT",
+        "Burn Out",
+        "Glimpse of Us"
+      ]
+    }
+  ],
+  "Keith": [
+    {
+      "Id": "liked-songs-Keith",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": []
+    }
+  ],
+  "admin_test": [
+    {
+      "Id": "liked-songs-admin_test",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": []
+    }
+  ],
+  "mom": [
+    {
+      "Id": "liked-songs-mom",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": []
+    }
+  ],
+  "artist_test": [
+    {
+      "Id": "liked-songs-artist_test",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": [
+        "APT"
+      ]
+    }
+  ],
+  "CharliePuth": [
+    {
+      "Id": "liked-songs-CharliePuth",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": []
+    }
+  ],
+  "khanh": [
+    {
+      "Id": "liked-songs-khanh",
+      "Name": "Liked Songs",
+      "ImageUrl": "",
+      "Songs": []
     }
   ]
 }

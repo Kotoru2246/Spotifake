@@ -7,6 +7,7 @@ namespace DataAccess
     {
         public DbSet<User> Users => Set<User>();
         public DbSet<Song> Songs => Set<Song>();
+        public DbSet<Album> Albums => Set<Album>();
         public DbSet<Playlist> Playlists => Set<Playlist>();
         public DbSet<PlaylistTrack> PlaylistTracks => Set<PlaylistTrack>();
         public DbSet<UserSession> UserSessions => Set<UserSession>();
@@ -17,8 +18,9 @@ namespace DataAccess
         public DbSet<ArtistAnalytics> ArtistAnalytics => Set<ArtistAnalytics>();
         public DbSet<ArtistProfile> ArtistProfiles => Set<ArtistProfile>();
         public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
-        public DbSet<Album> Albums => Set<Album>();
         public DbSet<ArtistRequest> ArtistRequests => Set<ArtistRequest>();
+        public DbSet<UserSavedPlaylist> UserSavedPlaylists => Set<UserSavedPlaylist>();
+        public DbSet<UserSavedAlbum> UserSavedAlbums => Set<UserSavedAlbum>();
 
         public MusicPlayerContext()
         {
@@ -33,7 +35,7 @@ namespace DataAccess
         {
             if (!optionsBuilder.IsConfigured)
             {
-                optionsBuilder.UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=MusicPlayerDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=True;");
+                optionsBuilder.UseSqlServer("Server=localhost;Database=MusicPlayerDb;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=True;");
             }
         }
 
@@ -46,9 +48,9 @@ namespace DataAccess
             modelBuilder.Entity<PlaylistTrack>().HasKey(pt => pt.MappingID);
             modelBuilder.Entity<UserSession>().HasKey(us => us.SessionID);
             modelBuilder.Entity<ArtistProfile>().HasKey(ap => ap.ArtistID);
-            modelBuilder.Entity<AdminAuditLog>().HasKey(al => al.LogID);
             modelBuilder.Entity<Album>().HasKey(a => a.AlbumID);
-            modelBuilder.Entity<ArtistRequest>().HasKey(r => r.RequestID);
+            modelBuilder.Entity<AdminAuditLog>().HasKey(al => al.LogID);
+            modelBuilder.Entity<ArtistRequest>().HasKey(ar => ar.RequestID);
 
             // Unique constraints
             modelBuilder.Entity<User>().HasIndex(u => u.Username).IsUnique();
@@ -85,6 +87,13 @@ namespace DataAccess
                 .HasForeignKey(al => al.AdminID)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // User -> ArtistRequests (one-to-many)
+            modelBuilder.Entity<ArtistRequest>()
+                .HasOne(ar => ar.User)
+                .WithMany()
+                .HasForeignKey(ar => ar.UserID)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // User -> Songs (one-to-many, uploaded by)
             modelBuilder.Entity<Song>()
                 .HasOne(s => s.UploadedBy)
@@ -92,25 +101,19 @@ namespace DataAccess
                 .HasForeignKey(s => s.UserID)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // --- Album relationships ---
+            // Album -> ArtistProfile (one-to-many)
             modelBuilder.Entity<Album>()
-                .HasOne(a => a.ArtistProfile)
+                .HasOne(a => a.Artist)
                 .WithMany()
                 .HasForeignKey(a => a.ArtistID)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // Song -> Album (many-to-one)
             modelBuilder.Entity<Song>()
                 .HasOne(s => s.AlbumEntity)
                 .WithMany(a => a.Songs)
                 .HasForeignKey(s => s.AlbumID)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            // --- ArtistRequest relationships ---
-            modelBuilder.Entity<ArtistRequest>()
-                .HasOne(r => r.User)
-                .WithMany()
-                .HasForeignKey(r => r.UserID)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
             // --- Existing PlaylistTrack relationships ---
             modelBuilder.Entity<PlaylistTrack>()
@@ -120,10 +123,10 @@ namespace DataAccess
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<PlaylistTrack>()
-                .HasOne(pt => pt.Song)
-                .WithMany()
-                .HasForeignKey(pt => pt.SongID)
-                .OnDelete(DeleteBehavior.Cascade);
+    .HasOne(pt => pt.Song)
+    .WithMany()
+    .HasForeignKey(pt => pt.SongID)
+    .OnDelete(DeleteBehavior.Cascade);
 
             // ===== UserListeningHistory Configuration =====
             modelBuilder.Entity<UserListeningHistory>(entity =>
@@ -211,6 +214,36 @@ namespace DataAccess
                     .IsUnique();
 
                 entity.HasIndex(e => e.Date);
+            });
+
+            // ===== UserSavedPlaylist Configuration =====
+            modelBuilder.Entity<UserSavedPlaylist>(entity =>
+            {
+                entity.HasKey(e => e.SavedID);
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserID)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Playlist)
+                    .WithMany()
+                    .HasForeignKey(e => e.PlaylistID)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.UserID, e.PlaylistID }).IsUnique();
+            });
+
+            // ===== UserSavedAlbum Configuration =====
+            modelBuilder.Entity<UserSavedAlbum>(entity =>
+            {
+                entity.HasKey(e => e.SavedID);
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserID)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Album)
+                    .WithMany()
+                    .HasForeignKey(e => e.AlbumID)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.UserID, e.AlbumID }).IsUnique();
             });
         }
     }

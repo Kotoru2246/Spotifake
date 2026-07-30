@@ -57,6 +57,42 @@ namespace DataAccess.Migrations
                     b.ToTable("AdminAuditLogs");
                 });
 
+            modelBuilder.Entity("DataAccess.Models.Album", b =>
+                {
+                    b.Property<Guid>("AlbumID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ArtistID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("CoverArtData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("CoverArtUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("AlbumID");
+
+                    b.HasIndex("ArtistID");
+
+                    b.ToTable("Albums");
+                });
+
             modelBuilder.Entity("DataAccess.Models.ArtistAnalytics", b =>
                 {
                     b.Property<Guid>("AnalyticsID")
@@ -121,11 +157,18 @@ namespace DataAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("BannerImageUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Bio")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DateOfBirth")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("FollowersCount")
@@ -135,7 +178,22 @@ namespace DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nationality")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProfileImageUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("StageName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -155,6 +213,54 @@ namespace DataAccess.Migrations
                         .IsUnique();
 
                     b.ToTable("ArtistProfiles");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.ArtistRequest", b =>
+                {
+                    b.Property<Guid>("RequestID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AdminNotes")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("CvFileData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("CvFileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("DemoFileData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("DemoFileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StageName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("RequestID");
+
+                    b.HasIndex("UserID");
+
+                    b.ToTable("ArtistRequests");
                 });
 
             modelBuilder.Entity("DataAccess.Models.Genre", b =>
@@ -208,6 +314,12 @@ namespace DataAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsPublic")
                         .HasColumnType("bit");
 
@@ -258,12 +370,39 @@ namespace DataAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<double?>("Acousticness")
+                        .HasColumnType("float");
+
+                    b.Property<Guid?>("AlbumID")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("ArtistName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("CollabArtists")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<byte[]>("CoverArtData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("CoverArtUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Credits")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("Danceability")
+                        .HasColumnType("float");
+
                     b.Property<int>("DurationSeconds")
                         .HasColumnType("int");
+
+                    b.Property<double?>("Energy")
+                        .HasColumnType("float");
+
+                    b.Property<byte[]>("FileData")
+                        .HasColumnType("varbinary(max)");
 
                     b.Property<string>("FilePath")
                         .IsRequired()
@@ -272,20 +411,64 @@ namespace DataAccess.Migrations
                     b.Property<Guid?>("GenreID")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<double?>("Instrumentalness")
+                        .HasColumnType("float");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsHidden")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("Key")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Language")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Lyrics")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("Mode")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Mood")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<long>("PlayCount")
                         .HasColumnType("bigint");
+
+                    b.Property<int?>("Popularity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReleaseDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("StorageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Tags")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("Tempo")
+                        .HasColumnType("float");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("UploadedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<Guid?>("UserID")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<double?>("Valence")
+                        .HasColumnType("float");
+
                     b.HasKey("SongID");
+
+                    b.HasIndex("AlbumID");
 
                     b.HasIndex("GenreID");
 
@@ -315,6 +498,9 @@ namespace DataAccess.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -323,15 +509,32 @@ namespace DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsEmailVerified")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsIncognito")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsPremium")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nationality")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PremiumExpiresAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -467,6 +670,56 @@ namespace DataAccess.Migrations
                     b.ToTable("UserListeningHistories");
                 });
 
+            modelBuilder.Entity("DataAccess.Models.UserSavedAlbum", b =>
+                {
+                    b.Property<Guid>("SavedID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AlbumID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SavedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("SavedID");
+
+                    b.HasIndex("AlbumID");
+
+                    b.HasIndex("UserID", "AlbumID")
+                        .IsUnique();
+
+                    b.ToTable("UserSavedAlbums");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.UserSavedPlaylist", b =>
+                {
+                    b.Property<Guid>("SavedID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PlaylistID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SavedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserID")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("SavedID");
+
+                    b.HasIndex("PlaylistID");
+
+                    b.HasIndex("UserID", "PlaylistID")
+                        .IsUnique();
+
+                    b.ToTable("UserSavedPlaylists");
+                });
+
             modelBuilder.Entity("DataAccess.Models.UserSession", b =>
                 {
                     b.Property<Guid>("SessionID")
@@ -504,6 +757,17 @@ namespace DataAccess.Migrations
                     b.Navigation("Admin");
                 });
 
+            modelBuilder.Entity("DataAccess.Models.Album", b =>
+                {
+                    b.HasOne("DataAccess.Models.ArtistProfile", "Artist")
+                        .WithMany()
+                        .HasForeignKey("ArtistID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Artist");
+                });
+
             modelBuilder.Entity("DataAccess.Models.ArtistAnalytics", b =>
                 {
                     b.HasOne("DataAccess.Models.ArtistProfile", "Artist")
@@ -521,6 +785,17 @@ namespace DataAccess.Migrations
                         .WithOne("ArtistProfile")
                         .HasForeignKey("DataAccess.Models.ArtistProfile", "UserID")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.ArtistRequest", b =>
+                {
+                    b.HasOne("DataAccess.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("User");
@@ -558,6 +833,11 @@ namespace DataAccess.Migrations
 
             modelBuilder.Entity("DataAccess.Models.Song", b =>
                 {
+                    b.HasOne("DataAccess.Models.Album", "AlbumEntity")
+                        .WithMany("Songs")
+                        .HasForeignKey("AlbumID")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("DataAccess.Models.Genre", "Genre")
                         .WithMany("Songs")
                         .HasForeignKey("GenreID")
@@ -567,6 +847,8 @@ namespace DataAccess.Migrations
                         .WithMany()
                         .HasForeignKey("UserID")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AlbumEntity");
 
                     b.Navigation("Genre");
 
@@ -630,6 +912,44 @@ namespace DataAccess.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("DataAccess.Models.UserSavedAlbum", b =>
+                {
+                    b.HasOne("DataAccess.Models.Album", "Album")
+                        .WithMany()
+                        .HasForeignKey("AlbumID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DataAccess.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Album");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.UserSavedPlaylist", b =>
+                {
+                    b.HasOne("DataAccess.Models.Playlist", "Playlist")
+                        .WithMany()
+                        .HasForeignKey("PlaylistID")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DataAccess.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Playlist");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DataAccess.Models.UserSession", b =>
                 {
                     b.HasOne("DataAccess.Models.User", "User")
@@ -639,6 +959,11 @@ namespace DataAccess.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DataAccess.Models.Album", b =>
+                {
+                    b.Navigation("Songs");
                 });
 
             modelBuilder.Entity("DataAccess.Models.Genre", b =>

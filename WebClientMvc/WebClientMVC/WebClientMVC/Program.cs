@@ -1,61 +1,61 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
+using Microsoft.EntityFrameworkCore;
 
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+using WebClientMVC.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<MusicLibraryService>();
+builder.Services.AddSingleton<SongListenLogService>();
+builder.Services.AddScoped<UserPlaylistService>();
+builder.Services.AddSingleton<AdminDashboardService>();
+
+builder.Services.AddDbContext<DataAccess.MusicPlayerContext>(options =>
+{
+    options.UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=MusicPlayerDb;Trusted_Connection=True;");
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         var jwtSection = builder.Configuration.GetSection("Jwt");
         var key = jwtSection["Secret"] ?? jwtSection["Key"] ?? "THIS_IS_A_DEMO_SECRET_CHANGE_IT_TO_A_LONG_RANDOM_VALUE";
+        Console.WriteLine($"[DEBUG] JWT Key: {key}");
+        
+        var issuer = jwtSection["Issuer"];
+        var audience = jwtSection["Audience"];
 
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            ValidateIssuer = !string.IsNullOrEmpty(issuer),
+            ValidateAudience = !string.IsNullOrEmpty(audience),
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            ValidIssuer = issuer,
+            ValidAudience = audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
-            ClockSkew = TimeSpan.Zero,
-            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier,
-            RoleClaimType = System.Security.Claims.ClaimTypes.Role
+            ClockSkew = TimeSpan.Zero
         };
 
         options.Events = new JwtBearerEvents
         {
             OnMessageReceived = context =>
             {
-                if (context.Request.Cookies.ContainsKey("access_token"))
+                var token = context.Request.Cookies["jwt_token"];
+                if (!string.IsNullOrEmpty(token))
                 {
-                    context.Token = context.Request.Cookies["access_token"];
-                    Console.WriteLine("Token found in cookies: " + context.Token.Substring(0, Math.Min(15, context.Token.Length)) + "...");
+                    context.Token = token;
                 }
-                else
-                {
-                    Console.WriteLine("No access_token cookie found.");
-                }
-                return Task.CompletedTask;
-            },
-            OnAuthenticationFailed = context =>
-            {
-                Console.WriteLine("Authentication failed: " + context.Exception.Message);
                 return Task.CompletedTask;
             }
         };
     });
 
-builder.Services.AddDbContext<DataAccess.MusicPlayerContext>();
-builder.Services.AddScoped<WebClientMVC.Services.AdminDashboardService>();
-builder.Services.AddScoped<WebClientMVC.Services.MusicLibraryService>();
-builder.Services.AddScoped<WebClientMVC.Services.SongListenLogService>();
-builder.Services.AddScoped<WebClientMVC.Services.UserPlaylistService>();
-builder.Services.AddHttpClient();
 builder.Services.AddAuthorization();
 
 var app = builder.Build();

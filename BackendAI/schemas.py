@@ -5,7 +5,8 @@ from datetime import datetime
 from typing import Optional
 
 class SmartShuffleRequest(BaseModel):
-    song_id: UUID
+    song_id: UUID | None = None
+    playlist_song_ids: list[UUID] | None = None
 
 class SmartShuffleResponse(BaseModel):
     song_ids: list[UUID]
@@ -44,15 +45,18 @@ class RegisterResponse(BaseModel):
     token_type: str = "bearer"
     created_at: datetime
 
+from pydantic import BaseModel, ConfigDict
+
 class CommentCreate(BaseModel):
-    song_id: int
+    song_id: str
     timestamp_ms: int
     content: str
 
 class CommentRead(BaseModel):
-    id: int
-    user_id: UUID
-    song_id: int
-    timestamp_ms: int
-    content: str
-    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID | None = None
+    user_id: UUID | None = None
+    song_id: UUID | str | None = None
+    timestamp_ms: int = 0
+    content: str = ""
+    created_at: datetime | None = None

@@ -1,0 +1,56 @@
+@model DataAccess.Models.ArtistProfile
+@{
+    Layout = "~/Views/Shared/_DashboardLayout.cshtml";
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div style="background: rgba(29,185,84,0.15); border: 1px solid rgba(29,185,84,0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; color: #1db954;">
+        <i class="bi bi-check-circle-fill"></i> @TempData["SuccessMessage"]
+    </div>
+}
+
+<div class="dash-card">
+    <div class="dash-card-header">
+        <h3><i class="bi bi-person-fill"></i> Profile Information</h3>
+    </div>
+    <div class="dash-card-body">
+        <form method="post" action="/artist/manager/profile">
+            <div class="dash-form-grid">
+                <div class="dash-form-group">
+                    <label class="dash-label">Stage Name</label>
+                    <input type="text" name="stageName" class="dash-input" value="@Model.StageName" required>
+                </div>
+                <div class="dash-form-group">
+                    <label class="dash-label">Website</label>
+                    <input type="url" name="website" class="dash-input" value="@Model.Website" placeholder="https://...">
+                </div>
+                <div class="dash-form-group">
+                    <label class="dash-label">Date of Birth</label>
+                    <input type="date" name="dateOfBirth" class="dash-input" value="@(Model.DateOfBirth?.ToString("yyyy-MM-dd"))">
+                </div>
+                <div class="dash-form-group">
+                    <label class="dash-label">Nationality</label>
+                    <input type="text" name="nationality" class="dash-input" value="@Model.Nationality" placeholder="e.g. American, Thai, Korean">
+                </div>
+                <div class="dash-form-group full-width">
+                    <label class="dash-label">Profile Image URL</label>
+                    <input type="url" name="profileImageUrl" class="dash-input" value="@Model.ProfileImageUrl" placeholder="https://...">
+                </div>
+                <div class="dash-form-group full-width">
+                    <label class="dash-label">Banner Image URL</label>
+                    <input type="url" name="bannerImageUrl" class="dash-input" value="@Model.BannerImageUrl" placeholder="https://...">
+                </div>
+                <div class="dash-form-group full-width">
+                    <label class="dash-label">Bio</label>
+                    <textarea name="bio" class="dash-textarea" rows="4">@Model.Bio</textarea>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                <button type="submit" class="dash-btn dash-btn-primary">
+                    <i class="bi bi-check-lg"></i> Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

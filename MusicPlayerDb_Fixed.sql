@@ -1,7 +1,3 @@
-
-
---- VERSION ---
-
 /*
 =========================================================
  MusicPlayerDb - FIXED & FULLY IDEMPOTENT DDL SCRIPT
@@ -43,11 +39,13 @@ DROP TABLE IF EXISTS UserListeningHistory;
 DROP TABLE IF EXISTS UserFollowing;
 DROP TABLE IF EXISTS UserFavorites;
 DROP TABLE IF EXISTS UserSessions;
+DROP TABLE IF EXISTS UserSavedPlaylists;
+DROP TABLE IF EXISTS UserSavedAlbums;
 DROP TABLE IF EXISTS PlaylistTracks;
 DROP TABLE IF EXISTS Playlists;
-DROP TABLE IF EXISTS ArtistRequests;
 DROP TABLE IF EXISTS Songs;
 DROP TABLE IF EXISTS Albums;
+DROP TABLE IF EXISTS ArtistRequests;
 DROP TABLE IF EXISTS ArtistProfiles;
 DROP TABLE IF EXISTS Genres;
 DROP TABLE IF EXISTS Users;
@@ -98,6 +96,22 @@ CREATE TABLE Users
 
     IsEmailVerified BIT NOT NULL
         CONSTRAINT DF_Users_Verified DEFAULT(0),
+
+    DateOfBirth DATETIME2 NULL,
+    
+    Nationality NVARCHAR(MAX) NOT NULL
+        CONSTRAINT DF_Users_Nationality DEFAULT(''),
+        
+    Gender NVARCHAR(MAX) NOT NULL
+        CONSTRAINT DF_Users_Gender DEFAULT(''),
+        
+    IsDeleted BIT NOT NULL
+        CONSTRAINT DF_Users_IsDeleted DEFAULT(0),
+        
+    IsPremium BIT NOT NULL
+        CONSTRAINT DF_Users_IsPremium DEFAULT(0),
+        
+    PremiumExpiresAt DATETIME2 NULL,
 
     CreatedAt DATETIME2 NOT NULL
         CONSTRAINT DF_Users_Created DEFAULT(GETUTCDATE()),
@@ -166,16 +180,63 @@ CREATE TABLE ArtistProfiles
     Verified BIT NOT NULL
         CONSTRAINT DF_Artist_Verified DEFAULT(0),
 
+    Status NVARCHAR(50) NOT NULL
+        CONSTRAINT DF_Artist_Status DEFAULT('Pending'),
+
     FollowersCount INT NOT NULL
         CONSTRAINT DF_Artist_Followers DEFAULT(0),
 
     Website NVARCHAR(500) NOT NULL
         CONSTRAINT DF_Artist_Website DEFAULT(''),
 
+    DateOfBirth DATETIME2 NULL,
+    
+    Nationality NVARCHAR(MAX) NOT NULL
+        CONSTRAINT DF_Artist_Nationality DEFAULT(''),
+        
+    IsDeleted BIT NOT NULL
+        CONSTRAINT DF_Artist_IsDeleted DEFAULT(0),
+        
+    ProfileImageUrl NVARCHAR(MAX) NOT NULL
+        CONSTRAINT DF_Artist_ProfileImageUrl DEFAULT(''),
+
     CreatedAt DATETIME2 NOT NULL
         CONSTRAINT DF_Artist_Created DEFAULT(GETUTCDATE())
 );
 GO
+
+
+/*=========================================================
+ ARTIST REQUESTS
+=========================================================*/
+CREATE TABLE ArtistRequests
+(
+    RequestID UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+    
+    UserID UNIQUEIDENTIFIER NOT NULL,
+    
+    StageName NVARCHAR(MAX) NOT NULL DEFAULT(''),
+    
+    CvFileData VARBINARY(MAX) NULL,
+    
+    CvFileName NVARCHAR(MAX) NOT NULL DEFAULT(''),
+    
+    DemoFileData VARBINARY(MAX) NULL,
+    
+    DemoFileName NVARCHAR(MAX) NOT NULL DEFAULT(''),
+    
+    Status NVARCHAR(MAX) NOT NULL DEFAULT('Pending'),
+    
+    AdminNotes NVARCHAR(MAX) NOT NULL DEFAULT(''),
+    
+    CreatedAt DATETIME2 NOT NULL DEFAULT(GETUTCDATE()),
+    
+    ResolvedAt DATETIME2 NULL,
+    
+    CONSTRAINT FK_ArtistRequests_Users FOREIGN KEY (UserID) REFERENCES Users(UserID) ON DELETE CASCADE
+);
+GO
+
 
 /*=========================================================
  ALBUMS
@@ -190,62 +251,24 @@ CREATE TABLE Albums
 
     Title NVARCHAR(255) NOT NULL,
 
-    Description NVARCHAR(MAX) NOT NULL
-        CONSTRAINT DF_Albums_Description DEFAULT(''),
-
     CoverArtUrl NVARCHAR(1000) NULL,
-
+    
     CoverArtData VARBINARY(MAX) NULL,
+    
+    ReleaseDate DATETIME2 NOT NULL
+        CONSTRAINT DF_Albums_Release DEFAULT(GETUTCDATE()),
 
     IsDeleted BIT NOT NULL
         CONSTRAINT DF_Albums_IsDeleted DEFAULT(0),
+        
+    Description NVARCHAR(MAX) NOT NULL
+        CONSTRAINT DF_Albums_Description DEFAULT(''),
 
     CreatedAt DATETIME2 NOT NULL
-        CONSTRAINT DF_Albums_CreatedAt DEFAULT(GETUTCDATE()),
-
-    CONSTRAINT FK_Albums_ArtistProfiles FOREIGN KEY (ArtistID)
-        REFERENCES ArtistProfiles (ArtistID) ON DELETE CASCADE
+        CONSTRAINT DF_Albums_Created DEFAULT(GETUTCDATE())
 );
 GO
 
-/*=========================================================
- ARTIST REQUESTS
-=========================================================*/
-CREATE TABLE ArtistRequests
-(
-    RequestID UNIQUEIDENTIFIER NOT NULL
-        CONSTRAINT PK_ArtistRequests PRIMARY KEY
-        DEFAULT NEWID(),
-
-    UserID UNIQUEIDENTIFIER NOT NULL,
-
-    StageName NVARCHAR(150) NOT NULL,
-
-    CvFileData VARBINARY(MAX) NULL,
-
-    CvFileName NVARCHAR(255) NOT NULL
-        CONSTRAINT DF_Requests_CvFileName DEFAULT(''),
-
-    DemoFileData VARBINARY(MAX) NULL,
-
-    DemoFileName NVARCHAR(255) NOT NULL
-        CONSTRAINT DF_Requests_DemoFileName DEFAULT(''),
-
-    Status NVARCHAR(50) NOT NULL
-        CONSTRAINT DF_Requests_Status DEFAULT('Pending'),
-
-    AdminNotes NVARCHAR(MAX) NOT NULL
-        CONSTRAINT DF_Requests_AdminNotes DEFAULT(''),
-
-    CreatedAt DATETIME2 NOT NULL
-        CONSTRAINT DF_Requests_CreatedAt DEFAULT(GETUTCDATE()),
-
-    ResolvedAt DATETIME2 NULL,
-
-    CONSTRAINT FK_ArtistRequests_Users FOREIGN KEY (UserID)
-        REFERENCES Users (UserID) ON DELETE CASCADE
-);
-GO
 
 /*=========================================================
  SONGS (Includes Extended Attributes)
@@ -259,15 +282,21 @@ CREATE TABLE Songs
     UserID UNIQUEIDENTIFIER NULL,
 
     GenreID UNIQUEIDENTIFIER NULL,
+    
+    AlbumID UNIQUEIDENTIFIER NULL,
 
     Title NVARCHAR(255) NOT NULL,
 
     ArtistName NVARCHAR(255) NOT NULL,
+    
+    CollabArtists NVARCHAR(1000) NULL,
 
     DurationSeconds INT NOT NULL
         CONSTRAINT DF_Songs_Duration DEFAULT(0),
 
     FilePath NVARCHAR(1000) NOT NULL,
+    
+    FileData VARBINARY(MAX) NULL,
 
     PlayCount BIGINT NOT NULL
         CONSTRAINT DF_Songs_PlayCount DEFAULT(0),
@@ -283,6 +312,16 @@ CREATE TABLE Songs
 
     Album NVARCHAR(255) NOT NULL
         CONSTRAINT DF_Songs_Album DEFAULT(''),
+        
+    CoverArtUrl NVARCHAR(1000) NULL,
+    
+    CoverArtData VARBINARY(MAX) NULL,
+    
+    ReleaseDate DATETIME2 NULL,
+    
+    Credits NVARCHAR(1000) NULL,
+    
+    Lyrics NVARCHAR(MAX) NULL,
 
     Uri NVARCHAR(500) NOT NULL
         CONSTRAINT DF_Songs_Uri DEFAULT(''),
@@ -295,19 +334,14 @@ CREATE TABLE Songs
 
     Tempo FLOAT NOT NULL
         CONSTRAINT DF_Songs_Tempo DEFAULT(0),
-
     Energy FLOAT NOT NULL
         CONSTRAINT DF_Songs_Energy DEFAULT(0),
-
     Danceability FLOAT NOT NULL
         CONSTRAINT DF_Songs_Danceability DEFAULT(0),
-
     Valence FLOAT NOT NULL
         CONSTRAINT DF_Songs_Valence DEFAULT(0),
-
     Acousticness FLOAT NOT NULL
         CONSTRAINT DF_Songs_Acousticness DEFAULT(0),
-
     Instrumentalness FLOAT NOT NULL
         CONSTRAINT DF_Songs_Instrumentalness DEFAULT(0),
 
@@ -324,7 +358,10 @@ CREATE TABLE Songs
         CONSTRAINT DF_Songs_Storage DEFAULT(''),
 
     UploadedAt DATETIME2 NOT NULL
-        CONSTRAINT DF_Songs_Uploaded DEFAULT(GETUTCDATE())
+        CONSTRAINT DF_Songs_Uploaded DEFAULT(GETUTCDATE()),
+        
+    IsDeleted BIT NOT NULL
+        CONSTRAINT DF_Songs_IsDeleted DEFAULT(0)
 );
 GO
 
@@ -343,7 +380,48 @@ CREATE TABLE Playlists
     Title NVARCHAR(255) NOT NULL,
 
     IsPublic BIT NOT NULL
-        CONSTRAINT DF_Playlists_Public DEFAULT(1)
+        CONSTRAINT DF_Playlists_Public DEFAULT(1),
+
+    ImageUrl NVARCHAR(1000) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT(GETUTCDATE())
+);
+GO
+
+
+/*=========================================================
+ USER SAVED PLAYLISTS
+=========================================================*/
+CREATE TABLE UserSavedPlaylists
+(
+    SavedID UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT PK_UserSavedPlaylists PRIMARY KEY
+        DEFAULT NEWID(),
+
+    UserID UNIQUEIDENTIFIER NOT NULL,
+
+    PlaylistID UNIQUEIDENTIFIER NOT NULL,
+
+    SavedAt DATETIME2 NOT NULL
+        CONSTRAINT DF_UserSavedPlaylists_Saved DEFAULT(GETUTCDATE())
+);
+GO
+
+
+/*=========================================================
+ USER SAVED ALBUMS
+=========================================================*/
+CREATE TABLE UserSavedAlbums
+(
+    SavedID UNIQUEIDENTIFIER NOT NULL
+        CONSTRAINT PK_UserSavedAlbums PRIMARY KEY
+        DEFAULT NEWID(),
+
+    UserID UNIQUEIDENTIFIER NOT NULL,
+
+    AlbumID UNIQUEIDENTIFIER NOT NULL,
+
+    SavedAt DATETIME2 NOT NULL
+        CONSTRAINT DF_UserSavedAlbums_Saved DEFAULT(GETUTCDATE())
 );
 GO
 
@@ -611,6 +689,19 @@ GO
 
 
 /*=========================================================
+ ALBUMS
+=========================================================*/
+
+ALTER TABLE Albums
+ADD CONSTRAINT FK_Albums_Artist
+FOREIGN KEY(ArtistID)
+REFERENCES ArtistProfiles(ArtistID)
+ON DELETE CASCADE;
+
+GO
+
+
+/*=========================================================
  SONGS
 =========================================================*/
 
@@ -630,6 +721,14 @@ ON DELETE SET NULL;
 
 GO
 
+ALTER TABLE Songs
+ADD CONSTRAINT FK_Songs_Album
+FOREIGN KEY(AlbumID)
+REFERENCES Albums(AlbumID)
+ON DELETE NO ACTION;
+
+GO
+
 
 /*=========================================================
  PLAYLISTS
@@ -640,6 +739,58 @@ ADD CONSTRAINT FK_Playlists_User
 FOREIGN KEY(OwnerUserID)
 REFERENCES Users(UserID)
 ON DELETE CASCADE;
+
+GO
+
+/*=========================================================
+ USER SAVED PLAYLISTS
+=========================================================*/
+
+ALTER TABLE UserSavedPlaylists
+ADD CONSTRAINT FK_UserSavedPlaylists_User
+FOREIGN KEY(UserID)
+REFERENCES Users(UserID)
+ON DELETE CASCADE;
+
+GO
+
+ALTER TABLE UserSavedPlaylists
+ADD CONSTRAINT FK_UserSavedPlaylists_Playlist
+FOREIGN KEY(PlaylistID)
+REFERENCES Playlists(PlaylistID)
+ON DELETE NO ACTION;
+
+GO
+
+ALTER TABLE UserSavedPlaylists
+ADD CONSTRAINT UQ_UserSavedPlaylists
+UNIQUE(UserID, PlaylistID);
+
+GO
+
+/*=========================================================
+ USER SAVED ALBUMS
+=========================================================*/
+
+ALTER TABLE UserSavedAlbums
+ADD CONSTRAINT FK_UserSavedAlbums_User
+FOREIGN KEY(UserID)
+REFERENCES Users(UserID)
+ON DELETE CASCADE;
+
+GO
+
+ALTER TABLE UserSavedAlbums
+ADD CONSTRAINT FK_UserSavedAlbums_Album
+FOREIGN KEY(AlbumID)
+REFERENCES Albums(AlbumID)
+ON DELETE NO ACTION;
+
+GO
+
+ALTER TABLE UserSavedAlbums
+ADD CONSTRAINT UQ_UserSavedAlbums
+UNIQUE(UserID, AlbumID);
 
 GO
 
@@ -897,12 +1048,6 @@ CREATE INDEX IX_Comments_User
 ON Comments(UserID);
 
 GO
-
-PRINT 'Foreign keys, constraints and indexes created successfully without errors.';
-GO
-
-
---- VERSION ---
 
 PRINT 'Foreign keys, constraints and indexes created successfully without errors.';
 GO

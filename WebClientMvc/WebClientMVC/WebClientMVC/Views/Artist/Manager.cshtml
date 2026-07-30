@@ -1,0 +1,559 @@
+@model DataAccess.Models.ArtistProfile
+@{
+    ViewData["Title"] = "Artist Manager";
+}
+
+<style>
+    body {
+        background-color: #000;
+        color: #fff;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .manager-container {
+        max-width: 900px;
+        margin: 3rem auto;
+        padding: 0;
+        background: rgba(24, 24, 24, 0.7);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+    }
+    .manager-header {
+        background: linear-gradient(180deg, rgba(30, 215, 96, 0.15) 0%, rgba(18, 18, 18, 1) 100%);
+        padding: 4rem 3rem 2rem 3rem;
+        position: relative;
+    }
+    .nav-tabs {
+        list-style: none;
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0 2rem;
+        margin: 0;
+    }
+    .nav-tabs .nav-link {
+        color: #a7a7a7;
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        border: none;
+        background: transparent;
+        padding: 1.25rem 1.5rem;
+        transition: color 0.3s ease, border-bottom 0.3s ease;
+    }
+    .nav-tabs .nav-link:hover {
+        color: #fff;
+    }
+    .nav-tabs .nav-link.active {
+        color: #fff;
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid #1db954;
+    }
+    .tab-pane {
+        display: none;
+    }
+    .tab-pane.active {
+        display: block;
+    }
+    /* Minimal Grid System */
+    .row { display: flex; flex-wrap: wrap; margin: -0.75rem; }
+    .col-md-6 { flex: 0 0 50%; max-width: 50%; padding: 0.75rem; box-sizing: border-box; }
+    .col-md-4 { flex: 0 0 33.333%; max-width: 33.333%; padding: 0.75rem; box-sizing: border-box; }
+    .col-md-12, .col-12 { flex: 0 0 100%; max-width: 100%; padding: 0.75rem; box-sizing: border-box; }
+    
+    /* Utilities */
+    .d-flex { display: flex; }
+    .flex-column { flex-direction: column; }
+    .justify-content-end { justify-content: flex-end; }
+    .justify-content-between { justify-content: space-between; }
+    .align-items-center { align-items: center; }
+    .text-end { text-align: right; }
+    .text-center { text-align: center; }
+    .mb-0 { margin-bottom: 0; }
+    .mb-1 { margin-bottom: 0.25rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-4 { margin-bottom: 1.5rem; }
+    .fw-bold { font-weight: bold; }
+    .text-secondary { color: #a7a7a7; }
+    .text-light { color: #fff; }
+    .w-100 { width: 100%; }
+    .collapse { display: none; }
+    .collapse.show { display: block; }
+    .tab-content {
+        padding: 3rem;
+    }
+    .form-control {
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #fff;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+    .form-control:focus {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: #1db954;
+        color: #fff;
+        box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
+        outline: none;
+    }
+    .form-label {
+        font-size: 0.75rem;
+        color: #a7a7a7;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 0.5rem;
+    }
+    .btn-spotify {
+        background-color: #1db954;
+        color: #000;
+        font-weight: 800;
+        font-size: 1rem;
+        letter-spacing: 0.5px;
+        border-radius: 500px;
+        padding: 14px 40px;
+        border: none;
+        box-shadow: 0 4px 15px rgba(29, 185, 84, 0.2);
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        cursor: pointer;
+    }
+    .btn-spotify:hover {
+        background-color: #1ed760;
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(29, 185, 84, 0.4);
+        color: #000;
+    }
+    .btn-spotify:active {
+        transform: translateY(1px) scale(0.98);
+        box-shadow: 0 2px 10px rgba(29, 185, 84, 0.2);
+    }
+    .list-group-item {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 0.75rem;
+        border-radius: 12px !important;
+        transition: all 0.3s ease;
+        padding: 1.25rem !important;
+    }
+    .list-group-item:hover {
+        background-color: rgba(255, 255, 255, 0.08);
+        transform: translateX(5px);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    .card {
+        background-color: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+    }
+    .card:hover {
+        background-color: rgba(255, 255, 255, 0.06) !important;
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    .verified-badge {
+        background-color: rgba(29, 185, 84, 0.1);
+        color: #1db954;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid rgba(29, 185, 84, 0.2);
+    }
+</style>
+
+<div class="manager-container text-light" data-artist-id="@Model.ArtistID">
+    <div class="manager-header d-flex flex-column justify-content-end">
+        <div class="d-flex align-items-center mb-2">
+            <span class="verified-badge"><i class="bi bi-patch-check-fill"></i> Verified Artist</span>
+        </div>
+        <h1 class="display-3 fw-bold mb-0" style="letter-spacing: -2px;">@Model.StageName</h1>
+    </div>
+
+    <ul class="nav nav-tabs" id="managerTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab">Upload Song</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="albums-tab" data-bs-toggle="tab" data-bs-target="#albums" type="button" role="tab">My Albums</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button" role="tab">Statistics</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="managerTabsContent">
+        <!-- Upload Song Tab -->
+        <div class="tab-pane active" id="upload" role="tabpanel">
+            <form id="uploadSongForm" class="row g-4">
+                <div class="col-md-6">
+                    <label class="form-label">Song Title</label>
+                    <input type="text" class="form-control form-control-lg" name="title" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Artist Name (Default)</label>
+                    <input type="text" class="form-control form-control-lg" name="artist" value="@Model.StageName" required>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Collaborating Artists (comma separated)</label>
+                    <input type="text" class="form-control" name="collab_artists" placeholder="e.g. Snoop Dogg, Dr. Dre">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Album / EP (Optional)</label>
+                    <select class="form-control" name="album_id" id="albumSelect">
+                        <option value="">None (Single)</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Release Date</label>
+                    <input type="date" class="form-control" name="release_date">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Cover Art URL (Optional)</label>
+                    <input type="url" class="form-control" name="cover_art_url" placeholder="https://...">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Or Upload Cover Art</label>
+                    <input type="file" class="form-control" name="cover_art_file" accept="image/*">
+                </div>
+                <div class="col-md-12 mb-2">
+                    <div class="mb-2 mt-2 d-flex align-items-center">
+                        <input type="checkbox" id="overrideGenreCheck" onchange="document.getElementById('customGenreContainer').style.display = this.checked ? 'block' : 'none'" style="appearance: auto !important; -webkit-appearance: auto !important; width: 20px; height: 20px; cursor: pointer; accent-color: #0dcaf0;">
+                        <label class="fw-bold text-info ms-2 mb-0" for="overrideGenreCheck" style="cursor: pointer;">Provide custom genre manually (Override AI)</label>
+                    </div>
+                    <div id="customGenreContainer" style="display: none;" class="mb-4 mt-2">
+                        <input type="text" class="form-control" name="custom_genre" placeholder="e.g. Synthwave, Lofi Hip Hop">
+                    </div>
+                    
+                    <div class="mb-2 mt-2 d-flex align-items-center">
+                        <input type="checkbox" name="contribute_to_ai" id="contributeAiCheck" value="true" onchange="document.getElementById('trainingGenreContainer').style.display = this.checked ? 'block' : 'none'" style="appearance: auto !important; -webkit-appearance: auto !important; width: 20px; height: 20px; cursor: pointer; accent-color: #ffc107;">
+                        <label class="fw-bold text-warning ms-2 mb-0" for="contributeAiCheck" style="cursor: pointer;">Contribute this song to AI recommendation dataset</label>
+                    </div>
+                    <div id="trainingGenreContainer" style="display: none;" class="mb-4 mt-2">
+                        <label class="form-label text-muted small fw-bold tracking-wide">SELECT GROUND TRUTH GENRE</label>
+                        <select class="form-select" name="training_genre" style="appearance: auto !important; -webkit-appearance: auto !important; background-color: white !important; color: black !important; font-weight: bold; border-radius: 4px; padding: 10px;">
+                            <option value="" style="color: black;">-- Select Genre --</option>
+                            <option value="acoustic" style="color: black;">Acoustic</option>
+                            <option value="ambient" style="color: black;">Ambient</option>
+                            <option value="blues" style="color: black;">Blues</option>
+                            <option value="classical" style="color: black;">Classical</option>
+                            <option value="country" style="color: black;">Country</option>
+                            <option value="disco" style="color: black;">Disco</option>
+                            <option value="electronic" style="color: black;">Electronic</option>
+                            <option value="folk" style="color: black;">Folk</option>
+                            <option value="hip-hop" style="color: black;">Hip-Hop</option>
+                            <option value="indie" style="color: black;">Indie</option>
+                            <option value="jazz" style="color: black;">Jazz</option>
+                            <option value="metal" style="color: black;">Metal</option>
+                            <option value="pop" style="color: black;">Pop</option>
+                            <option value="reggae" style="color: black;">Reggae</option>
+                            <option value="rock" style="color: black;">Rock</option>
+                            <option value="soul" style="color: black;">Soul</option>
+                        </select>
+                        <small class="text-secondary d-block mt-2"><i class="bi bi-info-circle"></i> If opted in, this song's audio features will be extracted from 3 different segments and appended to our custom training dataset with a high sample weight.</small>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Audio File</label>
+                    <input type="file" class="form-control form-control-lg" name="file" accept="audio/*" required>
+                </div>
+                <div class="col-md-12 mt-3">
+                    <div class="p-3 border rounded border-secondary bg-dark text-light">
+                        <div class="d-flex align-items-center">
+                            <input type="checkbox" id="testUploadCheck" style="appearance: auto !important; -webkit-appearance: auto !important; width: 22px; height: 22px; cursor: pointer; accent-color: #dc3545;">
+                            <label class="fw-bold text-danger ms-2 mb-0" for="testUploadCheck" style="cursor: pointer; font-size: 1.1rem;">TEST UPLOAD MODE (Do not save to database)</label>
+                        </div>
+                        <small class="text-secondary d-block mt-2 ms-4">If checked, the AI will analyze your song and show you the results directly on the screen. The song will <b>not</b> be saved to your library.</small>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Credits</label>
+                    <textarea class="form-control" name="credits" rows="2" placeholder="Producer, Writer, etc."></textarea>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Lyrics (Coming soon)</label>
+                    <textarea class="form-control" name="lyrics" rows="3" disabled placeholder="Lyrics feature is coming soon..."></textarea>
+                </div>
+                <div class="col-12 mt-4 pt-3 border-top border-secondary text-end">
+                    <span id="uploadStatus" class="me-3 fw-bold"></span>
+                    <button type="submit" class="btn btn-spotify" id="uploadBtn">Upload Song</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Albums Tab -->
+        <div class="tab-pane fade" id="albums" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0 fw-bold">Your Albums</h4>
+                <button class="btn btn-spotify" type="button" data-bs-toggle="collapse" data-bs-target="#createAlbumCollapse" aria-expanded="false" aria-controls="createAlbumCollapse">
+                    Create New Album
+                </button>
+            </div>
+            
+            <div class="collapse mb-4" id="createAlbumCollapse">
+                <div class="card card-body">
+                    <form id="createAlbumForm" class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Album Title *</label>
+                            <input type="text" class="form-control" id="newAlbumTitle" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Cover Art URL (Optional)</label>
+                            <input type="url" class="form-control" id="newAlbumCover">
+                        </div>
+                        <div class="col-12 text-end">
+                            <span id="createAlbumStatus" class="me-3 fw-bold"></span>
+                            <button type="submit" class="btn btn-spotify">Create Album</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="list-group" id="albumsList">
+                <div class="text-center text-secondary py-4">Loading your albums...</div>
+            </div>
+        </div>
+
+        <!-- Statistics Tab -->
+        <div class="tab-pane fade" id="stats" role="tabpanel">
+            <h4 class="mb-4 fw-bold">Audience Overview</h4>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card shadow-sm p-3">
+                        <div class="card-body">
+                            <h5 class="card-title text-secondary fw-bold text-uppercase" style="font-size:0.8rem">Followers</h5>
+                            <p class="card-text display-4 fw-bold mb-0">@Model.FollowersCount</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const artistId = document.querySelector('.manager-container').getAttribute('data-artist-id');
+        let albums = [];
+
+        // Robust Token Retrieval
+        function getAuthToken() {
+            let t = localStorage.getItem('spotifake.jwt') || localStorage.getItem('token');
+            if (!t || t === 'null' || t === 'undefined') {
+                const match = document.cookie.match(/(?:^|; )jwt_token=([^;]*)/);
+                if (match) t = match[1];
+            }
+            return t;
+        }
+
+        async function fetchAlbums() {
+            if (!artistId) return;
+            const token = getAuthToken();
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/api/artists/${artistId}/albums`, {
+                    cache: 'no-store'
+                });
+                if (response.ok) {
+                    albums = await response.json();
+                    renderAlbums();
+                }
+            } catch (err) {
+                console.error('Failed to fetch albums:', err);
+            }
+        }
+
+        function renderAlbums() {
+            // Render in dropdown
+            const select = document.getElementById('albumSelect');
+            select.innerHTML = '<option value="">None (Single)</option>';
+            albums.forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a.id || a.albumID; 
+                opt.textContent = a.title;
+                select.appendChild(opt);
+            });
+
+            // Render in list
+            const list = document.getElementById('albumsList');
+            if (albums.length === 0) {
+                list.innerHTML = '<div class="text-center text-secondary py-4">You haven\'t created any albums yet.</div>';
+                return;
+            }
+            list.innerHTML = '';
+            albums.forEach(a => {
+                const date = new Date(a.createdAt).toLocaleDateString();
+                const cover = a.coverArtUrl || 'https://via.placeholder.com/50';
+                list.innerHTML += `
+                    <div class="list-group-item text-light d-flex justify-content-between align-items-center p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="${cover}" alt="Cover" style="width: 50px; height: 50px; border-radius: 4px; object-fit: cover;">
+                            <div>
+                                <h5 class="mb-1 fw-bold">${a.title}</h5>
+                                <small class="text-secondary">Released: ${date}</small>
+                            </div>
+                        </div>
+                        <span class="badge bg-dark rounded-pill border border-secondary text-secondary">View</span>
+                    </div>
+                `;
+            });
+        }
+
+        document.getElementById('createAlbumForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button[type="submit"]');
+            const status = document.getElementById('createAlbumStatus');
+            btn.disabled = true;
+            status.innerHTML = '<span class="text-info">Creating album...</span>';
+
+            const payload = {
+                title: document.getElementById('newAlbumTitle').value,
+                cover_art_url: document.getElementById('newAlbumCover').value || null
+            };
+
+            try {
+                const token = getAuthToken();
+                
+                if (!token) {
+                    status.innerHTML = `<span class="text-danger">Failed: Not logged in (token missing)</span>`;
+                    return;
+                }
+                
+                const response = await fetch('http://127.0.0.1:8000/api/albums', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    status.innerHTML = '<span class="text-success">Album created!</span>';
+                    this.reset();
+                    fetchAlbums(); // refresh list
+                    setTimeout(() => status.innerHTML = '', 3000);
+                } else {
+                    const err = await response.json().catch(() => ({}));
+                    status.innerHTML = `<span class="text-danger">Failed: ${err.title || err.detail || 'Unknown'}</span>`;
+                }
+            } catch (err) {
+                status.innerHTML = `<span class="text-danger">Error: ${err.message}</span>`;
+            }
+            btn.disabled = false;
+        });
+
+        document.getElementById('uploadSongForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const btn = document.getElementById('uploadBtn');
+            const status = document.getElementById('uploadStatus');
+            btn.disabled = true;
+
+            const isTestMode = document.getElementById('testUploadCheck') && document.getElementById('testUploadCheck').checked;
+            
+            if (isTestMode) {
+                status.innerHTML = '<span class="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> <span class="text-info fw-bold">Test Upload in progress... Analyzing AI features (this may take 5-15 seconds)...</span>';
+            } else {
+                status.innerHTML = '<span class="text-info">Uploading to AI processing server...</span>';
+            }
+
+            const formData = new FormData(this);
+            const targetUrl = isTestMode ? 'http://127.0.0.1:8000/songs/test_upload' : 'http://127.0.0.1:8000/songs/upload';
+
+            try {
+                // Ensure auth token is passed to backend AI
+                const token = getAuthToken();
+                
+                if (!token) {
+                    status.innerHTML = `<span class="text-danger">Failed: Not logged in (token missing)</span>`;
+                    return;
+                }
+                
+                const response = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (isTestMode) {
+                        let scoresHtml = '';
+                        if (data.genre_scores && Object.keys(data.genre_scores).length > 0) {
+                            scoresHtml = '<hr class="border-secondary mt-3"><h6 class="text-secondary mb-3">Confidence Breakdown</h6>';
+                            const sortedScores = Object.entries(data.genre_scores).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                            sortedScores.forEach(([g, score]) => {
+                                const pct = (score * 100).toFixed(1);
+                                scoresHtml += `
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between small text-light mb-1">
+                                        <span>${g.toUpperCase()}</span>
+                                        <span>${pct}%</span>
+                                    </div>
+                                    <div class="progress rounded-pill" style="height: 6px; background-color: #333;">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: ${pct}%"></div>
+                                    </div>
+                                </div>`;
+                            });
+                        }
+                        
+                        status.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Test Analysis Complete! (Not saved to library)</span>
+                        <div class="alert alert-dark border-success mt-3 text-start">
+                            <h5 class="alert-heading text-success mb-3"><i class="bi bi-robot"></i> AI Predictions</h5>
+                            <hr class="border-secondary">
+                            <p class="mb-1 text-light"><strong>Predicted Genre:</strong> <span class="text-info">${data.genre}</span></p>
+                            <p class="mb-1 text-light"><strong>Predicted Mood:</strong> <span class="text-warning">${data.mood}</span></p>
+                            <p class="mb-0 text-light"><strong>Detected Language:</strong> <span class="text-primary">${data.language}</span></p>
+                            ${scoresHtml}
+                        </div>`;
+                        // Deliberately not resetting the form so they can easily uncheck "Test Upload" and submit for real!
+                    } else {
+                        status.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> Upload successful! Processing via AI.</span>`;
+                        this.reset();
+                    }
+                } else {
+                    const error = await response.json();
+                    status.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Upload failed: ${error.detail || 'Unknown error'}</span>`;
+                }
+            } catch (err) {
+                status.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle-fill"></i> Connection error: ${err.message}</span>`;
+            }
+            btn.disabled = false;
+        });
+
+        // Initialize
+        fetchAlbums();
+
+        // Custom Tab Switching Logic
+        document.querySelectorAll('.nav-link').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all tabs
+                document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                button.classList.add('active');
+                const targetId = button.getAttribute('data-bs-target').substring(1);
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        // Custom Collapse Logic
+        const createAlbumBtn = document.querySelector('[data-bs-target="#createAlbumCollapse"]');
+        if (createAlbumBtn) {
+            createAlbumBtn.addEventListener('click', () => {
+                const target = document.getElementById('createAlbumCollapse');
+                target.classList.toggle('show');
+            });
+        }
+    </script>
+}

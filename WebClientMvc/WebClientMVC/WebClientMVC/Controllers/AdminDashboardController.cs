@@ -57,7 +57,7 @@ public class AdminDashboardController : Controller
         var artists = await _context.ArtistProfiles.Where(a => a.CreatedAt >= startDate).Select(a => a.CreatedAt.Date).ToListAsync();
 
         var allDates = users.Concat(songs).Concat(artists).Distinct().OrderBy(d => d).ToList();
-
+        
         return Json(new
         {
             labels = allDates.Select(d => d.ToString("MMM dd")),

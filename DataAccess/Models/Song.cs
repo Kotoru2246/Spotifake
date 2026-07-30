@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace DataAccess.Models
 {
@@ -21,21 +20,18 @@ namespace DataAccess.Models
 
         // Navigation
         public User? UploadedBy { get; set; }
-        public Guid? GenreID { get; set; }
-        public Genre? Genre { get; set; }
+        public Guid? GenreID { get; set; }  
+        public Genre? Genre { get; set; }  
 
-        // Album relationship
+        // New properties for advanced song upload
         public Guid? AlbumID { get; set; }
         public Album? AlbumEntity { get; set; }
-
-        // Cover art
+        
         public string? CoverArtUrl { get; set; }
         public byte[]? CoverArtData { get; set; }
-
-        // Audio file data (for direct DB storage)
+        
         public byte[]? FileData { get; set; }
-
-        // Metadata
+        
         public DateTime? ReleaseDate { get; set; }
         public string? Credits { get; set; }
         public string? CollabArtists { get; set; }
@@ -56,7 +52,7 @@ namespace DataAccess.Models
         public int? Key { get; set; }
         public int? Mode { get; set; }
 
-        // More metadata
+        // Metadata
         public int? Popularity { get; set; }
         public string? StorageUrl { get; set; }
         public DateTime? UploadedAt { get; set; }

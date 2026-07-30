@@ -19,6 +19,7 @@ namespace DataAccess.Models
         public string Nationality { get; set; } = string.Empty;
         public bool IsDeleted { get; set; } = false;
         public string ProfileImageUrl { get; set; } = string.Empty;
+        public string BannerImageUrl { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -26,3 +27,4 @@ namespace DataAccess.Models
         public User User { get; set; } = null!;
     }
 }
+

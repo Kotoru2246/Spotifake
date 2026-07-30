@@ -14,9 +14,16 @@ Usage:
 import os
 import torch
 import torch.nn as nn
-import torchaudio
-import torchaudio.transforms as T
 import torchvision.models as models
+
+try:
+    import torchaudio
+    import torchaudio.transforms as T
+    HAS_TORCHAUDIO = True
+except ImportError:
+    HAS_TORCHAUDIO = False
+    import librosa
+    import numpy as np
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'ml_models', 'cnn_genre_model.pth')
 
@@ -49,13 +56,17 @@ class CnnSpectrogramClassifier:
         self.target_length = bundle.get('target_length', 1292)
 
         # Re-create the same transforms used during training
-        self.mel_transform = T.MelSpectrogram(
-            sample_rate=self.sample_rate,
-            n_fft=self.n_fft,
-            hop_length=self.hop_length,
-            n_mels=self.n_mels
-        ).to(self.device)
-        self.db_transform = T.AmplitudeToDB(top_db=80).to(self.device)
+        if HAS_TORCHAUDIO:
+            self.mel_transform = T.MelSpectrogram(
+                sample_rate=self.sample_rate,
+                n_fft=self.n_fft,
+                hop_length=self.hop_length,
+                n_mels=self.n_mels
+            ).to(self.device)
+            self.db_transform = T.AmplitudeToDB(top_db=80).to(self.device)
+        else:
+            self.mel_transform = None
+            self.db_transform = None
 
         # Re-create the same ResNet18 architecture used during training
         self.model = models.resnet18(weights=None)
@@ -79,32 +90,72 @@ class CnnSpectrogramClassifier:
         except Exception:
             import librosa
             import numpy as np
-            y, sr = librosa.load(filepath, sr=self.sample_rate,
-                                 duration=self.clip_seconds, mono=True)
+            y, sr = librosa.load(filepath, sr=self.sample_rate, mono=True)
             waveform = torch.tensor(y).unsqueeze(0)
 
         waveform = waveform.to(self.device)
 
-        # Resample if needed
-        if sr != self.sample_rate:
-            waveform = T.Resample(sr, self.sample_rate).to(self.device)(waveform)
+        if HAS_TORCHAUDIO:
+            # Resample if needed
+            if sr != self.sample_rate:
+                waveform = T.Resample(sr, self.sample_rate).to(self.device)(waveform)
 
-        # Mix to mono
-        if waveform.shape[0] > 1:
-            waveform = waveform.mean(dim=0, keepdim=True)
+            # Mix to mono
+            if waveform.shape[0] > 1:
+                waveform = waveform.mean(dim=0, keepdim=True)
 
-        # Clip to self.clip_seconds from the middle of the song
-        target_samples = self.sample_rate * self.clip_seconds
-        if waveform.shape[1] > target_samples:
-            start = (waveform.shape[1] - target_samples) // 2
-            waveform = waveform[:, start:start + target_samples]
+            # Clip to loudest 30 seconds of the song
+            target_samples = self.sample_rate * self.clip_seconds
+            if waveform.shape[1] > target_samples:
+                # Fast sliding window to find loudest segment (chorus)
+                hop = self.sample_rate * 5  # 5 second hops
+                sq = waveform.squeeze(0)
+                max_rms = 0.0
+                best_start = 0
+                for i in range(0, sq.shape[0] - target_samples, hop):
+                    rms = float(torch.sqrt(torch.mean(sq[i:i+target_samples]**2)))
+                    if rms > max_rms:
+                        max_rms = rms
+                        best_start = i
+                waveform = waveform[:, best_start:best_start + target_samples]
+            else:
+                pad = target_samples - waveform.shape[1]
+                waveform = torch.nn.functional.pad(waveform, (0, pad))
+
+            # Convert to Mel-Spectrogram
+            mel = self.mel_transform(waveform)
+            mel = self.db_transform(mel)
         else:
-            pad = target_samples - waveform.shape[1]
-            waveform = torch.nn.functional.pad(waveform, (0, pad))
-
-        # Convert to Mel-Spectrogram
-        mel = self.mel_transform(waveform)
-        mel = self.db_transform(mel)
+            # Using librosa fallback for everything
+            y_np = waveform.squeeze().cpu().numpy()
+            
+            # Mix to mono
+            if y_np.ndim > 1:
+                y_np = np.mean(y_np, axis=0)
+                
+            # Clip to loudest 30 seconds
+            target_samples = self.sample_rate * self.clip_seconds
+            if len(y_np) > target_samples:
+                hop = self.sample_rate * 5
+                max_rms = 0.0
+                best_start = 0
+                for i in range(0, len(y_np) - target_samples, hop):
+                    rms = float(np.sqrt(np.mean(y_np[i:i+target_samples]**2)))
+                    if rms > max_rms:
+                        max_rms = rms
+                        best_start = i
+                y_np = y_np[best_start:best_start + target_samples]
+            else:
+                pad = target_samples - len(y_np)
+                y_np = np.pad(y_np, (0, pad))
+                
+            # Convert to Mel-Spectrogram
+            S = librosa.feature.melspectrogram(
+                y=y_np, sr=self.sample_rate, n_fft=self.n_fft,
+                hop_length=self.hop_length, n_mels=self.n_mels
+            )
+            S_db = librosa.power_to_db(S, ref=np.max)
+            mel = torch.tensor(S_db).unsqueeze(0).to(self.device)
 
         # Normalize
         mel = (mel - mel.min()) / (mel.max() - mel.min() + 1e-8)

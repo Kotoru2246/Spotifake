@@ -1,265 +1,364 @@
-using System.Text.Json;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using WebClientMVC.Models;
+using DataAccess;
+using DataAccess.Models;
 
 namespace WebClientMVC.Services;
 
 public class UserPlaylistService
 {
-    private readonly object _syncRoot = new();
-    private readonly string _storagePath;
+    private readonly MusicPlayerContext _context;
     private readonly MusicLibraryService _musicLibraryService;
-    private readonly Dictionary<string, List<PlaylistRecord>> _data;
 
-    public UserPlaylistService(IWebHostEnvironment environment, MusicLibraryService musicLibraryService)
+    public UserPlaylistService(MusicPlayerContext context, MusicLibraryService musicLibraryService)
     {
+        _context = context;
         _musicLibraryService = musicLibraryService;
-        var dataFolder = Path.Combine(environment.ContentRootPath, "App_Data");
-        Directory.CreateDirectory(dataFolder);
-        _storagePath = Path.Combine(dataFolder, "user-playlists.json");
-        _data = Load();
+    }
+
+    private User GetUser(string username)
+    {
+        var safe = (username ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(safe))
+            throw new InvalidOperationException("User identifier is required.");
+
+        var user = _context.Users.FirstOrDefault(u => u.Username == safe);
+        if (user == null)
+            throw new InvalidOperationException("User not found in database.");
+
+        return user;
     }
 
     public IReadOnlyList<PlaylistSummaryDto> GetPlaylists(string username)
     {
-        var userKey = NormalizeUser(username);
-        lock (_syncRoot)
+        var user = GetUser(username);
+        
+        var dbPlaylists = _context.Playlists
+            .Include(p => p.PlaylistTracks)
+                .ThenInclude(pt => pt.Song)
+                    .ThenInclude(s => s.AlbumEntity)
+            .Where(p => p.OwnerUserID == user.UserID)
+            .OrderBy(p => p.Title)
+            .ToList();
+            
+        var dtos = new List<PlaylistSummaryDto>();
+        
+        // Liked Songs virtual playlist
+        var likedSongs = _context.UserFavorites
+            .Include(f => f.Song)
+                .ThenInclude(s => s.AlbumEntity)
+            .Where(f => f.UserID == user.UserID)
+            .OrderByDescending(f => f.FavoritedAt)
+            .ToList();
+            
+        dtos.Add(new PlaylistSummaryDto
         {
-            var libraryByFile = _musicLibraryService.GetLibrary().ToDictionary(item => item.FileName, StringComparer.OrdinalIgnoreCase);
-            if (!_data.TryGetValue(userKey, out var playlists))
+            Id = "liked-songs-" + username,
+            Name = "Liked Songs",
+            ImageUrl = "",
+            IsPublic = false,
+            IsOwner = true,
+            SavedAt = DateTime.MaxValue, // Always top
+            Type = "Playlist",
+            Songs = likedSongs.Select(f => new PlaylistSongDto
             {
-                return Array.Empty<PlaylistSummaryDto>();
-            }
+                FileName = f.Song?.FilePath ?? "",
+                DisplayName = f.Song?.Title ?? "",
+                Artist = f.Song?.ArtistName ?? "",
+                ArtistId = f.Song?.AlbumEntity?.ArtistID.ToString() ?? "",
+                AlbumId = f.Song?.AlbumID?.ToString() ?? "",
+                DurationSeconds = f.Song?.DurationSeconds ?? 0
+            }).ToList()
+        });
 
-            return playlists
-                .OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase)
-                .Select(item => ToDto(item, libraryByFile))
-                .ToList();
+        foreach (var p in dbPlaylists)
+        {
+            dtos.Add(new PlaylistSummaryDto
+            {
+                Id = p.PlaylistID.ToString(),
+                Name = p.Title,
+                ImageUrl = p.ImageUrl ?? "",
+                IsPublic = p.IsPublic,
+                IsOwner = true,
+                SavedAt = p.CreatedAt,
+                Type = "Playlist",
+                Songs = p.PlaylistTracks.OrderBy(pt => pt.AddedAt).Select(pt => new PlaylistSongDto
+                {
+                    FileName = pt.Song?.FilePath ?? "",
+                    DisplayName = pt.Song?.Title ?? "",
+                    Artist = pt.Song?.ArtistName ?? "",
+                    ArtistId = pt.Song?.AlbumEntity?.ArtistID.ToString() ?? "",
+                    AlbumId = pt.Song?.AlbumID?.ToString() ?? "",
+                    DurationSeconds = pt.Song?.DurationSeconds ?? 0
+                }).ToList()
+            });
         }
+
+        // Add saved playlists
+        var savedPlaylists = _context.UserSavedPlaylists
+            .Include(sp => sp.Playlist)
+                .ThenInclude(p => p.PlaylistTracks)
+                    .ThenInclude(pt => pt.Song)
+                        .ThenInclude(s => s.AlbumEntity)
+            .Where(sp => sp.UserID == user.UserID)
+            .OrderBy(sp => sp.SavedAt)
+            .ToList();
+
+        foreach (var sp in savedPlaylists)
+        {
+            if (sp.Playlist != null)
+            {
+                dtos.Add(new PlaylistSummaryDto
+                {
+                    Id = sp.Playlist.PlaylistID.ToString(),
+                    Name = sp.Playlist.Title,
+                    ImageUrl = sp.Playlist.ImageUrl ?? "",
+                    IsPublic = sp.Playlist.IsPublic,
+                    SavedAt = sp.SavedAt,
+                    Type = "Playlist",
+                    Songs = sp.Playlist.PlaylistTracks.OrderBy(pt => pt.AddedAt).Select(pt => new PlaylistSongDto
+                    {
+                        FileName = pt.Song?.FilePath ?? "",
+                        DisplayName = pt.Song?.Title ?? "",
+                        Artist = pt.Song?.ArtistName ?? "",
+                        ArtistId = pt.Song?.AlbumEntity?.ArtistID.ToString() ?? "",
+                        AlbumId = pt.Song?.AlbumID?.ToString() ?? "",
+                        DurationSeconds = pt.Song?.DurationSeconds ?? 0
+                    }).ToList()
+                });
+            }
+        }
+
+        // Add saved albums
+        var savedAlbums = _context.UserSavedAlbums
+            .Include(sa => sa.Album)
+            .Where(sa => sa.UserID == user.UserID)
+            .ToList();
+            
+        var albumIds = savedAlbums.Select(sa => sa.AlbumID).ToList();
+        var albumSongs = _context.Songs.Where(s => s.AlbumID != null && albumIds.Contains(s.AlbumID.Value)).ToList();
+
+        foreach (var sa in savedAlbums)
+        {
+            if (sa.Album != null)
+            {
+                var songsForAlbum = albumSongs.Where(s => s.AlbumID == sa.AlbumID).ToList();
+                dtos.Add(new PlaylistSummaryDto
+                {
+                    Id = sa.Album.AlbumID.ToString(),
+                    Name = sa.Album.Title,
+                    ImageUrl = sa.Album.CoverArtUrl ?? "",
+                    IsPublic = true,
+                    SavedAt = sa.SavedAt,
+                    Type = "Album",
+                    Songs = songsForAlbum.Select(s => new PlaylistSongDto
+                    {
+                        FileName = s.FilePath ?? "",
+                        DisplayName = s.Title ?? "",
+                        Artist = s.ArtistName ?? "",
+                        ArtistId = s.AlbumEntity?.ArtistID.ToString() ?? "",
+                        AlbumId = s.AlbumID?.ToString() ?? "",
+                        DurationSeconds = s.DurationSeconds
+                    }).ToList()
+                });
+            }
+        }
+
+        // Sort by SavedAt descending, but keep Liked Songs at top
+        var sorted = dtos.OrderByDescending(d => d.SavedAt).ToList();
+        return sorted;
     }
 
     public IReadOnlyList<PlaylistSummaryDto> CreatePlaylist(string username, string name, string imageUrl, IReadOnlyList<string>? songFileNames = null)
     {
-        var userKey = NormalizeUser(username);
+        var user = GetUser(username);
         var safeName = (name ?? string.Empty).Trim();
         var safeImageUrl = (imageUrl ?? string.Empty).Trim();
+
         if (string.IsNullOrWhiteSpace(safeName))
-        {
             throw new InvalidOperationException("Playlist name is required.");
-        }
 
-        lock (_syncRoot)
+        if (_context.Playlists.Any(p => p.OwnerUserID == user.UserID && p.Title == safeName))
+            throw new InvalidOperationException("A playlist with this name already exists.");
+
+        var playlist = new Playlist
         {
-            if (!_data.TryGetValue(userKey, out var playlists))
-            {
-                playlists = [];
-                _data[userKey] = playlists;
-            }
+            PlaylistID = Guid.NewGuid(),
+            OwnerUserID = user.UserID,
+            Title = safeName,
+            ImageUrl = safeImageUrl,
+            IsPublic = true,
+            CreatedAt = DateTime.UtcNow
+        };
 
-            if (playlists.Any(item => string.Equals(item.Name, safeName, StringComparison.OrdinalIgnoreCase)))
+        if (songFileNames != null)
+        {
+            foreach (var fn in songFileNames)
             {
-                throw new InvalidOperationException("A playlist with this name already exists.");
-            }
-
-            var songs = new List<string>();
-            if (songFileNames is not null)
-            {
-                foreach (var rawSong in songFileNames)
+                var song = _context.Songs.FirstOrDefault(s => s.FilePath == fn || s.Title == fn);
+                if (song != null)
                 {
-                    var safeFile = Path.GetFileName(rawSong ?? string.Empty).Trim();
-                    if (string.IsNullOrWhiteSpace(safeFile))
+                    playlist.PlaylistTracks.Add(new PlaylistTrack
                     {
-                        continue;
-                    }
-
-                    if (!_musicLibraryService.TryGetFilePath(safeFile, out _))
-                    {
-                        continue;
-                    }
-
-                    if (!songs.Contains(safeFile, StringComparer.OrdinalIgnoreCase))
-                    {
-                        songs.Add(safeFile);
-                    }
+                        MappingID = Guid.NewGuid(),
+                        PlaylistID = playlist.PlaylistID,
+                        SongID = song.SongID,
+                        AddedAt = DateTime.UtcNow
+                    });
                 }
             }
-
-            playlists.Add(new PlaylistRecord
-            {
-                Id = Guid.NewGuid().ToString("N"),
-                Name = safeName,
-                ImageUrl = safeImageUrl,
-                Songs = songs
-            });
-            Save();
-            return GetPlaylists(userKey);
         }
+
+        _context.Playlists.Add(playlist);
+        _context.SaveChanges();
+
+        return GetPlaylists(username);
     }
 
     public IReadOnlyList<PlaylistSummaryDto> DeletePlaylist(string username, string playlistId)
     {
-        var userKey = NormalizeUser(username);
-        var safeId = (playlistId ?? string.Empty).Trim();
+        var user = GetUser(username);
+        if (playlistId.StartsWith("liked-songs-"))
+            throw new InvalidOperationException("The Liked Songs playlist cannot be deleted.");
 
-        lock (_syncRoot)
+        if (Guid.TryParse(playlistId, out var id))
         {
-            if (!_data.TryGetValue(userKey, out var playlists))
+            var playlist = _context.Playlists.FirstOrDefault(p => p.PlaylistID == id && p.OwnerUserID == user.UserID);
+            if (playlist != null)
             {
-                throw new InvalidOperationException("Playlist not found.");
+                _context.Playlists.Remove(playlist);
+                _context.SaveChanges();
             }
-
-            var removed = playlists.RemoveAll(item => string.Equals(item.Id, safeId, StringComparison.OrdinalIgnoreCase));
-            if (removed == 0)
+            else
             {
-                throw new InvalidOperationException("Playlist not found.");
+                // Try removing from saved playlists
+                var saved = _context.UserSavedPlaylists.FirstOrDefault(sp => sp.PlaylistID == id && sp.UserID == user.UserID);
+                if (saved != null)
+                {
+                    _context.UserSavedPlaylists.Remove(saved);
+                    _context.SaveChanges();
+                }
+                else
+                {
+                    throw new InvalidOperationException("Playlist not found or you don't have permission.");
+                }
             }
-
-            Save();
-            return GetPlaylists(userKey);
         }
+        else
+        {
+            throw new InvalidOperationException("Invalid playlist ID.");
+        }
+
+        return GetPlaylists(username);
     }
 
     public IReadOnlyList<PlaylistSummaryDto> AddSong(string username, string playlistId, string fileName)
     {
-        var userKey = NormalizeUser(username);
-        var safeFile = Path.GetFileName(fileName ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(safeFile))
+        var user = GetUser(username);
+        var song = _context.Songs.FirstOrDefault(s => s.FilePath == fileName || s.Title == fileName);
+        if (song == null) throw new InvalidOperationException("Song not found.");
+
+        if (playlistId.StartsWith("liked-songs-"))
         {
-            throw new InvalidOperationException("Song file name is required.");
+            return ToggleLikedSong(username, fileName);
         }
 
-        if (!_musicLibraryService.TryGetFilePath(safeFile, out _))
+        if (Guid.TryParse(playlistId, out var id))
         {
-            throw new InvalidOperationException("Selected song was not found in library.");
-        }
+            var playlist = _context.Playlists.Include(p => p.PlaylistTracks).FirstOrDefault(p => p.PlaylistID == id && p.OwnerUserID == user.UserID);
+            if (playlist == null) throw new InvalidOperationException("Playlist not found or no permission.");
 
-        lock (_syncRoot)
-        {
-            var playlist = FindPlaylist(userKey, playlistId);
-            if (playlist.Songs.Contains(safeFile, StringComparer.OrdinalIgnoreCase))
-            {
+            if (playlist.PlaylistTracks.Any(pt => pt.SongID == song.SongID))
                 throw new InvalidOperationException("Song already exists in this playlist.");
-            }
 
-            playlist.Songs.Add(safeFile);
-            Save();
-            return GetPlaylists(userKey);
+            playlist.PlaylistTracks.Add(new PlaylistTrack
+            {
+                MappingID = Guid.NewGuid(),
+                PlaylistID = playlist.PlaylistID,
+                SongID = song.SongID,
+                AddedAt = DateTime.UtcNow
+            });
+            _context.SaveChanges();
         }
+
+        return GetPlaylists(username);
     }
 
     public IReadOnlyList<PlaylistSummaryDto> RemoveSong(string username, string playlistId, string fileName)
     {
-        var userKey = NormalizeUser(username);
-        var safeFile = Path.GetFileName(fileName ?? string.Empty).Trim();
+        var user = GetUser(username);
+        var song = _context.Songs.FirstOrDefault(s => s.FilePath == fileName || s.Title == fileName);
+        if (song == null) throw new InvalidOperationException("Song not found.");
 
-        lock (_syncRoot)
+        if (playlistId.StartsWith("liked-songs-"))
         {
-            var playlist = FindPlaylist(userKey, playlistId);
-            var removed = playlist.Songs.RemoveAll(item => string.Equals(item, safeFile, StringComparison.OrdinalIgnoreCase));
-            if (removed == 0)
+            return ToggleLikedSong(username, fileName);
+        }
+
+        if (Guid.TryParse(playlistId, out var id))
+        {
+            var playlist = _context.Playlists.Include(p => p.PlaylistTracks).FirstOrDefault(p => p.PlaylistID == id && p.OwnerUserID == user.UserID);
+            if (playlist == null) throw new InvalidOperationException("Playlist not found or no permission.");
+
+            var track = playlist.PlaylistTracks.FirstOrDefault(pt => pt.SongID == song.SongID);
+            if (track != null)
+            {
+                _context.PlaylistTracks.Remove(track);
+                _context.SaveChanges();
+            }
+            else
             {
                 throw new InvalidOperationException("Song is not in this playlist.");
             }
-
-            Save();
-            return GetPlaylists(userKey);
         }
+
+        return GetPlaylists(username);
     }
 
-    private PlaylistRecord FindPlaylist(string userKey, string playlistId)
+    public IReadOnlyList<PlaylistSummaryDto> ToggleLikedSong(string username, string fileName)
     {
-        if (!_data.TryGetValue(userKey, out var playlists))
+        var user = GetUser(username);
+        var song = _context.Songs.FirstOrDefault(s => s.FilePath == fileName || s.Title == fileName);
+        if (song == null) throw new InvalidOperationException("Song not found.");
+
+        var fav = _context.UserFavorites.FirstOrDefault(f => f.UserID == user.UserID && f.SongID == song.SongID);
+        if (fav != null)
         {
-            throw new InvalidOperationException("Playlist not found.");
+            _context.UserFavorites.Remove(fav);
         }
-
-        var playlist = playlists.FirstOrDefault(item => string.Equals(item.Id, playlistId, StringComparison.OrdinalIgnoreCase));
-        if (playlist is null)
+        else
         {
-            throw new InvalidOperationException("Playlist not found.");
-        }
-
-        return playlist;
-    }
-
-    private static string NormalizeUser(string username)
-    {
-        var safe = (username ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(safe))
-        {
-            throw new InvalidOperationException("User identifier is required.");
-        }
-
-        return safe;
-    }
-
-    private static PlaylistSummaryDto ToDto(PlaylistRecord record, Dictionary<string, MusicLibraryItem> libraryByFile)
-    {
-        var songs = record.Songs
-            .Select(file =>
+            _context.UserFavorites.Add(new UserFavorite
             {
-                if (libraryByFile.TryGetValue(file, out var item))
-                {
-                    return new PlaylistSongDto
-                    {
-                        FileName = item.FileName,
-                        DisplayName = item.DisplayName,
-                        Artist = item.Artist
-                    };
-                }
+                FavoriteID = Guid.NewGuid(),
+                UserID = user.UserID,
+                SongID = song.SongID,
+                FavoritedAt = DateTime.UtcNow
+            });
+        }
+        _context.SaveChanges();
 
-                return new PlaylistSongDto
-                {
-                    FileName = file,
-                    DisplayName = Path.GetFileNameWithoutExtension(file),
-                    Artist = "Unknown Artist"
-                };
-            })
-            .ToList();
-
-        return new PlaylistSummaryDto
-        {
-            Id = record.Id,
-            Name = record.Name,
-            ImageUrl = record.ImageUrl,
-            Songs = songs
-        };
+        return GetPlaylists(username);
     }
 
-    private Dictionary<string, List<PlaylistRecord>> Load()
+    public void UpdatePlaylistVisibility(string username, string playlistId, bool isPublic)
     {
-        if (!File.Exists(_storagePath))
+        var user = GetUser(username);
+        if (Guid.TryParse(playlistId, out var id))
         {
-            return new Dictionary<string, List<PlaylistRecord>>(StringComparer.OrdinalIgnoreCase);
+            var playlist = _context.Playlists.FirstOrDefault(p => p.PlaylistID == id && p.OwnerUserID == user.UserID);
+            if (playlist != null)
+            {
+                playlist.IsPublic = isPublic;
+                _context.SaveChanges();
+            }
+            else
+            {
+                throw new InvalidOperationException("Playlist not found or you don't have permission.");
+            }
         }
-
-        try
-        {
-            var json = File.ReadAllText(_storagePath);
-            var parsed = JsonSerializer.Deserialize<Dictionary<string, List<PlaylistRecord>>>(json)
-                ?? new Dictionary<string, List<PlaylistRecord>>();
-
-            return parsed.ToDictionary(
-                item => item.Key,
-                item => item.Value ?? [],
-                StringComparer.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            return new Dictionary<string, List<PlaylistRecord>>(StringComparer.OrdinalIgnoreCase);
-        }
-    }
-
-    private void Save()
-    {
-        var json = JsonSerializer.Serialize(_data, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(_storagePath, json);
-    }
-
-    private class PlaylistRecord
-    {
-        public string Id { get; init; } = string.Empty;
-        public string Name { get; init; } = string.Empty;
-        public string ImageUrl { get; init; } = string.Empty;
-        public List<string> Songs { get; init; } = [];
     }
 }

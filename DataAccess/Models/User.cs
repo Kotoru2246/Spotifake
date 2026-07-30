@@ -29,7 +29,6 @@ namespace DataAccess.Models
         // Premium
         public bool IsPremium { get; set; } = false;
         public DateTime? PremiumExpiresAt { get; set; }
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

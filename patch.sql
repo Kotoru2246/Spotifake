@@ -1,0 +1,47 @@
+USE MusicPlayerDb;
+GO
+
+-- Add ImageUrl and CreatedAt to Playlists if they don't exist
+IF COL_LENGTH('Playlists', 'ImageUrl') IS NULL
+BEGIN
+    ALTER TABLE Playlists ADD ImageUrl NVARCHAR(1000) NULL;
+END
+GO
+
+IF COL_LENGTH('Playlists', 'CreatedAt') IS NULL
+BEGIN
+    ALTER TABLE Playlists ADD CreatedAt DATETIME2 NOT NULL DEFAULT(GETUTCDATE());
+END
+GO
+
+IF OBJECT_ID('UserSavedPlaylists', 'U') IS NULL
+BEGIN
+    CREATE TABLE UserSavedPlaylists
+    (
+        SavedID UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+        UserID UNIQUEIDENTIFIER NOT NULL,
+        PlaylistID UNIQUEIDENTIFIER NOT NULL,
+        SavedAt DATETIME2 NOT NULL DEFAULT(GETUTCDATE())
+    );
+
+    ALTER TABLE UserSavedPlaylists ADD CONSTRAINT FK_UserSavedPlaylists_User FOREIGN KEY(UserID) REFERENCES Users(UserID) ON DELETE CASCADE;
+    ALTER TABLE UserSavedPlaylists ADD CONSTRAINT FK_UserSavedPlaylists_Playlist FOREIGN KEY(PlaylistID) REFERENCES Playlists(PlaylistID) ON DELETE NO ACTION;
+    ALTER TABLE UserSavedPlaylists ADD CONSTRAINT UQ_UserSavedPlaylists UNIQUE(UserID, PlaylistID);
+END
+GO
+
+IF OBJECT_ID('UserSavedAlbums', 'U') IS NULL
+BEGIN
+    CREATE TABLE UserSavedAlbums
+    (
+        SavedID UNIQUEIDENTIFIER NOT NULL PRIMARY KEY DEFAULT NEWID(),
+        UserID UNIQUEIDENTIFIER NOT NULL,
+        AlbumID UNIQUEIDENTIFIER NOT NULL,
+        SavedAt DATETIME2 NOT NULL DEFAULT(GETUTCDATE())
+    );
+
+    ALTER TABLE UserSavedAlbums ADD CONSTRAINT FK_UserSavedAlbums_User FOREIGN KEY(UserID) REFERENCES Users(UserID) ON DELETE CASCADE;
+    ALTER TABLE UserSavedAlbums ADD CONSTRAINT FK_UserSavedAlbums_Album FOREIGN KEY(AlbumID) REFERENCES Albums(AlbumID) ON DELETE NO ACTION;
+    ALTER TABLE UserSavedAlbums ADD CONSTRAINT UQ_UserSavedAlbums UNIQUE(UserID, AlbumID);
+END
+GO

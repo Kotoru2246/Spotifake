@@ -9,6 +9,8 @@ namespace DataAccess.Models
         public Guid OwnerUserID { get; set; }
         public string Title { get; set; } = string.Empty;
         public bool IsPublic { get; set; }
+        public string? ImageUrl { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public List<PlaylistTrack> PlaylistTracks { get; set; } = new();
 
