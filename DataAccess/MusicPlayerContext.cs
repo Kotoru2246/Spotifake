@@ -21,6 +21,7 @@ namespace DataAccess
         public DbSet<ArtistRequest> ArtistRequests => Set<ArtistRequest>();
         public DbSet<UserSavedPlaylist> UserSavedPlaylists => Set<UserSavedPlaylist>();
         public DbSet<UserSavedAlbum> UserSavedAlbums => Set<UserSavedAlbum>();
+        public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
 
         public MusicPlayerContext()
         {
@@ -51,6 +52,7 @@ namespace DataAccess
             modelBuilder.Entity<Album>().HasKey(a => a.AlbumID);
             modelBuilder.Entity<AdminAuditLog>().HasKey(al => al.LogID);
             modelBuilder.Entity<ArtistRequest>().HasKey(ar => ar.RequestID);
+            modelBuilder.Entity<PaymentTransaction>().HasKey(pt => pt.TransactionID);
 
             // Unique constraints
             modelBuilder.Entity<User>().HasIndex(u => u.Username).IsUnique();

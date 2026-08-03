@@ -6,8 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 using WebClientMVC.Models;
-
+using DataAccess;
 
 namespace WebClientMVC.Controllers;
 
@@ -15,6 +16,7 @@ namespace WebClientMVC.Controllers;
 public class AuthController : Controller
 {
     private readonly IConfiguration _configuration;
+    private readonly MusicPlayerContext _db;
 
     private static readonly Dictionary<string, (string Password, string Role)> TestUsers = new()
     {
@@ -23,14 +25,43 @@ public class AuthController : Controller
         ["admin_test"] = ("Admin@123", "admin")
     };
 
-    public AuthController(IConfiguration configuration)
+    public AuthController(IConfiguration configuration, MusicPlayerContext db)
     {
         _configuration = configuration;
+        _db = db;
+    }
+
+    private async Task<string> GetUserSubscriptionTierAsync(string username)
+    {
+        try
+        {
+            var dbUser = await _db.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (dbUser != null)
+            {
+                if ((dbUser.SubscriptionTier == "Premium" || dbUser.IsPremium) && dbUser.PremiumExpiresAt.HasValue)
+                {
+                    if (dbUser.PremiumExpiresAt.Value < DateTime.UtcNow)
+                    {
+                        dbUser.SubscriptionTier = "Free";
+                        dbUser.IsPremium = false;
+                        await _db.SaveChangesAsync();
+                        return "Free";
+                    }
+                    return "Premium";
+                }
+                return dbUser.SubscriptionTier ?? "Free";
+            }
+        }
+        catch
+        {
+            // Fallback nếu có sự cố kết nối CSDL
+        }
+        return "Free";
     }
 
     [HttpPost("login")]
     [AllowAnonymous]
-    public IActionResult Login([FromBody] JwtLoginRequest request)
+    public async Task<IActionResult> Login([FromBody] JwtLoginRequest request)
     {
         if (!TestUsers.TryGetValue(request.Username, out var user))
         {
@@ -73,6 +104,7 @@ public class AuthController : Controller
             signingCredentials: creds);
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+        var tier = await GetUserSubscriptionTierAsync(request.Username);
 
         return Ok(new
         {
@@ -81,23 +113,26 @@ public class AuthController : Controller
             username = request.Username,
             role = user.Role,
             expires_in = expiresMinutes * 60,
-            subscription_tier = "Free"
+            subscription_tier = tier
         });
     }
 
     [HttpGet("me")]
     [Authorize]
-    public IActionResult Me()
+    public async Task<IActionResult> Me()
     {
         var username = User.Identity?.Name 
                        ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
-                       ?? User.FindFirst("sub")?.Value;
+                       ?? User.FindFirst("sub")?.Value
+                       ?? "";
+
+        var tier = await GetUserSubscriptionTierAsync(username);
 
         return Ok(new
         {
             username = username,
             role = User.FindFirst(ClaimTypes.Role)?.Value,
-            subscription_tier = "Free"
+            subscription_tier = tier
         });
     }
 
