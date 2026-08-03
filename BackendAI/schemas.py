@@ -25,6 +25,7 @@ class LoginResponse(BaseModel):
     role: str
     user_id: UUID
     expires_in: int
+    subscription_tier: str = "Free"
     
 class RegisterRequest(BaseModel):
     username: str
@@ -60,3 +61,14 @@ class CommentRead(BaseModel):
     timestamp_ms: int = 0
     content: str = ""
     created_at: datetime | None = None
+
+
+class PaymentInitRequest(BaseModel):
+    """User chọn phương thức thanh toán để khởi tạo giao dịch."""
+    payment_method: str  # "Momo" | "VNPay" | "Thẻ nội địa"
+
+
+class PaymentVerifyRequest(BaseModel):
+    """User nhập OTP để xác thực giao dịch."""
+    transaction_id: UUID
+    otp_code: str

@@ -80,7 +80,8 @@ public class AuthController : Controller
             token_type = "bearer",
             username = request.Username,
             role = user.Role,
-            expires_in = expiresMinutes * 60
+            expires_in = expiresMinutes * 60,
+            subscription_tier = "Free"
         });
     }
 
@@ -95,7 +96,8 @@ public class AuthController : Controller
         return Ok(new
         {
             username = username,
-            role = User.FindFirst(ClaimTypes.Role)?.Value
+            role = User.FindFirst(ClaimTypes.Role)?.Value,
+            subscription_tier = "Free"
         });
     }
 

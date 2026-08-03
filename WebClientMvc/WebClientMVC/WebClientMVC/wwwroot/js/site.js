@@ -115,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const authTokenKey = 'spotifake.jwt';
   const authUserKey = 'spotifake.user';
   const authRoleKey = 'spotifake.role';
+  const authTierKey = 'spotifake.tier'; // 'Free' | 'Premium'
 
   const API_BASE_URL = 'http://localhost:8000';
 
@@ -139,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let uploadedTrackUrls = [];
   let authToken = localStorage.getItem(authTokenKey) || '';
   let currentAuthRole = localStorage.getItem(authRoleKey) || '';
+  let currentSubscriptionTier = localStorage.getItem(authTierKey) || 'Free'; // Premium state
   let queueOrder = [];
   let activeQueue = [];
   let currentQueueTitle = 'Library';
@@ -210,18 +212,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (passwordInput && !passwordInput.value) passwordInput.value = demo.password;
   }
 
-  function saveAuthSession(token, username, role) {
+  function saveAuthSession(token, username, role, tier) {
     authToken = token || '';
     currentAuthRole = role || '';
+    currentSubscriptionTier = tier || 'Free';
     if (authToken) {
       localStorage.setItem(authTokenKey, authToken);
       localStorage.setItem(authUserKey, username || '');
       localStorage.setItem(authRoleKey, role || '');
+      localStorage.setItem(authTierKey, currentSubscriptionTier);
       document.cookie = "jwt_token=" + authToken + "; path=/; max-age=86400; SameSite=Lax";
     } else {
       localStorage.removeItem(authTokenKey);
       localStorage.removeItem(authUserKey);
       localStorage.removeItem(authRoleKey);
+      localStorage.removeItem(authTierKey);
       document.cookie = "jwt_token=; path=/; max-age=0";
     }
   }
@@ -289,7 +294,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateAuthChrome(username, roleLabel, loggedIn) {
     if (authUserPill) {
-      authUserPill.textContent = loggedIn ? `Logged in as ${username}` : 'Not signed in';
+      const isPremium = currentSubscriptionTier === 'Premium';
+      if (loggedIn && isPremium) {
+        authUserPill.innerHTML = `<span class="premium-pill">💎 PREMIUM</span> ${escapeHtml(username)}`;
+      } else {
+        authUserPill.textContent = loggedIn ? `Logged in as ${username}` : 'Not signed in';
+      }
     }
     if (loginToggleButton) {
       loginToggleButton.hidden = loggedIn;
@@ -302,6 +312,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (loginStatus) {
       loginStatus.textContent = loggedIn ? `Signed in as ${username} (${roleLabel})` : '';
+    }
+    // Update Premium nav button + ad banner visibility
+    const premiumBtn = document.getElementById('topBarPremiumBtn') || document.getElementById('premiumNavBtn');
+    const adBanner = document.getElementById('premiumAdBanner');
+    const isUser = (currentAuthRole || '').toLowerCase() === 'user';
+    const isPremium = currentSubscriptionTier === 'Premium';
+    if (premiumBtn) {
+      premiumBtn.classList.toggle('hidden', !loggedIn || !isUser || isPremium);
+    }
+    if (adBanner) {
+      adBanner.classList.toggle('hidden', !loggedIn || !isUser || isPremium);
     }
   }
 
@@ -1260,6 +1281,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playlistStatus) playlistStatus.textContent = error.message;
       });
     }
+
+    if (sectionId === 'premium') {
+      if (typeof window.initPremiumSection === 'function') {
+        window.initPremiumSection();
+      }
+    }
   }
 
   function formatAdminTimestamp(value) {
@@ -2207,8 +2234,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const authenticatedUser = payload.username || username;
         const authenticatedRole = payload.role || roleKey;
         const authenticatedToken = payload.access_token;
+        const authenticatedTier = payload.subscription_tier || 'Free';
 
-        saveAuthSession(authenticatedToken, authenticatedUser, authenticatedRole);
+        saveAuthSession(authenticatedToken, authenticatedUser, authenticatedRole, authenticatedTier);
         updateLoginState(roleLabel, authenticatedUser);
 
         if (authenticatedRole === 'admin') {
@@ -2252,7 +2280,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ignore logout transport failures; local session state is still cleared below.
       }
 
-      saveAuthSession('', '', '');
+      saveAuthSession('', '', '', 'Free');
+      currentSubscriptionTier = 'Free';
       userPlaylists = [];
       selectedPlaylistId = '';
       renderUserPlaylists();
@@ -2586,6 +2615,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (storedToken && storedUser) {
       authToken = storedToken;
       currentAuthRole = storedRole;
+      currentSubscriptionTier = localStorage.getItem(authTierKey) || 'Free';
       document.cookie = "jwt_token=" + authToken + "; path=/; max-age=86400; SameSite=Lax";
       updateAuthChrome(storedUser, storedRole.charAt(0).toUpperCase() + storedRole.slice(1), true);
     }
@@ -3711,3 +3741,255 @@ document.addEventListener('DOMContentLoaded', () => {
       currentRightPanelMode = 'nowplaying';
   }
 });
+
+// ============================================================
+//  PREMIUM / PAYMENT FUNCTIONS (global scope — outside DOMContentLoaded)
+// ============================================================
+
+let _pmTransaction = null;  // current pending transaction
+
+function _pmGetToken() {
+  return localStorage.getItem('spotifake.jwt') || '';
+}
+
+function _pmAuthHeaders() {
+  const t = _pmGetToken();
+  return t ? { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+}
+
+/** Called when navigating to #premium section. */
+window.initPremiumSection = function () {
+  const tier = localStorage.getItem('spotifake.tier') || 'Free';
+  const isPremium = tier === 'Premium';
+  const alreadyView = document.getElementById('alreadyPremiumView');
+  const flowView    = document.getElementById('paymentFlowView');
+  if (alreadyView) alreadyView.style.display = isPremium ? 'block' : 'none';
+  if (flowView)    flowView.style.display    = isPremium ? 'none'  : 'block';
+  if (isPremium) {
+    loadPaymentHistory('paymentHistoryContainer');
+    _pmLoadExpiryDate();
+  } else {
+    pmGoToStep(1);
+    _pmTransaction = null;
+    const tf = document.getElementById('pmTransferContainer');
+    if (tf) tf.style.display = 'none';
+    const ob = document.getElementById('pmOtpBox');
+    if (ob) ob.style.display = 'none';
+    const og = document.getElementById('pmOtpInputGroup');
+    if (og) og.hidden = true;
+    const cb = document.getElementById('pmConfirmBtn');
+    if (cb) cb.disabled = true;
+    const oi = document.getElementById('pmOtpInput');
+    if (oi) oi.value = '';
+    document.querySelectorAll('.method-card').forEach(c => c.classList.remove('selected'));
+  }
+};
+
+async function _pmLoadExpiryDate() {
+  try {
+    const r = await fetch('/payment/history', { headers: _pmAuthHeaders() });
+    if (!r.ok) return;
+    const list = await r.json();
+    const ok = list.find(t => t.status === 'success');
+    if (ok && ok.expires_at) {
+      const d = new Date(ok.expires_at + 'Z').toLocaleDateString('vi-VN');
+      const el = document.getElementById('premiumExpiryDate');
+      if (el) el.textContent = d;
+    }
+  } catch { /* silent */ }
+}
+
+/** Move to payment step 1, 2, or 3. */
+window.pmGoToStep = function (step) {
+  [1, 2, 3].forEach(i => {
+    const dot = document.getElementById('sDot' + i);
+    if (dot) {
+      dot.classList.remove('active', 'done');
+      if (i < step) dot.classList.add('done');
+      else if (i === step) dot.classList.add('active');
+    }
+  });
+  [1, 2].forEach(i => {
+    const line = document.getElementById('sLine' + i);
+    if (line) line.classList.toggle('done', i < step);
+  });
+  document.querySelectorAll('.payment-step').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+  });
+  const stepEl = document.getElementById('pmStep' + step);
+  if (stepEl) {
+    stepEl.classList.add('active');
+    stepEl.style.display = 'block';
+  }
+};
+
+/** Select payment method and call /payment/initiate. */
+window.pmSelectMethod = async function (method) {
+  document.querySelectorAll('.method-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('mc-' + method);
+  if (card) card.classList.add('selected');
+
+  const transferContainer = document.getElementById('pmTransferContainer');
+  const transferBox       = document.getElementById('pmTransferBox');
+  const otpBox            = document.getElementById('pmOtpBox');
+  const otpInputGroup     = document.getElementById('pmOtpInputGroup');
+  const errBox            = document.getElementById('pmStep2Error');
+  const confirmBtn        = document.getElementById('pmConfirmBtn');
+
+  if (transferContainer) transferContainer.style.display = 'block';
+  if (errBox)            errBox.style.display = 'none';
+  if (transferBox)       transferBox.innerHTML = '<div style="color:var(--muted);">Đang tạo giao dịch...</div>';
+
+  try {
+    const res = await fetch('/payment/initiate', {
+      method: 'POST',
+      headers: _pmAuthHeaders(),
+      body: JSON.stringify({ payment_method: method })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (transferBox) transferBox.innerHTML = '<div style="color:var(--danger-text);">' + (data.detail || 'Lỗi tạo giao dịch') + '</div>';
+      return;
+    }
+
+    _pmTransaction = data;
+
+    const info = data.payment_info || {};
+    let rows = [
+      ['Số tiền',       '18.000 VND'],
+      ['Gói',          data.plan_name],
+      ['Phương thức',  data.payment_method],
+      ['Mã GD',        data.transaction_code],
+    ];
+    if (info.account)      rows.push(['Số TK',     info.account]);
+    if (info.account_name) rows.push(['Tên TK',    info.account_name]);
+    if (info.bank)         rows.push(['Ngân hàng', info.bank]);
+    if (info.qr_hint)      rows.push(['Hướng dẫn', info.qr_hint]);
+
+    let html = '<h4 style="color:var(--green);margin:0 0 10px;font-size:13px;">📋 Thông tin thanh toán</h4>';
+    rows.forEach(([lbl, val]) => {
+      html += `<div class="transfer-row"><span class="t-label">${lbl}</span><span class="t-value">${val}</span></div>`;
+    });
+    if (transferBox) transferBox.innerHTML = html;
+
+    if (otpBox)  { document.getElementById('pmOtpCode').textContent = data.demo_otp || '------'; otpBox.style.display = 'block'; }
+    if (otpInputGroup) { otpInputGroup.hidden = false; document.getElementById('pmOtpInput').value = ''; }
+    if (confirmBtn) confirmBtn.disabled = false;
+
+  } catch (e) {
+    if (transferBox) transferBox.innerHTML = '<div style="color:var(--danger-text);">Lỗi kết nối: ' + e.message + '</div>';
+  }
+};
+
+/** Confirm OTP and finalize payment. */
+window.pmConfirmPayment = async function () {
+  const otp        = (document.getElementById('pmOtpInput')?.value || '').trim();
+  const errBox     = document.getElementById('pmStep2Error');
+  const confirmBtn = document.getElementById('pmConfirmBtn');
+
+  if (!otp || otp.length !== 6) {
+    if (errBox) { errBox.textContent = 'Vui lòng nhập đúng 6 chữ số OTP.'; errBox.style.display = 'block'; }
+    return;
+  }
+  if (!_pmTransaction) {
+    if (errBox) { errBox.textContent = 'Không tìm thấy giao dịch. Vui lòng chọn lại phương thức.'; errBox.style.display = 'block'; }
+    return;
+  }
+
+  if (errBox) errBox.style.display = 'none';
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = '⏳ Đang xác thực...'; }
+
+  try {
+    const res = await fetch('/payment/verify', {
+      method: 'POST',
+      headers: _pmAuthHeaders(),
+      body: JSON.stringify({ transaction_id: _pmTransaction.transaction_id, otp_code: otp })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (errBox) { errBox.textContent = data.detail || 'Xác thực thất bại.'; errBox.style.display = 'block'; }
+      if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✅ Xác nhận thanh toán'; }
+      return;
+    }
+
+    // SUCCESS — update local Premium state
+    localStorage.setItem('spotifake.tier', 'Premium');
+
+    // Update auth pill
+    const pill = document.getElementById('authUserPill');
+    const user = localStorage.getItem('spotifake.user') || '';
+    if (pill) pill.innerHTML = `<span class="premium-pill">💎 PREMIUM</span> ${user}`;
+
+    // Hide premium nav btn + ad banner
+    const premBtn = document.getElementById('topBarPremiumBtn') || document.getElementById('premiumNavBtn');
+    if (premBtn) premBtn.classList.add('hidden');
+    const banner = document.getElementById('premiumAdBanner');
+    if (banner) banner.classList.add('hidden');
+
+    // Render receipt
+    _pmRenderReceipt(data);
+    pmGoToStep(3);
+    await loadPaymentHistory('pmReceiptHistory');
+
+    if (typeof showToast === 'function') {
+      showToast('success', 'Premium Activated!', 'Tài khoản đã được nâng cấp lên Spotifake Premium! 💎');
+    }
+
+  } catch (e) {
+    if (errBox) { errBox.textContent = 'Lỗi kết nối: ' + e.message; errBox.style.display = 'block'; }
+    if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = '✅ Xác nhận thanh toán'; }
+  }
+};
+
+function _pmRenderReceipt(data) {
+  const paidAt    = new Date(data.paid_at    + 'Z').toLocaleString('vi-VN');
+  const expiresAt = new Date(data.expires_at + 'Z').toLocaleDateString('vi-VN');
+  const body = document.getElementById('pmReceiptBody');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="receipt-row"><span class="r-label">Mã giao dịch</span><span class="r-value" style="font-family:monospace;font-size:12px;">${data.transaction_code}</span></div>
+    <div class="receipt-row"><span class="r-label">Gói dịch vụ</span><span class="r-value">${data.plan_name}</span></div>
+    <div class="receipt-row"><span class="r-label">Phương thức</span><span class="r-value">${data.payment_method}</span></div>
+    <div class="receipt-row"><span class="r-label">Số tiền</span><span class="r-value r-amount">${Number(data.amount_vnd).toLocaleString('vi-VN')} VND</span></div>
+    <div class="receipt-row"><span class="r-label">Ngày thanh toán</span><span class="r-value">${paidAt}</span></div>
+    <div class="receipt-row"><span class="r-label">Hết hạn</span><span class="r-value" style="color:var(--gold);">${expiresAt}</span></div>
+  `;
+}
+
+/** Load payment history into container by ID. */
+window.loadPaymentHistory = async function (containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '<div style="color:var(--muted);font-size:13px;">Đang tải...</div>';
+  try {
+    const res = await fetch('/payment/history', { headers: _pmAuthHeaders() });
+    if (!res.ok) { container.innerHTML = '<p style="color:var(--muted);">Không thể tải lịch sử.</p>'; return; }
+    const list = await res.json();
+    if (!list.length) { container.innerHTML = '<p style="color:var(--muted);">Chưa có giao dịch nào.</p>'; return; }
+
+    const rows = list.map(txn => {
+      const date = txn.paid_at
+        ? new Date(txn.paid_at    + 'Z').toLocaleDateString('vi-VN')
+        : new Date(txn.created_at + 'Z').toLocaleDateString('vi-VN');
+      const pillClass = { success:'pill-success', pending:'pill-pending', failed:'pill-failed' }[txn.status] || '';
+      const pillLabel = { success:'Thành công',   pending:'Đang xử lý',  failed:'Thất bại'   }[txn.status] || txn.status;
+      return `<tr>
+        <td style="font-family:monospace;font-size:12px;">${txn.transaction_code}</td>
+        <td>${txn.payment_method}</td>
+        <td style="color:var(--gold);font-weight:700;">${Number(txn.amount_vnd).toLocaleString('vi-VN')} đ</td>
+        <td><span class="status-pill ${pillClass}">${pillLabel}</span></td>
+        <td style="color:var(--muted);">${date}</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <table class="history-table">
+        <thead><tr><th>Mã GD</th><th>Phương thức</th><th>Số tiền</th><th>Trạng thái</th><th>Ngày</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch (e) {
+    container.innerHTML = `<p style="color:var(--danger-text);">Lỗi: ${e.message}</p>`;
+  }
+};

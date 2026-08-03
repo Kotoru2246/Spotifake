@@ -11,4 +11,6 @@ public sealed class JwtLoginResponse
     public string Role { get; set; } = string.Empty;
 
     public int ExpiresIn { get; set; }
+
+    public string SubscriptionTier { get; set; } = "Free";
 }

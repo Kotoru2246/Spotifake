@@ -2497,3 +2497,348 @@ button {
     border-radius: 4px;
     width: 200px;
 }
+
+/* ===================================================
+   PREMIUM FEATURE STYLES
+   =================================================== */
+
+:root {
+    --gold:          #f5a623;
+    --gold-2:        #ffc84a;
+    --gold-dark:     #d4890a;
+    --premium-bg:    linear-gradient(135deg, #2a1f06 0%, #1a1300 100%);
+    --premium-border: rgba(245, 166, 35, 0.35);
+}
+
+/* ── Sidebar nav button ── */
+#premiumNavBtn {
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark)) !important;
+    color: #1a0f00 !important;
+    border: none;
+    border-radius: 50%;
+    width: 48px; height: 48px;
+    font-size: 20px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+    box-shadow: 0 0 10px rgba(245,166,35,.35);
+}
+#premiumNavBtn:hover { transform: scale(1.1); box-shadow: 0 0 18px rgba(245,166,35,.6); }
+#premiumNavBtn.hidden { display: none !important; }
+
+/* ── Premium badge in user pill ── */
+.premium-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: #1a0f00; font-size: 10px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .05em;
+    padding: 3px 10px; border-radius: 999px;
+    box-shadow: 0 0 10px rgba(245,166,35,.4);
+    animation: goldPulse 2.5s ease-in-out infinite;
+}
+@keyframes goldPulse {
+    0%,100% { box-shadow: 0 0 10px rgba(245,166,35,.4); }
+    50%      { box-shadow: 0 0 20px rgba(245,166,35,.7); }
+}
+
+/* ── Ad banner ── */
+.premium-ad-banner {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 1px dashed #3a3a6e;
+    border-radius: 10px; padding: 12px 18px;
+    margin: 0 24px 16px; color: #8888bb;
+    font-size: 13px; display: flex; align-items: center; gap: 10px;
+}
+.premium-ad-banner.hidden { display: none; }
+.premium-ad-cta {
+    margin-left: auto;
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: #1a0f00; border: none; padding: 6px 14px;
+    border-radius: 6px; font-size: 12px; font-weight: 800; cursor: pointer;
+    white-space: nowrap; transition: transform .15s;
+}
+.premium-ad-cta:hover { transform: translateY(-1px); }
+
+/* ── Premium section (full-page inside main-panel) ── */
+.premium-section { padding: 24px 32px; max-width: 860px; }
+
+.premium-hero {
+    background: var(--premium-bg);
+    border: 1px solid var(--premium-border);
+    border-radius: 16px; padding: 40px 36px;
+    text-align: center; margin-bottom: 28px;
+    position: relative; overflow: hidden;
+}
+.premium-hero::before {
+    content: '';
+    position: absolute; top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(245,166,35,.18), transparent 70%);
+    pointer-events: none;
+}
+.premium-price {
+    font-size: 52px; font-weight: 900;
+    color: var(--gold); line-height: 1; margin: 16px 0 4px;
+}
+.premium-price span { font-size: 22px; color: var(--gold-dark); }
+.premium-period { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+.premium-features-list {
+    list-style: none; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+    gap: 10px; margin: 20px 0 28px; text-align: left;
+}
+.premium-features-list li {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(245,166,35,.08);
+    border: 1px solid rgba(245,166,35,.15);
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 14px;
+}
+.premium-subscribe-btn {
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: #1a0f00; border: none;
+    font-size: 16px; font-weight: 800;
+    padding: 14px 36px; border-radius: 999px; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(245,166,35,.35);
+    transition: transform .2s, box-shadow .2s;
+}
+.premium-subscribe-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(245,166,35,.5);
+}
+
+/* ── Step indicator ── */
+.payment-steps {
+    display: flex; align-items: center;
+    justify-content: center; gap: 0; margin-bottom: 28px;
+}
+.step-dot {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface-2); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    transition: all .3s; position: relative; z-index: 1;
+}
+.step-dot .step-label {
+    position: absolute; top: 36px; white-space: nowrap;
+    font-size: 11px; color: var(--muted);
+    left: 50%; transform: translateX(-50%);
+}
+.step-dot.active { background: var(--gold); border-color: var(--gold); color: #1a0f00; }
+.step-dot.done   { background: var(--green); border-color: var(--green); color: #041308; }
+.step-line {
+    width: 60px; height: 2px; background: var(--border); transition: background .3s;
+}
+.step-line.done { background: var(--green); }
+
+/* ── Payment step panels ── */
+.payment-step { display: none; }
+.payment-step.active { display: block; }
+
+/* ── Method cards ── */
+.method-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
+    gap: 14px; margin: 20px 0;
+}
+.method-card {
+    background: var(--surface-2); border: 2px solid var(--border);
+    border-radius: 12px; padding: 20px 14px; text-align: center;
+    cursor: pointer; transition: all .2s;
+}
+.method-card:hover {
+    border-color: var(--gold); background: rgba(245,166,35,.08);
+    transform: translateY(-3px); box-shadow: 0 8px 20px rgba(245,166,35,.15);
+}
+.method-card.selected {
+    border-color: var(--gold); background: rgba(245,166,35,.12);
+    box-shadow: 0 0 0 1px var(--gold);
+}
+.method-icon { font-size: 36px; margin-bottom: 8px; }
+.method-name { font-weight: 700; font-size: 14px; }
+.method-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ── Transfer info box ── */
+.transfer-box {
+    background: #0e0e0e; border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0; font-size: 13px;
+}
+.transfer-box h4 { color: var(--green); margin: 0 0 10px; font-size: 13px; }
+.transfer-row {
+    display: flex; justify-content: space-between;
+    padding: 6px 0; border-bottom: 1px dashed #2a2a2a;
+}
+.transfer-row:last-child { border-bottom: none; }
+.t-label { color: var(--muted); }
+.t-value { font-weight: 700; font-family: monospace; }
+
+/* ── OTP demo box ── */
+.otp-box {
+    background: linear-gradient(135deg, #1a2a1a, #102010);
+    border: 2px solid var(--green); border-radius: 12px;
+    padding: 18px 22px; margin: 18px 0; text-align: center;
+}
+.otp-label { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--green); font-weight: 700; margin-bottom: 4px; }
+.otp-warning { font-size: 11px; color: #ffb347; margin-bottom: 10px; }
+.otp-code { font-size: 40px; font-weight: 900; letter-spacing: 10px; color: var(--green-2); font-family: monospace; text-shadow: 0 0 20px rgba(30,215,96,.5); }
+
+/* ── Receipt card ── */
+.receipt-card {
+    background: linear-gradient(145deg, #111, #191919);
+    border: 1px solid var(--premium-border);
+    border-radius: 16px; overflow: hidden;
+    max-width: 480px; margin: 0 auto;
+}
+.receipt-head {
+    background: linear-gradient(135deg, var(--gold-dark), #8a5a00);
+    padding: 22px 28px; text-align: center;
+}
+.receipt-head h3 { font-size: 22px; color: #fff; margin: 0 0 4px; }
+.receipt-head p  { font-size: 13px; color: rgba(255,255,255,.7); margin: 0; }
+.receipt-body { padding: 24px 28px; }
+.receipt-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid #222; font-size: 14px; gap: 12px;
+}
+.receipt-row:last-child { border-bottom: none; }
+.r-label { color: var(--muted); white-space: nowrap; }
+.r-value { font-weight: 700; text-align: right; word-break: break-all; }
+.r-amount { color: var(--gold); font-size: 22px; font-weight: 900; }
+.receipt-foot {
+    background: rgba(245,166,35,.06);
+    border-top: 1px solid var(--premium-border);
+    padding: 16px 28px; text-align: center;
+    font-size: 12px; color: var(--muted);
+}
+.receipt-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+    color: #1a0f00; padding: 6px 18px; border-radius: 999px;
+    font-weight: 800; font-size: 13px; margin-bottom: 10px;
+}
+
+/* ── History table ── */
+.history-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 16px; }
+.history-table th {
+    text-align: left; padding: 10px 12px; color: var(--muted);
+    border-bottom: 2px solid var(--border);
+    font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+}
+.history-table td { padding: 10px 12px; border-bottom: 1px solid #1e1e1e; }
+.history-table tr:last-child td { border-bottom: none; }
+.status-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+}
+.pill-success { background: #163a27; color: #b8f2cf; }
+.pill-pending { background: #2a1f06; color: #f5c842; }
+.pill-failed  { background: #3a1f23; color: #ffb4bf; }
+
+/* ── Already-premium view ── */
+.already-premium-box {
+    background: var(--premium-bg);
+    border: 1px solid var(--premium-border);
+    border-radius: 16px; padding: 32px; text-align: center;
+}
+.already-premium-box h3 { color: var(--gold); font-size: 22px; margin: 12px 0 8px; }
+.already-premium-box p  { color: var(--muted); font-size: 14px; }
+.expiry-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(245,166,35,.12);
+    border: 1px solid var(--premium-border);
+    border-radius: 8px; padding: 8px 16px;
+    margin-top: 14px; font-size: 13px; color: var(--gold);
+}
+
+/* ===================================================
+   NEW STANDALONE PREMIUM PAGE & TOPBAR BUTTON STYLES
+   =================================================== */
+
+/* ── Top bar premium button (Black theme matching Spotify) ── */
+.topbar-premium-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap !important;
+    background: #000000;
+    color: #ffffff;
+    border: 1px solid #878787;
+    padding: 0 16px;
+    height: 32px;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-right: 12px;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-decoration: none;
+    box-shadow: none;
+    text-shadow: none;
+}
+
+.topbar-premium-btn:hover {
+    background: #1a1a1a;
+    color: #ffffff;
+    border-color: #ffffff;
+    transform: scale(1.04);
+}
+
+.topbar-premium-btn.hidden {
+    display: none !important;
+}
+
+/* ── Standalone Premium Page Shell ── */
+.premium-standalone-shell {
+    min-height: 100vh;
+    background: radial-gradient(circle at top center, #2e2008 0%, #0d0b07 40%, #070604 100%);
+    color: #ffffff;
+    padding: 40px 20px 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.premium-standalone-header {
+    width: 100%;
+    max-width: 860px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.premium-brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+}
+
+.premium-brand-logo span {
+    background: linear-gradient(135deg, #ffe082, #ffae00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.premium-standalone-body {
+    width: 100%;
+    max-width: 860px;
+    background: rgba(22, 20, 16, 0.75);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    border-radius: 24px;
+    padding: 44px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 40px rgba(245, 166, 35, 0.12);
+}
+
+@media (max-width: 768px) {
+    .premium-standalone-body {
+        padding: 24px;
+    }
+}
+
