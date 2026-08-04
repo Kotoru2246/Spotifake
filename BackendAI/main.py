@@ -12,11 +12,13 @@ import numpy as np
 import jwt
 import bcrypt
 from sqlmodel import Session, select
-from .schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, SmartShuffleRequest, SmartShuffleResponse, CommentCreate, CommentRead
+from .schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, SmartShuffleRequest, SmartShuffleResponse, CommentCreate, CommentRead, PaymentInitRequest, PaymentVerifyRequest
 from .spotify_integration import SpotifyIntegration
 from .callback_server import start_callback_server, stop_callback_server, get_auth_code, reset_auth_code
 from .db import create_db_and_tables, engine
-from .models import Song, SongCreate, SongRead, User, UserCreate, UserRead, ArtistProfile, AdminAuditLog, Comment, Album, AlbumCreate, AlbumRead
+from .models import Song, SongCreate, SongRead, User, UserCreate, UserRead, ArtistProfile, AdminAuditLog, Comment, Album, AlbumCreate, AlbumRead, PaymentTransaction, PaymentTransactionRead
+import random
+import string
 from .upload_handler import save_upload_file
 from .audio_features import categorize_genre_and_mood, extract_audio_features
 from .genre_classifier_advanced import GenreClassifierV4
@@ -155,6 +157,8 @@ def get_current_user(
                 session.refresh(db_user)
             except Exception:
                 session.rollback()
+        # Auto-downgrade Premium nếu hết hạn
+        check_and_reset_premium_expiry(db_user, session)
         return db_user
 
 
@@ -163,6 +167,8 @@ def get_current_user(
         user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
         db_user = session.get(User, user_uuid)
         if db_user and db_user.account_status == "Active":
+            # Auto-downgrade Premium nếu hết hạn
+            check_and_reset_premium_expiry(db_user, session)
             return db_user
     except Exception:
         pass
@@ -276,6 +282,7 @@ def login(request: LoginRequest, session: Session = Depends(get_session)):
                     role=db_user.role,
                     user_id=str(db_user.id),
                     expires_in=expires_in,
+                    subscription_tier=db_user.subscription_tier or "Free",
                 )
     except Exception as e:
         print(f"⚠ DB login check warning: {e}")
@@ -298,6 +305,7 @@ def login(request: LoginRequest, session: Session = Depends(get_session)):
                 role=role,
                 user_id=str(user_info["id"]),
                 expires_in=expires_in,
+                subscription_tier="Free",  # Test users default to Free
             )
 
     raise HTTPException(
@@ -1191,6 +1199,253 @@ def get_comments(song_id: str, session: Session = Depends(get_session)):
     s_uuid = parse_frontend_song_id(song_id)
     comments = session.exec(select(Comment).where(Comment.song_id == s_uuid).order_by(Comment.timestamp_ms)).all()
     return comments
+
+# ===== Helper: Premium Expiry Check =====
+
+def check_and_reset_premium_expiry(user: User, session: Session) -> None:
+    """
+    Kiểm tra gói Premium của user. Nếu đã hết hạn, tự động downgrade về Free.
+    Hàm này được gọi mỗi lần xác thực token.
+    """
+    if user.subscription_tier != "Premium":
+        return
+    # Lấy giao dịch Premium gần nhất có status success
+    txn = session.exec(
+        select(PaymentTransaction)
+        .where(PaymentTransaction.user_id == user.id)
+        .where(PaymentTransaction.status == "success")
+        .order_by(PaymentTransaction.paid_at)
+    ).all()
+    if not txn:
+        # Không có giao dịch hợp lệ → về Free
+        user.subscription_tier = "Free"
+        try:
+            session.add(user)
+            session.commit()
+        except Exception:
+            session.rollback()
+        return
+    # Lấy expires_at mới nhất
+    latest = max(txn, key=lambda t: t.expires_at or datetime.utcnow())
+    if latest.expires_at and latest.expires_at < datetime.utcnow():
+        user.subscription_tier = "Free"
+        try:
+            session.add(user)
+            session.commit()
+        except Exception:
+            session.rollback()
+
+
+def _generate_otp() -> str:
+    """Tạo mã OTP 6 chữ số ngẫu nhiên."""
+    return "".join(random.choices(string.digits, k=6))
+
+
+def _generate_transaction_code() -> str:
+    """Tạo mã giao dịch dạng TXN-XXXXXXXX."""
+    suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    return f"TXN-{suffix}"
+
+
+# ===== Payment Endpoints =====
+
+@app.post("/payment/initiate")
+def payment_initiate(
+    request: PaymentInitRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Tạo giao dịch Premium mới ở trạng thái 'pending'.
+    Trả về mã giao dịch, OTP demo, và thông tin chuyển khoản giả.
+    """
+    valid_methods = ["Momo", "VNPay", "Thẻ nội địa"]
+    if request.payment_method not in valid_methods:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Phương thức không hợp lệ. Chọn một trong: {valid_methods}"
+        )
+
+    otp = _generate_otp()
+    txn_code = _generate_transaction_code()
+
+    txn = PaymentTransaction(
+        user_id=current_user.id,
+        amount_vnd=18000,
+        plan_name="Premium 1 Tháng",
+        status="pending",
+        payment_method=request.payment_method,
+        transaction_code=txn_code,
+        otp_code=otp,
+        created_at=datetime.utcnow(),
+    )
+    session.add(txn)
+    try:
+        session.commit()
+        session.refresh(txn)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Không thể tạo giao dịch: {str(e)}")
+
+    # Thông tin chuyển khoản giả tùy theo phương thức
+    payment_info = {
+        "Momo": {
+            "account": "0901234567",
+            "account_name": "SPOTIFAKE DEMO",
+            "qr_hint": "Quét mã QR MoMo bên dưới hoặc chuyển khoản thủ công",
+        },
+        "VNPay": {
+            "account": "9704001234567890",
+            "account_name": "SPOTIFAKE VN",
+            "bank": "VCB",
+            "qr_hint": "Mở app ngân hàng, quét mã QR VNPay",
+        },
+        "Thẻ nội địa": {
+            "account": "0011004356788",
+            "account_name": "CONG TY SPOTIFAKE",
+            "bank": "Vietcombank",
+            "branch": "Hồ Chí Minh",
+            "qr_hint": "Chuyển khoản qua số tài khoản trên",
+        },
+    }.get(request.payment_method, {})
+
+    return {
+        "transaction_id": str(txn.id),
+        "transaction_code": txn_code,
+        "amount_vnd": 18000,
+        "plan_name": "Premium 1 Tháng",
+        "payment_method": request.payment_method,
+        "payment_info": payment_info,
+        # OTP hiển thị thẳng lên màn hình (demo — không có SMS thật)
+        "demo_otp": otp,
+        "message": "Giao dịch đã được tạo. Nhập Demo OTP để xác nhận.",
+    }
+
+
+@app.post("/payment/verify")
+def payment_verify(
+    request: PaymentVerifyRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """
+    Xác thực OTP. Nếu đúng:
+    - Cập nhật PaymentTransaction.status = 'success'
+    - Cập nhật User.subscription_tier = 'Premium'
+    - Ghi AdminAuditLog
+    """
+    txn = session.get(PaymentTransaction, request.transaction_id)
+    if not txn:
+        raise HTTPException(status_code=404, detail="Giao dịch không tồn tại")
+    if txn.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập giao dịch này")
+    if txn.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Giao dịch đã ở trạng thái '{txn.status}', không thể xác thực lại"
+        )
+    if txn.otp_code != request.otp_code.strip():
+        # Đánh dấu failed sau khi nhập sai OTP
+        txn.status = "failed"
+        try:
+            session.add(txn)
+            session.commit()
+        except Exception:
+            session.rollback()
+        raise HTTPException(status_code=400, detail="OTP không đúng. Giao dịch đã bị hủy.")
+
+    now = datetime.utcnow()
+    expires = now + timedelta(days=30)
+
+    # Cập nhật giao dịch
+    txn.status = "success"
+    txn.paid_at = now
+    txn.expires_at = expires
+
+    # Cập nhật user lên Premium
+    current_user.subscription_tier = "Premium"
+
+    # Ghi audit log (dùng user_id của chính user vì đây là self-service)
+    audit = AdminAuditLog(
+        admin_id=current_user.id,
+        action="PREMIUM_UPGRADE",
+        target_type="User",
+        target_id=str(current_user.id),
+        details=f"User '{current_user.username}' nâng cấp Premium qua {txn.payment_method}. Mã GD: {txn.transaction_code}. Hết hạn: {expires.strftime('%Y-%m-%d')}",
+    )
+
+    session.add(txn)
+    session.add(current_user)
+    session.add(audit)
+    try:
+        session.commit()
+        session.refresh(txn)
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi khi cập nhật: {str(e)}")
+
+    return {
+        "success": True,
+        "message": "Thanh toán thành công! Tài khoản đã được nâng cấp lên Premium.",
+        "transaction_id": str(txn.id),
+        "transaction_code": txn.transaction_code,
+        "amount_vnd": txn.amount_vnd,
+        "plan_name": txn.plan_name,
+        "payment_method": txn.payment_method,
+        "paid_at": txn.paid_at.isoformat(),
+        "expires_at": txn.expires_at.isoformat(),
+        "subscription_tier": "Premium",
+    }
+
+
+@app.get("/payment/receipt/{transaction_id}")
+def payment_receipt(
+    transaction_id: str,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Lấy biên lai chi tiết của một giao dịch đã thành công."""
+    try:
+        txn_uuid = UUID(transaction_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="transaction_id không hợp lệ")
+
+    txn = session.get(PaymentTransaction, txn_uuid)
+    if not txn:
+        raise HTTPException(status_code=404, detail="Giao dịch không tồn tại")
+    if txn.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Không có quyền xem biên lai này")
+    if txn.status != "success":
+        raise HTTPException(status_code=400, detail="Giao dịch chưa hoàn thành")
+
+    return {
+        "transaction_id": str(txn.id),
+        "transaction_code": txn.transaction_code,
+        "user_id": str(txn.user_id),
+        "username": current_user.username,
+        "plan_name": txn.plan_name,
+        "amount_vnd": txn.amount_vnd,
+        "payment_method": txn.payment_method,
+        "status": txn.status,
+        "paid_at": txn.paid_at.isoformat() if txn.paid_at else None,
+        "expires_at": txn.expires_at.isoformat() if txn.expires_at else None,
+    }
+
+
+@app.get("/payment/history", response_model=list[PaymentTransactionRead])
+def payment_history(
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session)
+):
+    """Lấy toàn bộ lịch sử giao dịch của user hiện tại (mới nhất trước)."""
+    txns = session.exec(
+        select(PaymentTransaction)
+        .where(PaymentTransaction.user_id == current_user.id)
+        .order_by(PaymentTransaction.created_at)
+    ).all()
+    # Đảo ngược để mới nhất lên đầu
+    return list(reversed(txns))
+
 
 if __name__ == "__main__":
     import uvicorn

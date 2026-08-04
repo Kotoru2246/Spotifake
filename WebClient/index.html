@@ -272,6 +272,342 @@
             button { width: 100%; }
             .search-box { flex-direction: column; }
         }
+
+        /* ===== Premium Feature Styles ===== */
+        :root {
+            --gold: #f5a623;
+            --gold-2: #ffc84a;
+            --gold-dark: #d4890a;
+            --premium-bg: linear-gradient(135deg, #2a1f06 0%, #1a1300 100%);
+            --premium-border: rgba(245, 166, 35, 0.35);
+        }
+
+        .premium-badge-gold {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #1a0f00;
+            padding: 3px 10px;
+            border-radius: 999px;
+            letter-spacing: 0.05em;
+            box-shadow: 0 0 10px rgba(245, 166, 35, 0.4);
+            animation: goldPulse 2.5s ease-in-out infinite;
+        }
+
+        @keyframes goldPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(245, 166, 35, 0.4); }
+            50% { box-shadow: 0 0 20px rgba(245, 166, 35, 0.7); }
+        }
+
+        /* Ad Banner */
+        .ad-banner {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 1px dashed #3a3a6e;
+            border-radius: 10px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            color: #8888bb;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        .ad-banner.hidden { display: none; }
+        .ad-banner-cta {
+            margin-left: auto;
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #1a0f00;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .ad-banner-cta:hover { transform: translateY(-1px); }
+
+        /* Premium section */
+        .premium-hero {
+            background: var(--premium-bg);
+            border: 1px solid var(--premium-border);
+            border-radius: 16px;
+            padding: 36px;
+            text-align: center;
+            margin-bottom: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+        .premium-hero::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(245,166,35,0.18), transparent 70%);
+            pointer-events: none;
+        }
+        .premium-price {
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1;
+            margin: 16px 0 4px;
+        }
+        .premium-price span { font-size: 20px; color: var(--gold-dark); }
+        .premium-period { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+        .premium-features-list {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0 28px;
+            text-align: left;
+        }
+        .premium-features-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(245,166,35,0.08);
+            border: 1px solid rgba(245,166,35,0.15);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            color: var(--text);
+        }
+        .premium-features-list li .fi { font-size: 18px; }
+
+        /* Payment Steps */
+        .payment-steps-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            margin-bottom: 28px;
+        }
+        .step-dot {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: var(--surface-2);
+            border: 2px solid var(--border);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 700; color: var(--muted);
+            transition: all 0.3s;
+            position: relative;
+            z-index: 1;
+        }
+        .step-dot.active { background: var(--gold); border-color: var(--gold); color: #1a0f00; }
+        .step-dot.done { background: var(--green); border-color: var(--green); color: #041308; }
+        .step-line {
+            width: 60px; height: 2px;
+            background: var(--border);
+            transition: background 0.3s;
+        }
+        .step-line.done { background: var(--green); }
+        .step-label {
+            position: absolute;
+            top: 36px;
+            white-space: nowrap;
+            font-size: 11px;
+            color: var(--muted);
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .payment-step { display: none; }
+        .payment-step.active { display: block; }
+
+        /* Method selection */
+        .payment-method-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin: 20px 0;
+        }
+        .payment-method-card {
+            background: var(--surface-2);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 20px 14px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .payment-method-card:hover {
+            border-color: var(--gold);
+            background: rgba(245,166,35,0.08);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(245,166,35,0.15);
+        }
+        .payment-method-card.selected {
+            border-color: var(--gold);
+            background: rgba(245,166,35,0.12);
+            box-shadow: 0 0 0 1px var(--gold);
+        }
+        .payment-method-icon { font-size: 36px; margin-bottom: 8px; }
+        .payment-method-name { font-weight: 700; font-size: 14px; }
+        .payment-method-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+        /* Transfer info box */
+        .transfer-info-box {
+            background: #0e0e0e;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-size: 13px;
+        }
+        .transfer-info-box h4 { color: var(--green); margin-bottom: 10px; font-size: 13px; }
+        .transfer-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed #2a2a2a;
+        }
+        .transfer-row:last-child { border-bottom: none; }
+        .transfer-label { color: var(--muted); }
+        .transfer-value { font-weight: 700; color: var(--text); font-family: monospace; }
+
+        /* OTP Demo box */
+        .otp-demo-box {
+            background: linear-gradient(135deg, #1a2a1a, #102010);
+            border: 2px solid var(--green);
+            border-radius: 12px;
+            padding: 18px 22px;
+            margin: 18px 0;
+            text-align: center;
+        }
+        .otp-demo-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--green);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .otp-demo-warning {
+            font-size: 11px;
+            color: #ffb347;
+            margin-bottom: 10px;
+        }
+        .otp-code-display {
+            font-size: 38px;
+            font-weight: 900;
+            letter-spacing: 10px;
+            color: var(--green-2);
+            font-family: monospace;
+            text-shadow: 0 0 20px rgba(30,215,96,0.5);
+        }
+
+        /* Receipt card */
+        .receipt-card {
+            background: linear-gradient(145deg, #111, #191919);
+            border: 1px solid var(--premium-border);
+            border-radius: 16px;
+            overflow: hidden;
+            max-width: 480px;
+            margin: 0 auto;
+        }
+        .receipt-header {
+            background: linear-gradient(135deg, var(--gold-dark), #8a5a00);
+            padding: 22px 28px;
+            text-align: center;
+        }
+        .receipt-header h3 { font-size: 22px; color: #fff; margin-bottom: 4px; }
+        .receipt-header p { font-size: 13px; color: rgba(255,255,255,0.7); }
+        .receipt-body { padding: 24px 28px; }
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid #222;
+            font-size: 14px;
+            gap: 12px;
+        }
+        .receipt-row:last-child { border-bottom: none; }
+        .receipt-row-label { color: var(--muted); white-space: nowrap; }
+        .receipt-row-value { font-weight: 700; text-align: right; word-break: break-all; }
+        .receipt-amount { color: var(--gold); font-size: 22px; font-weight: 900; }
+        .receipt-footer {
+            background: rgba(245,166,35,0.06);
+            border-top: 1px solid var(--premium-border);
+            padding: 16px 28px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .receipt-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #1a0f00;
+            padding: 6px 18px;
+            border-radius: 999px;
+            font-weight: 800;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        /* History table */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 16px;
+        }
+        .history-table th {
+            text-align: left;
+            padding: 10px 12px;
+            color: var(--muted);
+            border-bottom: 2px solid var(--border);
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .history-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1e1e1e;
+        }
+        .history-table tr:last-child td { border-bottom: none; }
+        .status-pill {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .status-success { background: var(--success-bg); color: var(--success-text); }
+        .status-pending { background: #2a1f06; color: #f5c842; }
+        .status-failed { background: var(--danger-bg); color: var(--danger-text); }
+
+        /* Already Premium box */
+        .already-premium-box {
+            background: var(--premium-bg);
+            border: 1px solid var(--premium-border);
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+        }
+        .already-premium-box h3 { color: var(--gold); font-size: 22px; margin: 12px 0 8px; }
+        .already-premium-box p { color: var(--muted); font-size: 14px; }
+        .premium-expiry-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(245,166,35,0.12);
+            border: 1px solid var(--premium-border);
+            border-radius: 8px;
+            padding: 8px 16px;
+            margin-top: 14px;
+            font-size: 13px;
+            color: var(--gold);
+        }
     </style>
 </head>
 <body>
@@ -365,14 +701,28 @@
                 <button onclick="showSection('upload')">Upload Songs</button>
                 <button onclick="showSection('my-songs')">My Songs</button>
                 <button onclick="showSection('spotify')">Spotify</button>
-                <button onclick="showSection('recommendations')">Recommendations</button>
+                <button id="recommendationsNavBtn" onclick="showSection('recommendations')">Recommendations</button>
                 <button onclick="showSection('test-classifier')" style="background: #1DB954; color: #041308;">🧪 Test Classifier</button>
+                <!-- Premium button: only shown to regular users -->
+                <button id="premiumNavBtn"
+                        onclick="showSection('premium')"
+                        style="background: linear-gradient(135deg, #f5a623, #d4890a); color: #1a0f00; display: none;"
+                        title="Nâng cấp lên Premium">
+                    💎 Premium
+                </button>
                 <button class="secondary" onclick="checkBackendHealth()">Check Backend</button>
             </div>
         </header>
 
         <div class="content-area">
             <div id="home" class="section active">
+                <!-- Ad Banner: visible only for Free users -->
+                <div id="adBanner" class="ad-banner hidden">
+                    <span>📢</span>
+                    <span>Bạn đang dùng gói <strong>Free</strong>. Nâng cấp Premium để ẩn quảng cáo và mở khóa Recommendations!</span>
+                    <button class="ad-banner-cta" onclick="showSection('premium')">💎 Upgrade</button>
+                </div>
+
                 <h2>Welcome to Spotifake</h2>
                 <p style="margin: 15px 0; color: var(--muted);">Upload your own music and discover songs based on AI-powered audio analysis. Hybrid recommendations combine your uploads with Spotify's catalog.</p>
 
@@ -488,16 +838,182 @@
             <div id="recommendations" class="section">
                 <h2>Get Recommendations</h2>
 
-                <div class="form-group">
-                    <label>Choose a Song to Base Recommendations On:</label>
-                    <select id="seedSongSelect">
-                        <option value="">Loading songs...</option>
-                    </select>
+                <!-- Guard: only for Premium users -->
+                <div id="recPremiumGuard" style="display:none;">
+                    <div class="already-premium-box" style="margin-bottom: 20px;">
+                        <div style="font-size: 48px;">🔒</div>
+                        <h3>Tính năng dành riêng cho Premium</h3>
+                        <p>Nâng cấp lên Premium để truy cập AI Recommendations được cá nhân hóa theo sở thích của bạn.</p>
+                        <button onclick="showSection('premium')" style="margin-top: 16px; background: linear-gradient(135deg, #f5a623, #d4890a); color: #1a0f00;">💎 Nâng cấp Premium ngay</button>
+                    </div>
                 </div>
 
-                <button onclick="loadRecommendations()">Get Recommendations</button>
-                <div id="recommendationsResults" style="margin-top: 20px;"></div>
+                <div id="recContent">
+                    <div class="form-group">
+                        <label>Choose a Song to Base Recommendations On:</label>
+                        <select id="seedSongSelect">
+                            <option value="">Loading songs...</option>
+                        </select>
+                    </div>
+
+                    <button onclick="loadRecommendations()">Get Recommendations</button>
+                    <div id="recommendationsResults" style="margin-top: 20px;"></div>
+                </div>
             </div>
+
+            <!-- ===== Premium Section ===== -->
+            <div id="premium" class="section">
+                <h2>💎 Spotifake Premium</h2>
+
+                <!-- ALREADY PREMIUM VIEW -->
+                <div id="alreadyPremiumView" style="display:none;">
+                    <div class="already-premium-box">
+                        <div style="font-size: 56px;">👑</div>
+                        <h3>Bạn đang là thành viên Premium!</h3>
+                        <p>Tận hưởng trải nghiệm âm nhạc không giới hạn. Cảm ơn bạn đã ủng hộ Spotifake.</p>
+                        <div class="premium-expiry-badge" id="premiumExpiryBadge">
+                            📅 Hết hạn: <strong id="premiumExpiryDate">--</strong>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 28px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h3 style="font-size:16px;">Lịch sử giao dịch</h3>
+                            <button class="secondary" style="padding:6px 14px; font-size:12px;" onclick="loadPaymentHistory()">Tải lại</button>
+                        </div>
+                        <div id="paymentHistoryContainer"><div class="loading">Đang tải lịch sử...</div></div>
+                    </div>
+                </div>
+
+                <!-- PAYMENT FLOW VIEW -->
+                <div id="paymentFlowView">
+                    <!-- Step indicator -->
+                    <div class="payment-steps-indicator" style="margin-top: 8px;">
+                        <div style="position:relative;">
+                            <div class="step-dot active" id="stepDot1">1</div>
+                            <span class="step-label">Giới thiệu</span>
+                        </div>
+                        <div class="step-line" id="stepLine1"></div>
+                        <div style="position:relative;">
+                            <div class="step-dot" id="stepDot2">2</div>
+                            <span class="step-label">Thanh toán</span>
+                        </div>
+                        <div class="step-line" id="stepLine2"></div>
+                        <div style="position:relative;">
+                            <div class="step-dot" id="stepDot3">3</div>
+                            <span class="step-label">Biên lai</span>
+                        </div>
+                    </div>
+
+                    <!-- STEP 1: Plan intro -->
+                    <div class="payment-step active" id="pmStep1">
+                        <div class="premium-hero">
+                            <div style="font-size: 52px;">💎</div>
+                            <h3 style="font-size: 26px; margin: 12px 0 4px; color: var(--gold);">Spotifake Premium</h3>
+                            <p style="color: var(--muted); font-size: 14px;">Trải nghiệm âm nhạc không giới hạn</p>
+                            <div class="premium-price">18.000 <span>VND</span></div>
+                            <div class="premium-period">/ tháng &bull; Gia hạn sau 30 ngày</div>
+
+                            <ul class="premium-features-list">
+                                <li><span class="fi">🚫</span> Ẩn toàn bộ quảng cáo</li>
+                                <li><span class="fi">🤖</span> AI Recommendations cá nhân hóa</li>
+                                <li><span class="fi">🎵</span> Nghe nhạc chất lượng cao</li>
+                                <li><span class="fi">👑</span> Badge Premium vàng nổi bật</li>
+                                <li><span class="fi">🔄</span> Smart Shuffle ưu tiên</li>
+                                <li><span class="fi">📊</span> Thống kê nghe nhạc chi tiết</li>
+                            </ul>
+
+                            <button id="subscribeBtnStep1"
+                                    onclick="goToPaymentStep(2)"
+                                    style="background: linear-gradient(135deg, #f5a623, #d4890a); color: #1a0f00; font-size: 16px; padding: 14px 36px; border-radius: 999px; box-shadow: 0 6px 20px rgba(245,166,35,0.35);">
+                                🚀 Đăng ký ngay — 18.000 VND/tháng
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2: Payment method + OTP -->
+                    <div class="payment-step" id="pmStep2">
+                        <h3 style="margin-bottom: 6px;">Chọn phương thức thanh toán</h3>
+                        <p style="color: var(--muted); font-size: 13px; margin-bottom: 4px;">Tổng thanh toán: <strong style="color:var(--gold);">18.000 VND</strong></p>
+
+                        <div class="payment-method-grid" id="methodGrid">
+                            <div class="payment-method-card" id="method-Momo" onclick="selectPaymentMethod('Momo')">
+                                <div class="payment-method-icon">📱</div>
+                                <div class="payment-method-name">MoMo</div>
+                                <div class="payment-method-hint">Ví điện tử MoMo</div>
+                            </div>
+                            <div class="payment-method-card" id="method-VNPay" onclick="selectPaymentMethod('VNPay')">
+                                <div class="payment-method-icon">🏦</div>
+                                <div class="payment-method-name">VNPay</div>
+                                <div class="payment-method-hint">Cổng thanh toán VNPay</div>
+                            </div>
+                            <div class="payment-method-card" id="method-Thẻ nội địa" onclick="selectPaymentMethod('Thẻ nội địa')">
+                                <div class="payment-method-icon">💳</div>
+                                <div class="payment-method-name">Thẻ nội địa</div>
+                                <div class="payment-method-hint">Chuyển khoản ngân hàng</div>
+                            </div>
+                        </div>
+
+                        <!-- Transfer info (shown after selecting method) -->
+                        <div id="transferInfoContainer" style="display:none;">
+                            <div class="transfer-info-box" id="transferInfoBox"></div>
+
+                            <!-- Demo OTP display -->
+                            <div class="otp-demo-box" id="otpDemoBox" style="display:none;">
+                                <div class="otp-demo-label">🔐 Demo OTP</div>
+                                <div class="otp-demo-warning">⚠️ Đây là OTP giả cho mục đích demo — không gửi SMS thật</div>
+                                <div class="otp-code-display" id="otpCodeDisplay">------</div>
+                            </div>
+
+                            <div class="form-group" id="otpInputGroup" style="display:none;">
+                                <label for="otpInput">Nhập mã OTP (6 chữ số)</label>
+                                <input type="text" id="otpInput" maxlength="6" placeholder="Nhập OTP ở trên"
+                                       style="font-size: 20px; letter-spacing: 6px; text-align: center; font-family: monospace;">
+                            </div>
+
+                            <div id="paymentStep2Error" class="error" style="display:none;"></div>
+
+                            <div style="display:flex; gap:12px; margin-top:12px;">
+                                <button class="secondary" onclick="goToPaymentStep(1)" style="flex:1;">← Quay lại</button>
+                                <button id="confirmPaymentBtn" onclick="confirmPayment()"
+                                        style="flex:2; background: linear-gradient(135deg, #f5a623, #d4890a); color: #1a0f00;"
+                                        disabled>
+                                    ✅ Xác nhận thanh toán
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- STEP 3: Receipt -->
+                    <div class="payment-step" id="pmStep3">
+                        <div style="text-align:center; margin-bottom: 20px;">
+                            <div style="font-size: 52px; animation: goldPulse 2s ease-in-out infinite;">🎉</div>
+                            <h3 style="color: var(--gold); font-size: 22px; margin: 12px 0 6px;">Thanh toán thành công!</h3>
+                            <p style="color: var(--muted); font-size: 14px;">Tài khoản của bạn đã được nâng cấp lên Premium.</p>
+                        </div>
+
+                        <div class="receipt-card" id="receiptCard">
+                            <div class="receipt-header">
+                                <div style="font-size: 28px; margin-bottom: 4px;">💎</div>
+                                <h3>Biên Lai Thanh Toán</h3>
+                                <p>Spotifake Premium</p>
+                            </div>
+                            <div class="receipt-body" id="receiptBody"></div>
+                            <div class="receipt-footer">
+                                <div class="receipt-badge">PREMIUM ACTIVE</div><br>
+                                Cảm ơn bạn đã đăng ký Spotifake Premium!<br>
+                                Mọi thắc mắc vui lòng liên hệ support@spotifake.demo
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <h3 style="font-size: 16px; margin-bottom: 12px;">Lịch sử giao dịch</h3>
+                            <div id="paymentHistoryContainerReceipt"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -531,12 +1047,28 @@
 
         function updateUserBadge() {
             const badge = document.getElementById('userBadge');
+            const premiumBtn = document.getElementById('premiumNavBtn');
             if (currentUser) {
                 badge.style.display = 'block';
                 document.getElementById('userDisplayName').textContent = currentUser.display_name || currentUser.username;
-                document.getElementById('userRoleBadge').textContent = currentUser.role;
+                const roleBadgeEl = document.getElementById('userRoleBadge');
+                const isPremium = currentUser.subscription_tier === 'Premium';
+                if (isPremium) {
+                    roleBadgeEl.className = 'premium-badge-gold';
+                    roleBadgeEl.textContent = '💎 PREMIUM';
+                } else {
+                    roleBadgeEl.className = 'role-badge';
+                    roleBadgeEl.textContent = currentUser.role;
+                }
+                // Show Premium nav button only for regular users
+                if (premiumBtn) {
+                    premiumBtn.style.display = (currentUser.role === 'user') ? 'inline-block' : 'none';
+                }
+                // Ad Banner: show for Free users, hide for Premium
+                updateAdBanner();
             } else {
                 badge.style.display = 'none';
+                if (premiumBtn) premiumBtn.style.display = 'none';
             }
         }
 
@@ -555,7 +1087,13 @@
             } else if (sectionId === 'home') {
                 loadStats();
             } else if (sectionId === 'recommendations') {
-                loadSongsForRecommendations();
+                // Guard: Premium only
+                const isPremium = currentUser.subscription_tier === 'Premium';
+                document.getElementById('recPremiumGuard').style.display = isPremium ? 'none' : 'block';
+                document.getElementById('recContent').style.display = isPremium ? 'block' : 'none';
+                if (isPremium) loadSongsForRecommendations();
+            } else if (sectionId === 'premium') {
+                initPremiumSection();
             }
         }
 
@@ -619,7 +1157,8 @@
                 username: data.username,
                 role: data.role,
                 user_id: data.user_id,
-                display_name: data.username
+                display_name: data.username,
+                subscription_tier: data.subscription_tier || 'Free'
             };
             updateUserBadge();
             document.getElementById('loginGate').style.display = 'none';
@@ -635,7 +1174,8 @@
                 username: data.username,
                 role: data.role,
                 user_id: data.id,
-                display_name: data.display_name || data.username
+                display_name: data.display_name || data.username,
+                subscription_tier: 'Free'  // New accounts start as Free
             };
             updateUserBadge();
             document.getElementById('loginGate').style.display = 'none';
@@ -1177,6 +1717,297 @@
         window.addEventListener('load', () => {
             initializeAuth();
         });
+
+        // ===== Premium / Payment Functions =====
+
+        // State for current payment flow
+        let currentTransaction = null;
+        let selectedPaymentMethod = null;
+
+        function updateAdBanner() {
+            const banner = document.getElementById('adBanner');
+            if (!banner) return;
+            const isPremium = currentUser && currentUser.subscription_tier === 'Premium';
+            banner.classList.toggle('hidden', isPremium);
+        }
+
+        function initPremiumSection() {
+            const isPremium = currentUser && currentUser.subscription_tier === 'Premium';
+            document.getElementById('alreadyPremiumView').style.display = isPremium ? 'block' : 'none';
+            document.getElementById('paymentFlowView').style.display = isPremium ? 'none' : 'block';
+
+            if (isPremium) {
+                loadPaymentHistory();
+                loadPremiumExpiryDate();
+            } else {
+                // Reset flow to step 1
+                goToPaymentStep(1);
+                currentTransaction = null;
+                selectedPaymentMethod = null;
+                document.getElementById('transferInfoContainer').style.display = 'none';
+                document.getElementById('otpDemoBox').style.display = 'none';
+                document.getElementById('otpInputGroup').style.display = 'none';
+                document.getElementById('confirmPaymentBtn').disabled = true;
+                document.getElementById('otpInput').value = '';
+                document.querySelectorAll('.payment-method-card').forEach(c => c.classList.remove('selected'));
+            }
+        }
+
+        async function loadPremiumExpiryDate() {
+            try {
+                const res = await fetchWithAuth(`${API_BASE}/payment/history`);
+                if (!res.ok) return;
+                const history = await res.json();
+                const success = history.find(t => t.status === 'success');
+                if (success && success.expires_at) {
+                    const d = new Date(success.expires_at + 'Z');
+                    document.getElementById('premiumExpiryDate').textContent = d.toLocaleDateString('vi-VN');
+                }
+            } catch (e) { /* silent */ }
+        }
+
+        function goToPaymentStep(step) {
+            // Update step dots
+            [1, 2, 3].forEach(i => {
+                const dot = document.getElementById(`stepDot${i}`);
+                dot.classList.remove('active', 'done');
+                if (i < step) dot.classList.add('done');
+                else if (i === step) dot.classList.add('active');
+            });
+            // Update step lines
+            [1, 2].forEach(i => {
+                const line = document.getElementById(`stepLine${i}`);
+                line.classList.toggle('done', i < step);
+            });
+            // Show current step
+            document.querySelectorAll('.payment-step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`pmStep${step}`).classList.add('active');
+        }
+
+        function selectPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            // Update card visuals
+            document.querySelectorAll('.payment-method-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById(`method-${method}`).classList.add('selected');
+            // Initiate payment via API
+            initiatePayment(method);
+        }
+
+        async function initiatePayment(method) {
+            const container = document.getElementById('transferInfoContainer');
+            const infoBox = document.getElementById('transferInfoBox');
+            const otpBox = document.getElementById('otpDemoBox');
+            const otpGroup = document.getElementById('otpInputGroup');
+            const errBox = document.getElementById('paymentStep2Error');
+            const confirmBtn = document.getElementById('confirmPaymentBtn');
+
+            container.style.display = 'none';
+            errBox.style.display = 'none';
+            infoBox.innerHTML = '<div class="loading">Đang tạo giao dịch...</div>';
+            container.style.display = 'block';
+
+            try {
+                const res = await fetchWithAuth(`${API_BASE}/payment/initiate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ payment_method: method })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    infoBox.innerHTML = `<div class="error">${err.detail || 'Lỗi tạo giao dịch'}</div>`;
+                    return;
+                }
+
+                const data = await res.json();
+                currentTransaction = data;
+
+                // Build transfer info UI
+                const info = data.payment_info || {};
+                let rows = [
+                    ['Số tiền', '18.000 VND'],
+                    ['Gói', data.plan_name],
+                    ['Phương thức', data.payment_method],
+                    ['Mã giao dịch', data.transaction_code],
+                ];
+                if (info.account) rows.push(['Số tài khoản', info.account]);
+                if (info.account_name) rows.push(['Tên TK', info.account_name]);
+                if (info.bank) rows.push(['Ngân hàng', info.bank]);
+                if (info.branch) rows.push(['Chi nhánh', info.branch]);
+                if (info.qr_hint) rows.push(['Hướng dẫn', info.qr_hint]);
+
+                let html = `<h4>📋 Thông tin thanh toán</h4>`;
+                rows.forEach(([label, value]) => {
+                    html += `<div class="transfer-row"><span class="transfer-label">${label}</span><span class="transfer-value">${value}</span></div>`;
+                });
+                infoBox.innerHTML = html;
+
+                // Show OTP
+                document.getElementById('otpCodeDisplay').textContent = data.demo_otp;
+                otpBox.style.display = 'block';
+                otpGroup.style.display = 'block';
+                document.getElementById('otpInput').value = '';
+                confirmBtn.disabled = false;
+
+            } catch (e) {
+                infoBox.innerHTML = `<div class="error">Lỗi kết nối: ${e.message}</div>`;
+            }
+        }
+
+        async function confirmPayment() {
+            const otp = document.getElementById('otpInput').value.trim();
+            const errBox = document.getElementById('paymentStep2Error');
+            const confirmBtn = document.getElementById('confirmPaymentBtn');
+
+            if (!otp || otp.length !== 6) {
+                errBox.textContent = 'Vui lòng nhập đúng 6 chữ số OTP.';
+                errBox.style.display = 'block';
+                return;
+            }
+            if (!currentTransaction) {
+                errBox.textContent = 'Không tìm thấy giao dịch. Vui lòng chọn lại phương thức.';
+                errBox.style.display = 'block';
+                return;
+            }
+
+            errBox.style.display = 'none';
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '⏳ Đang xác thực...';
+
+            try {
+                const res = await fetchWithAuth(`${API_BASE}/payment/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transaction_id: currentTransaction.transaction_id,
+                        otp_code: otp
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errBox.textContent = data.detail || 'Xác thực thất bại.';
+                    errBox.style.display = 'block';
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = '✅ Xác nhận thanh toán';
+                    // If transaction failed, reload payment flow
+                    if (data.detail && data.detail.includes('hủy')) {
+                        setTimeout(() => initPremiumSection(), 2000);
+                    }
+                    return;
+                }
+
+                // SUCCESS: Update currentUser
+                currentUser.subscription_tier = 'Premium';
+                updateUserBadge();
+
+                // Render receipt
+                renderReceipt(data);
+                goToPaymentStep(3);
+
+                // Load history in step 3
+                await loadPaymentHistoryIntoContainer('paymentHistoryContainerReceipt');
+
+            } catch (e) {
+                errBox.textContent = 'Lỗi kết nối: ' + e.message;
+                errBox.style.display = 'block';
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = '✅ Xác nhận thanh toán';
+            }
+        }
+
+        function renderReceipt(data) {
+            const paidAt = new Date(data.paid_at + 'Z').toLocaleString('vi-VN');
+            const expiresAt = new Date(data.expires_at + 'Z').toLocaleDateString('vi-VN');
+
+            document.getElementById('receiptBody').innerHTML = `
+                <div class="receipt-row">
+                    <span class="receipt-row-label">Mã giao dịch</span>
+                    <span class="receipt-row-value" style="font-family:monospace;">${data.transaction_code}</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="receipt-row-label">Gói dịch vụ</span>
+                    <span class="receipt-row-value">${data.plan_name}</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="receipt-row-label">Phương thức</span>
+                    <span class="receipt-row-value">${data.payment_method}</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="receipt-row-label">Số tiền</span>
+                    <span class="receipt-row-value receipt-amount">${Number(data.amount_vnd).toLocaleString('vi-VN')} VND</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="receipt-row-label">Ngày thanh toán</span>
+                    <span class="receipt-row-value">${paidAt}</span>
+                </div>
+                <div class="receipt-row">
+                    <span class="receipt-row-label">Hết hạn</span>
+                    <span class="receipt-row-value" style="color:var(--gold)">${expiresAt}</span>
+                </div>
+            `;
+        }
+
+        async function loadPaymentHistory() {
+            await loadPaymentHistoryIntoContainer('paymentHistoryContainer');
+        }
+
+        async function loadPaymentHistoryIntoContainer(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            container.innerHTML = '<div class="loading">Đang tải...</div>';
+            try {
+                const res = await fetchWithAuth(`${API_BASE}/payment/history`);
+                if (!res.ok) {
+                    container.innerHTML = '<p style="color:var(--muted);">Không thể tải lịch sử giao dịch.</p>';
+                    return;
+                }
+                const history = await res.json();
+                if (history.length === 0) {
+                    container.innerHTML = '<p style="color:var(--muted);">Chưa có giao dịch nào.</p>';
+                    return;
+                }
+
+                let html = `
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Mã GD</th>
+                                <th>Phương thức</th>
+                                <th>Số tiền</th>
+                                <th>Trạng thái</th>
+                                <th>Ngày</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                history.forEach(txn => {
+                    const date = txn.paid_at
+                        ? new Date(txn.paid_at + 'Z').toLocaleDateString('vi-VN')
+                        : new Date(txn.created_at + 'Z').toLocaleDateString('vi-VN');
+                    const statusClass = {
+                        success: 'status-success',
+                        pending: 'status-pending',
+                        failed: 'status-failed'
+                    }[txn.status] || '';
+                    const statusText = { success: 'Thành công', pending: 'Đang xử lý', failed: 'Thất bại' }[txn.status] || txn.status;
+                    html += `
+                        <tr>
+                            <td style="font-family:monospace; font-size:12px;">${txn.transaction_code}</td>
+                            <td>${txn.payment_method}</td>
+                            <td style="color:var(--gold); font-weight:700;">${Number(txn.amount_vnd).toLocaleString('vi-VN')} đ</td>
+                            <td><span class="status-pill ${statusClass}">${statusText}</span></td>
+                            <td style="color:var(--muted);">${date}</td>
+                        </tr>
+                    `;
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (e) {
+                container.innerHTML = `<p style="color:var(--danger-text);">Lỗi: ${e.message}</p>`;
+            }
+        }
     </script>
 </body>
 </html>

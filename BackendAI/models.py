@@ -321,3 +321,77 @@ class Comment(SQLModel, table=True):
         default_factory=datetime.utcnow,
         sa_column=Column("CreatedAt", DateTime, nullable=False, default=datetime.utcnow)
     )
+
+
+class PaymentTransaction(SQLModel, table=True):
+    """Lưu lịch sử giao dịch Premium. Mỗi lần user đăng ký/gia hạn Premium tạo 1 record."""
+    __tablename__ = "PaymentTransactions"
+
+    id: Optional[UUID] = Field(
+        default_factory=uuid4,
+        sa_column=Column(
+            "TransactionID",
+            UNIQUEIDENTIFIER,
+            primary_key=True
+        )
+    )
+    user_id: UUID = Field(
+        sa_column=Column(
+            "UserID",
+            UNIQUEIDENTIFIER,
+            ForeignKey("Users.UserID"),
+            nullable=False
+        )
+    )
+    amount_vnd: int = Field(
+        default=18000,
+        sa_column=Column("AmountVND", Integer, nullable=False, default=18000)
+    )
+    plan_name: str = Field(
+        default="Premium 1 Tháng",
+        sa_column=Column("PlanName", String(100), nullable=False, default="Premium 1 Tháng")
+    )
+    status: str = Field(
+        default="pending",
+        sa_column=Column("Status", String(20), nullable=False, default="pending")
+    )
+    payment_method: str = Field(
+        default="",
+        sa_column=Column("PaymentMethod", String(50), nullable=False, default="")
+    )
+    transaction_code: str = Field(
+        default="",
+        sa_column=Column("TransactionCode", String(50), nullable=False, default="")
+    )
+    # OTP 6 chữ số dùng để xác thực (lưu plaintext vì đây là demo)
+    otp_code: str = Field(
+        default="",
+        sa_column=Column("OtpCode", String(10), nullable=False, default="")
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        sa_column=Column("CreatedAt", DateTime, nullable=False)
+    )
+    paid_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column("PaidAt", DateTime, nullable=True)
+    )
+    # Ngày hết hạn gói Premium (created_at + 30 ngày), set khi verify thành công
+    expires_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column("ExpiresAt", DateTime, nullable=True)
+    )
+
+
+class PaymentTransactionRead(SQLModel):
+    """Schema trả về cho frontend — không expose otp_code."""
+    id: UUID
+    user_id: UUID
+    amount_vnd: int
+    plan_name: str
+    status: str
+    payment_method: str
+    transaction_code: str
+    created_at: datetime
+    paid_at: Optional[datetime]
+    expires_at: Optional[datetime]
