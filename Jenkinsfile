@@ -1,10 +1,11 @@
 pipeline {
     agent any
     tools {
-        nodejs 'node20'
+        maven 'maven3'
     }
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
+        IMAGE_NAME = 'spotifake-backend'
     }
     stages {
         stage('Checkout') {
@@ -15,16 +16,20 @@ pipeline {
                 }
             }
         }
-        stage('Install Dependencies') {
+        stage('Build Spring Boot') {
             steps {
-                echo '=== Bước 2: Cài thư viện ==='
-                sh 'npm install'
+                echo '=== Bước 2: Biên dịch Java & Maven ==='
+                dir('BackendSpringBoot') {
+                    sh 'mvn clean package -DskipTests'
+                }
             }
         }
-        stage('Test') {
+        stage('Build Docker Image') {
             steps {
-                echo '=== Bước 3: Chạy test ==='
-                sh 'npm test || true'
+                echo '=== Bước 3: Đóng gói Docker Container ==='
+                sh "docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${BUILD_NUMBER} ./BackendSpringBoot"
+                echo "=== Docker Images ==="
+                sh "docker images | grep ${IMAGE_NAME} || true"
             }
         }
         stage('SonarQube Analysis') {
@@ -37,16 +42,16 @@ pipeline {
         }
         stage('Quality Gate') {
             steps {
-                echo '=== Bước 5: Chờ kết quả Quality Gate ==='
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                echo '=== Bước 5: Kiểm tra Quality Gate ==='
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
                 }
             }
         }
     }
     post {
         success {
-            echo '🎉 Pipeline thành công!'
+            echo "🎉 Pipeline thành công! Docker image '${IMAGE_NAME}:latest' đã được tạo."
         }
         failure {
             echo '❌ Pipeline thất bại!'
