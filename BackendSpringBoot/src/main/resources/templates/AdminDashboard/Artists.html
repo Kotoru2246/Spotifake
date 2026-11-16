@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Artists - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link active">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <a href="/admin/dashboard" class="dash-back-btn">
+            <i class="bi bi-chevron-left"></i> Overview
+          </a>
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Creator Community</span>
+            <h1 class="dash-topbar-heading">Artist Management</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Search Bar -->
+        <div class="dash-card" style="margin-bottom: 1.5rem;">
+          <div class="dash-card-body" style="padding: 1.25rem;">
+            <form method="get" action="/admin/dashboard/artists" style="display: flex; gap: 0.75rem; align-items: center;">
+              <div class="dash-search-wrapper" style="flex: 1; margin-bottom: 0;">
+                <i class="bi bi-search"></i>
+                <input type="text" name="search" class="dash-search-input" placeholder="Search by stage name, user account, or genre..." th:value="${search}">
+              </div>
+              <button type="submit" class="dash-btn dash-btn-primary" style="height: 42px; padding: 0 1.5rem;">Search</button>
+              <a href="/admin/dashboard/artists" class="dash-btn dash-btn-secondary" style="height: 42px; line-height: 40px; padding: 0 1rem; text-decoration: none;">Reset</a>
+            </form>
+          </div>
+        </div>
+
+        <!-- Artists Table -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-mic-fill"></i> Registered Artists <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;" th:text="'(' + ${#lists.size(artists)} + ' found)'">(0)</span></h3>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Stage Name & User</th>
+                  <th>Genre</th>
+                  <th>Discography</th>
+                  <th>Verification</th>
+                  <th>Account Status</th>
+                  <th>Followers</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="a : ${artists}">
+                  <td>
+                    <span class="dash-avatar-circle" style="background: linear-gradient(135deg, #a855f7, #ec4899);" th:text="${#strings.substring(a.StageName, 0, 1).toUpperCase()}">A</span>
+                    <strong style="font-size: 0.95rem; color: #fff;" th:text="${a.StageName}">Stage Name</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="'@' + ${a.User?.username != null ? a.User.username : a.UserID}">@username</div>
+                  </td>
+                  <td>
+                    <span class="dash-badge cyan" th:text="${a.Genre}">Various</span>
+                  </td>
+                  <td>
+                    <span style="font-weight: 600; color: #fff;" th:text="${a.SongCount}">0</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">songs</span>
+                  </td>
+                  <td>
+                    <span th:if="${a.Verified}" class="dash-badge green">
+                      <i class="bi bi-patch-check-fill"></i> Verified
+                    </span>
+                    <span th:unless="${a.Verified}" style="color: var(--text-muted); font-size: 0.85rem;">Unverified</span>
+                  </td>
+                  <td>
+                    <span class="dash-badge" th:classappend="${a.Status == 'Approved' ? 'green' : 'yellow'}" th:text="${a.Status}">Approved</span>
+                  </td>
+                  <td>
+                    <span th:text="${a.FollowersCount}">0</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <!-- 1-Click Verification Toggle -->
+                    <form method="post" th:action="@{'/admin/dashboard/artists/' + ${a.ArtistID} + '/toggle-verify'}" style="display: inline;">
+                      <button type="submit" class="dash-btn dash-btn-sm" 
+                              th:classappend="${a.Verified ? 'dash-btn-secondary' : 'dash-btn-primary'}"
+                              th:title="${a.Verified ? 'Revoke verification badge' : 'Grant verified checkmark'}">
+                        <i class="bi" th:classappend="${a.Verified ? 'bi-shield-slash' : 'bi-patch-check'}"></i>
+                        <span th:text="${a.Verified ? 'Revoke' : 'Verify'}">Verify</span>
+                      </button>
+                    </form>
+
+                    <!-- View Profile & Discography Button -->
+                    <a th:href="@{'/admin/dashboard/artists/' + ${a.ArtistID}}" class="dash-btn dash-btn-sm dash-btn-secondary" style="margin-left: 6px; text-decoration: none;" title="Inspect Artist Profile">
+                      <i class="bi bi-eye-fill"></i> View
+                    </a>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(artists)}">
+                  <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                    <i class="bi bi-mic-mute" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; color: #64748b;"></i>
+                    No artists found matching your criteria.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

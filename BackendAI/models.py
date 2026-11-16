@@ -194,6 +194,10 @@ class User(SQLModel, table=True):
         sa_column=Column("IsEmailVerified", Boolean, nullable=False, default=False)
     )
 
+    is_artist: bool = Field(
+        sa_column=Column("IsArtist", Boolean, nullable=False, default=False)
+    )
+
     created_at: datetime = Field(
     sa_column=Column(
         "CreatedAt",
@@ -254,6 +258,8 @@ class ArtistProfile(SQLModel, table=True):
     status: str = Field(default="Pending", sa_column=Column("Status", String(50)))
     followers_count: int = Field(default=0, sa_column=Column("FollowersCount", Integer))
     website: str = Field(default="", sa_column=Column("Website", String(500)))
+    profile_image_url: str = Field(default="", sa_column=Column("ProfileImageUrl", String(1000)))
+    banner_image_url: str = Field(default="", sa_column=Column("BannerImageUrl", String(1000)))
     created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column("CreatedAt", DateTime))
 
 class AdminAuditLog(SQLModel, table=True):

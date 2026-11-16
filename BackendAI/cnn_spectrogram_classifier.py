@@ -11,10 +11,18 @@ Usage:
     # Returns: {'genre': 'electronic', 'confidence': 0.87, 'all_probs': {...}}
 """
 
+from __future__ import annotations
 import os
-import torch
-import torch.nn as nn
-import torchvision.models as models
+
+try:
+
+    import torch
+    import torch.nn as nn
+    import torchvision.models as models
+    HAS_TORCH = True
+
+except ImportError:
+    HAS_TORCH = False
 
 try:
     import torchaudio
@@ -25,16 +33,50 @@ except ImportError:
     import librosa
     import numpy as np
 
+
 MODEL_PATH = os.path.join(os.path.dirname(__file__), 'ml_models', 'cnn_genre_model.pth')
 
 
+def find_best_model_path(default_path: str = MODEL_PATH) -> str:
+    """Finds the best available model checkpoint in ml_models directory."""
+    if default_path and os.path.exists(default_path):
+        return default_path
+
+    ml_models_dir = os.path.join(os.path.dirname(__file__), 'ml_models')
+    if not os.path.exists(ml_models_dir):
+        return default_path
+
+    # Look for epoch checkpoints (prioritizing .pth and .pt)
+    import glob
+    import re
+    pth_candidates = glob.glob(os.path.join(ml_models_dir, '*.pth')) + \
+                     glob.glob(os.path.join(ml_models_dir, '*.pt'))
+    zip_candidates = glob.glob(os.path.join(ml_models_dir, '*.zip'))
+    candidates = pth_candidates if pth_candidates else zip_candidates
+    
+    if not candidates:
+        return default_path
+
+    def get_epoch(f):
+        match = re.search(r'epoch_(\d+)', f)
+        return int(match.group(1)) if match else 0
+
+    candidates.sort(key=get_epoch, reverse=True)
+    return candidates[0]
+
+
 class CnnSpectrogramClassifier:
-    def __init__(self, model_path: str = MODEL_PATH):
+    def __init__(self, model_path: str = None):
+        if not HAS_TORCH:
+            raise RuntimeError("PyTorch is not installed. Run: pip install torch torchvision torchaudio")
+
+        if model_path is None or not os.path.exists(model_path):
+            model_path = find_best_model_path(model_path or MODEL_PATH)
+
         if not os.path.exists(model_path):
             raise FileNotFoundError(
                 f'CNN genre model not found at: {model_path}\n'
-                'Train the model on Google Colab (CNN_Spectrogram_Training_Colab.ipynb) '
-                'and download cnn_genre_model.pth to BackendAI/ml_models/'
+                'Place cnn_genre_model_epoch_35.pth or cnn_genre_model.pth into BackendAI/ml_models/'
             )
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'

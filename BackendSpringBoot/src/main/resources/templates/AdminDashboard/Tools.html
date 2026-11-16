@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Database Tools & Data Exports - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link" th:classappend="${activeTab == 'overview' ? 'active' : ''}">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link" th:classappend="${activeTab == 'analytics' ? 'active' : ''}">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link" th:classappend="${activeTab == 'system' ? 'active' : ''}">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link" th:classappend="${activeTab == 'songs' ? 'active' : ''}">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link" th:classappend="${activeTab == 'artists' ? 'active' : ''}">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link" th:classappend="${activeTab == 'requests' ? 'active' : ''}">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+          <span th:if="${stats != null and stats.pendingRequests != null and stats.pendingRequests > 0}" 
+                class="dash-badge red" style="margin-left: auto; padding: 2px 7px; font-size: 0.7rem;"
+                th:text="${stats.pendingRequests}">1</span>
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link" th:classappend="${activeTab == 'editorial' ? 'active' : ''}">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link" th:classappend="${activeTab == 'users' ? 'active' : ''}">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link" th:classappend="${activeTab == 'ads' ? 'active' : ''}">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link" th:classappend="${activeTab == 'reports' ? 'active' : ''}">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link" th:classappend="${activeTab == 'audit-logs' ? 'active' : ''}">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link" th:classappend="${activeTab == 'settings' ? 'active' : ''}">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link active">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Data Governance</span>
+            <h1 class="dash-topbar-heading">Database Tools & CSV Exporters</h1>
+          </div>
+        </div>
+        <div class="dash-topbar-right">
+          <a href="/admin/dashboard/backup/download" class="dash-btn dash-btn-primary">
+            <i class="bi bi-download"></i> Download Full DB Backup (.db)
+          </a>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Vacuum Feedback Banner -->
+        <div th:if="${param.vacuumed}" class="dash-card" style="background: rgba(29, 185, 84, 0.15); border-color: rgba(29, 185, 84, 0.4); margin-bottom: 1.5rem; padding: 1rem 1.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--accent-green); font-weight: 600;">
+            <i class="bi bi-check-circle-fill" style="font-size: 1.3rem;"></i>
+            <span>SQLite VACUUM and index defragmentation completed successfully! Unused disk space has been reclaimed.</span>
+          </div>
+        </div>
+
+        <!-- 1-Click CSV Exporters Grid -->
+        <div class="dash-card" style="margin-bottom: 1.5rem;">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-file-earmark-spreadsheet-fill" style="color: #1db954;"></i> One-Click Data Exporters (CSV)</h3>
+          </div>
+          <div class="dash-card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+              
+              <!-- Users Export -->
+              <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="bi bi-people-fill" style="color: #3b82f6; font-size: 1.2rem;"></i>
+                    <strong style="font-size: 1rem;">Users Directory</strong>
+                  </div>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Export all user profiles, roles, subscription tiers, and account statuses.</p>
+                </div>
+                <a href="/admin/dashboard/export/users" class="dash-btn dash-btn-secondary dash-btn-sm" style="margin-top: 1rem; width: fit-content; text-decoration: none;">
+                  <i class="bi bi-download"></i> Export Users (.csv)
+                </a>
+              </div>
+
+              <!-- Songs Export -->
+              <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="bi bi-music-note-beamed" style="color: #1db954; font-size: 1.2rem;"></i>
+                    <strong style="font-size: 1rem;">Song Library</strong>
+                  </div>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Export complete track catalog with play counts, genres, artists, and durations.</p>
+                </div>
+                <a href="/admin/dashboard/export/songs" class="dash-btn dash-btn-secondary dash-btn-sm" style="margin-top: 1rem; width: fit-content; text-decoration: none;">
+                  <i class="bi bi-download"></i> Export Songs (.csv)
+                </a>
+              </div>
+
+              <!-- Stream Logs Export -->
+              <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="bi bi-soundwave" style="color: #a855f7; font-size: 1.2rem;"></i>
+                    <strong style="font-size: 1rem;">Playback Streams</strong>
+                  </div>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Export streaming telemetry events, device types, and playback timestamps.</p>
+                </div>
+                <a href="/admin/dashboard/export/streams" class="dash-btn dash-btn-secondary dash-btn-sm" style="margin-top: 1rem; width: fit-content; text-decoration: none;">
+                  <i class="bi bi-download"></i> Export Streams (.csv)
+                </a>
+              </div>
+
+              <!-- Transactions Export -->
+              <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="bi bi-receipt" style="color: #facc15; font-size: 1.2rem;"></i>
+                    <strong style="font-size: 1rem;">Financial Invoices</strong>
+                  </div>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Export subscription transactions, Stripe checkouts, and billing amounts.</p>
+                </div>
+                <a href="/admin/dashboard/export/transactions" class="dash-btn dash-btn-secondary dash-btn-sm" style="margin-top: 1rem; width: fit-content; text-decoration: none;">
+                  <i class="bi bi-download"></i> Export Invoices (.csv)
+                </a>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Database Maintenance & Health -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+          
+          <!-- SQLite Storage & Optimization -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="bi bi-database-fill" style="color: #3b82f6;"></i> Database File & Storage</h3>
+            </div>
+            <div class="dash-card-body">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-muted);">Database Engine</span>
+                <strong>SQLite 3 (WAL Mode)</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-muted);">Database File Size</span>
+                <strong style="color: var(--accent-green);" th:text="${health.dbFileSizeKb + ' KB'}">0 KB</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-muted);">PRAGMA Integrity Check</span>
+                <span class="dash-badge green" th:text="${integrity}">ok</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0;">
+                <span style="color: var(--text-muted);">Total Tracks Indexed</span>
+                <strong th:text="${stats.totalSongs}">0</strong>
+              </div>
+
+              <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem;">
+                <form method="POST" action="/admin/dashboard/tools/vacuum" onsubmit="return confirm('Run SQLite VACUUM to defragment and optimize tables?')">
+                  <button type="submit" class="dash-btn dash-btn-primary">
+                    <i class="bi bi-brush-fill"></i> Execute SQLite VACUUM
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Telemetry Overview -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="bi bi-cpu-fill" style="color: #a855f7;"></i> Host Runtime Specs</h3>
+            </div>
+            <div class="dash-card-body">
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-muted);">Java Version</span>
+                <strong th:text="${health.javaVersion}">25</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-muted);">Operating System</span>
+                <strong th:text="${health.osName}">Windows</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                <span style="color: var(--text-muted);">CPU Cores Available</span>
+                <strong th:text="${health.availableProcessors}">8</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0;">
+                <span style="color: var(--text-muted);">Active Threads</span>
+                <strong th:text="${health.activeThreads}">20</strong>
+              </div>
+
+              <div style="margin-top: 1.5rem;">
+                <a href="/admin/dashboard/system" class="dash-btn dash-btn-secondary" style="text-decoration:none;">
+                  <i class="bi bi-arrow-right"></i> Open Full System Telemetry
+                </a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

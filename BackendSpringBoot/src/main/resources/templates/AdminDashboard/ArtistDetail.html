@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title th:text="${(artist != null ? artist.stageName : 'Artist') + ' - Spotifake Admin'}">Artist Profile</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link active">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <a href="/admin/dashboard/artists" class="dash-back-btn">
+            <i class="bi bi-chevron-left"></i> All Artists
+          </a>
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Artist Dossier</span>
+            <h1 class="dash-topbar-heading" th:text="${artist != null ? artist.stageName : (artistUser != null ? artistUser.displayName : 'Artist')}">Stage Name</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Artist Profile Card -->
+        <div class="dash-card" style="margin-bottom: 2rem;">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-person-badge-fill"></i> Artist Overview</h3>
+            <div>
+              <form method="post" th:action="@{'/admin/dashboard/artists/' + ${artist != null ? artist.artistId : artistUser.id} + '/toggle-verify'}" style="display:inline;">
+                <button type="submit" class="dash-btn dash-btn-sm" th:classappend="${artist != null and artist.verified ? 'dash-btn-secondary' : 'dash-btn-primary'}">
+                  <i class="bi bi-patch-check-fill"></i>
+                  <span th:text="${artist != null and artist.verified ? 'Revoke Verification' : 'Verify Artist'}">Verify</span>
+                </button>
+              </form>
+            </div>
+          </div>
+          <div class="dash-card-body">
+            <div class="dash-detail-grid">
+              <div class="dash-detail-item">
+                <div class="detail-label">Stage Name</div>
+                <div class="detail-value" style="font-weight: 700; color: #fff; font-size: 1.15rem;" th:text="${artist != null ? artist.stageName : '—'}">Stage Name</div>
+              </div>
+              <div class="dash-detail-item">
+                <div class="detail-label">User Account</div>
+                <div class="detail-value" th:text="${artistUser != null ? artistUser.username : '—'}">username</div>
+              </div>
+              <div class="dash-detail-item">
+                <div class="detail-label">Genre</div>
+                <div class="detail-value"><span class="dash-badge cyan" th:text="${artist != null ? artist.genre : 'Various'}">Various</span></div>
+              </div>
+              <div class="dash-detail-item">
+                <div class="detail-label">Total Songs</div>
+                <div class="detail-value" th:text="${#lists.size(songs)}">0</div>
+              </div>
+              <div class="dash-detail-item">
+                <div class="detail-label">Total Catalog Streams</div>
+                <div class="detail-value" style="color: var(--accent-green); font-weight: 700;" th:text="${totalPlays}">0</div>
+              </div>
+              <div class="dash-detail-item">
+                <div class="detail-label">Followers Count</div>
+                <div class="detail-value" th:text="${artist != null ? artist.followersCount : 0}">0</div>
+              </div>
+              <div class="dash-detail-item">
+                <div class="detail-label">Verification Status</div>
+                <div class="detail-value">
+                  <span th:if="${artist != null and artist.verified}" class="dash-badge green">Verified Artist</span>
+                  <span th:unless="${artist != null and artist.verified}" style="color: var(--text-muted);">Standard</span>
+                </div>
+              </div>
+              <div class="dash-detail-item">
+                <div class="detail-label">Website</div>
+                <div class="detail-value" th:text="${artist != null and artist.website != null and !artist.website.isEmpty() ? artist.website : '—'}">—</div>
+              </div>
+            </div>
+
+            <div th:if="${artist != null and artist.bio != null and !artist.bio.isEmpty()}" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+              <div class="detail-label" style="margin-bottom: 0.5rem;">Biography</div>
+              <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;" th:text="${artist.bio}">Bio</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Discography Songs -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-music-note-list"></i> Discography Tracks <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;" th:text="'(' + ${#lists.size(songs)} + ' tracks)'">(0)</span></h3>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Track Title</th>
+                  <th>Genre</th>
+                  <th>Streams</th>
+                  <th>Audio Preview</th>
+                  <th>Duration</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="s : ${songs}">
+                  <td>
+                    <strong style="color: #fff;" th:text="${s.title}">Track Title</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${s.album != null and !s.album.isEmpty() ? s.album : 'Single'}">Album</div>
+                  </td>
+                  <td>
+                    <span class="dash-badge cyan" th:text="${s.genre}">Genre</span>
+                  </td>
+                  <td>
+                    <span style="font-family: monospace;" th:text="${s.playCount}">0</span>
+                  </td>
+                  <td>
+                    <audio controls preload="none" class="dash-song-audio" th:src="${'/api/songs/' + s.id + '/audio'}"></audio>
+                  </td>
+                  <td>
+                    <span th:text="${(s.durationSeconds / 60) + ':' + (s.durationSeconds % 60 < 10 ? '0' : '') + (s.durationSeconds % 60)}">3:00</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <form method="post" th:action="@{'/admin/dashboard/songs/' + ${s.id} + '/delete'}" style="display:inline;" onsubmit="return confirm('Delete this song from catalog?');">
+                      <button type="submit" class="dash-btn-icon" title="Delete Song">
+                        <i class="bi bi-trash3-fill" style="color: var(--accent-red);"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(songs)}">
+                  <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                    No tracks uploaded by this artist yet.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

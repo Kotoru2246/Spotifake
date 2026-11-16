@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Users - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link active">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <a href="/admin/dashboard" class="dash-back-btn">
+            <i class="bi bi-chevron-left"></i> Overview
+          </a>
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">User Directory & Roles</span>
+            <h1 class="dash-topbar-heading">User Management</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Search, Filter & Sort Form -->
+        <div class="dash-card" style="margin-bottom: 1.5rem;">
+          <div class="dash-card-body" style="padding: 1.25rem;">
+            <form method="get" action="/admin/dashboard/users" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <div class="dash-search-wrapper" style="flex: 2; min-width: 250px; margin-bottom: 0;">
+                <i class="bi bi-search"></i>
+                <input type="text" name="search" class="dash-search-input" placeholder="Search by username, display name, email..." th:value="${search}">
+              </div>
+
+              <!-- Role Filter -->
+              <select name="role" class="dash-search-input" style="flex: 1; min-width: 130px; height: 42px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 10px;">
+                <option value="all" th:selected="${role == 'all'}">All Roles</option>
+                <option value="user" th:selected="${role == 'user'}">User</option>
+                <option value="artist" th:selected="${role == 'artist'}">Artist</option>
+                <option value="admin" th:selected="${role == 'admin'}">Admin</option>
+              </select>
+
+              <!-- Tier Filter -->
+              <select name="tier" class="dash-search-input" style="flex: 1; min-width: 130px; height: 42px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 10px;">
+                <option value="all" th:selected="${tier == 'all'}">All Tiers</option>
+                <option value="free" th:selected="${tier == 'free'}">Free</option>
+                <option value="premium" th:selected="${tier == 'premium'}">Premium</option>
+              </select>
+
+              <!-- Status Filter -->
+              <select name="status" class="dash-search-input" style="flex: 1; min-width: 130px; height: 42px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 10px;">
+                <option value="all" th:selected="${status == 'all'}">All Status</option>
+                <option value="Active" th:selected="${status == 'Active'}">Active</option>
+                <option value="Suspended" th:selected="${status == 'Suspended'}">Suspended</option>
+                <option value="Deleted" th:selected="${status == 'Deleted'}">Deleted</option>
+              </select>
+
+              <!-- Sort -->
+              <select name="sort" class="dash-search-input" style="flex: 1; min-width: 130px; height: 42px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 10px;">
+                <option value="date" th:selected="${sort == 'date'}">Sort: Newest</option>
+                <option value="name" th:selected="${sort == 'name'}">Sort: Name</option>
+                <option value="role" th:selected="${sort == 'role'}">Sort: Role</option>
+                <option value="status" th:selected="${sort == 'status'}">Sort: Status</option>
+              </select>
+
+              <button type="submit" class="dash-btn dash-btn-primary" style="height: 42px; padding: 0 1.25rem;">
+                <i class="bi bi-funnel-fill"></i> Filter
+              </button>
+              <a href="/admin/dashboard/users" class="dash-btn dash-btn-secondary" style="height: 42px; line-height: 40px; padding: 0 1rem; text-decoration: none;">
+                Reset
+              </a>
+            </form>
+          </div>
+        </div>
+
+        <!-- Users Table Card -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3>
+              <i class="bi bi-people-fill"></i> Users 
+              <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;" 
+                    th:text="'(' + ${#lists.size(users)} + ' of ' + ${totalCount} + ' accounts)'">(0)</span>
+            </h3>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>User Details</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Subscription</th>
+                  <th>Account Status</th>
+                  <th>Registered</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="u : ${users}">
+                  <td>
+                    <span class="dash-avatar-circle" th:text="${#strings.substring(u.username, 0, 1).toUpperCase()}">U</span>
+                    <strong th:text="${u.username}">username</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${u.displayName}">Display Name</div>
+                  </td>
+                  <td>
+                    <span style="font-family: monospace; font-size: 0.85rem; color: #cbd5e1;" th:text="${u.email}">user@email.com</span>
+                  </td>
+                  <td>
+                    <span class="dash-badge" th:classappend="${u.role == 'admin' ? 'red' : (u.role == 'artist' ? 'purple' : 'blue')}" th:text="${u.role}">user</span>
+                  </td>
+                  <td>
+                    <span th:if="${u.premium or u.subscriptionTier == 'Premium'}" class="dash-badge gold">
+                      <i class="bi bi-star-fill" style="margin-right: 3px;"></i> Premium
+                    </span>
+                    <span th:unless="${u.premium or u.subscriptionTier == 'Premium'}" style="color: var(--text-muted); font-size: 0.85rem;">Free</span>
+                  </td>
+                  <td>
+                    <span class="dash-badge" th:classappend="${u.accountStatus == 'Active' ? 'green' : (u.accountStatus == 'Suspended' ? 'yellow' : 'red')}" th:text="${u.accountStatus}">Active</span>
+                  </td>
+                  <td>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);" th:text="${u.createdAt != null ? u.createdAt.substring(0, 10) : '—'}">Date</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <!-- Edit Button -->
+                    <button type="button" class="dash-btn-icon" title="Edit User" 
+                            th:attr="data-id=${u.id}, data-username=${u.username}, data-displayname=${u.displayName}, data-email=${u.email}, data-role=${u.role}, data-status=${u.accountStatus}, data-tier=${u.subscriptionTier}"
+                            onclick="openEditUser(this)">
+                      <i class="bi bi-pencil-square" style="color: #3b82f6;"></i>
+                    </button>
+
+                    <!-- Delete Button -->
+                    <form method="post" th:action="@{'/admin/dashboard/users/' + ${u.id} + '/delete'}" style="display: inline;" 
+                          onsubmit="return confirm('Soft-delete user ' + this.dataset.username + '?');" th:attr="data-username=${u.username}">
+                      <button type="submit" class="dash-btn-icon" title="Delete User">
+                        <i class="bi bi-trash3-fill" style="color: var(--accent-red);"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(users)}">
+                  <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                    <i class="bi bi-person-x" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; color: #64748b;"></i>
+                    No users matched your search filters.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Interactive Edit User Modal -->
+  <div id="editUserModal" class="dash-modal-overlay">
+    <div class="dash-modal-card">
+      <form id="editUserForm" method="post" action="">
+        <div class="dash-modal-header">
+          <h3><i class="bi bi-person-gear"></i> Edit User Account</h3>
+          <button type="button" class="dash-modal-close" onclick="closeEditUser()">&times;</button>
+        </div>
+        <div class="dash-modal-body">
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Username (Read-only)</label>
+            <input type="text" id="modalUsername" class="dash-search-input" style="width: 100%; opacity: 0.6; cursor: not-allowed;" readonly>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Display Name</label>
+            <input type="text" name="displayName" id="modalDisplayName" class="dash-search-input" style="width: 100%;" required>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Email Address</label>
+            <input type="email" name="email" id="modalEmail" class="dash-search-input" style="width: 100%;" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Role</label>
+              <select name="role" id="modalRole" class="dash-search-input" style="width: 100%; height: 42px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 10px;">
+                <option value="user">User</option>
+                <option value="artist">Artist</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Subscription Tier</label>
+              <select name="subscriptionTier" id="modalTier" class="dash-search-input" style="width: 100%; height: 42px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 10px;">
+                <option value="Free">Free</option>
+                <option value="Premium">Premium</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Account Status</label>
+            <select name="accountStatus" id="modalStatus" class="dash-search-input" style="width: 100%; height: 42px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 10px;">
+              <option value="Active">Active</option>
+              <option value="Suspended">Suspended</option>
+              <option value="Deleted">Deleted</option>
+            </select>
+          </div>
+        </div>
+        <div class="dash-modal-footer">
+          <button type="button" class="dash-btn dash-btn-secondary" onclick="closeEditUser()">Cancel</button>
+          <button type="submit" class="dash-btn dash-btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openEditUser(btn) {
+      const id = btn.getAttribute('data-id');
+      const username = btn.getAttribute('data-username');
+      const displayName = btn.getAttribute('data-displayname');
+      const email = btn.getAttribute('data-email');
+      const role = btn.getAttribute('data-role');
+      const status = btn.getAttribute('data-status');
+      const tier = btn.getAttribute('data-tier');
+
+      document.getElementById('editUserForm').action = '/admin/dashboard/users/' + id + '/edit';
+      document.getElementById('modalUsername').value = username || '';
+      document.getElementById('modalDisplayName').value = displayName || username || '';
+      document.getElementById('modalEmail').value = email || '';
+      document.getElementById('modalRole').value = (role || 'user').toLowerCase();
+      document.getElementById('modalStatus').value = status || 'Active';
+      document.getElementById('modalTier').value = tier === 'Premium' ? 'Premium' : 'Free';
+
+      document.getElementById('editUserModal').style.display = 'flex';
+    }
+
+    function closeEditUser() {
+      document.getElementById('editUserModal').style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+      const modal = document.getElementById('editUserModal');
+      if (event.target === modal) {
+        closeEditUser();
+      }
+    };
+  </script>
+</body>
+</html>

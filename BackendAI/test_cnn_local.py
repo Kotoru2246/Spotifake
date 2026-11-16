@@ -10,12 +10,21 @@ def test_cnn_on_uploads():
         print(f"❌ Failed to load model: {e}")
         return
 
-    # Find all mp3 files in the uploads folder
-    upload_dir = os.path.join(os.path.dirname(__file__), 'uploads')
-    test_files = glob.glob(os.path.join(upload_dir, '*.mp3'))
+    # Find all mp3 files in uploads or music folder
+    possible_dirs = [
+        os.path.join(os.path.dirname(__file__), 'uploads'),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads'),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'music')
+    ]
+    test_files = []
+    for d in possible_dirs:
+        if os.path.exists(d):
+            test_files.extend(glob.glob(os.path.join(d, '*.mp3')))
+
+    test_files = test_files[:5]  # Test first 5 files
 
     if not test_files:
-        print(f"⚠️ No .mp3 files found in {upload_dir} to test!")
+        print("⚠️ No .mp3 files found in uploads or music folders to test!")
         return
 
     print(f"\n🎵 Found {len(test_files)} songs in 'uploads' to test. Starting predictions...\n")

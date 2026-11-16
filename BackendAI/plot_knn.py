@@ -1,7 +1,10 @@
 import sys
 import os
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+
 from sklearn.decomposition import PCA
 from sklearn.neighbors import NearestNeighbors
 
@@ -73,9 +76,11 @@ def generate_knn_plot():
     
     plt.suptitle('KNN Acoustic Feature Space Projection (PCA)')
     plt.tight_layout()
-    out_path = r'C:\Users\jacky\.gemini\antigravity-ide\brain\2df181a7-0794-45ae-a5e9-dfd1b9ee367c\knn_visualization.png'
+    out_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'knn_visualization.png'))
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     plt.savefig(out_path)
     print(f'Saved plot to {out_path}')
 
 if __name__ == '__main__':
     generate_knn_plot()
+

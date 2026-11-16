@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Albums - Spotifake</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Artist Manager</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        
+    <a href="/artist/manager" class="dash-sidebar-link ">
+      <i class="bi bi-grid-1x2-fill"></i> Dashboard
+    </a>
+    <a href="/artist/manager/studio" class="dash-sidebar-link ">
+      <i class="bi bi-sliders"></i> Artist Studio
+    </a>
+    <a href="/artist/manager/profile" class="dash-sidebar-link ">
+      <i class="bi bi-person-fill"></i> Edit Profile
+    </a>
+    <a href="/artist/manager/albums" class="dash-sidebar-link active">
+      <i class="bi bi-disc-fill"></i> Albums
+    </a>
+    <a href="/artist/manager/songs" class="dash-sidebar-link ">
+      <i class="bi bi-music-note-beamed"></i> Songs
+    </a>
+  
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="/" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          
+            <a href="/artist/manager" class="dash-back-btn">
+              <i class="bi bi-chevron-left"></i> Dashboard
+            </a>
+          
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Artist Manager</span>
+            <h1 class="dash-topbar-heading">Albums</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        
+  
+  <!-- Action Bar -->
+  <div class="dash-action-bar">
+    <div class="dash-search-wrapper" style="flex: 1; max-width: 400px; margin-bottom: 0;">
+      <i class="bi bi-search"></i>
+      <input type="text" class="dash-search-input" id="albumSearch" placeholder="Search albums..." oninput="filterAlbumTable()">
+    </div>
+    <button class="dash-btn dash-btn-primary" onclick="document.getElementById('createAlbumModal').classList.add('show')">
+      <i class="bi bi-plus-lg"></i> Create New Album
+    </button>
+  </div>
+
+  <!-- Albums Table -->
+  <div class="dash-card">
+    <div class="dash-card-body no-pad">
+      <table class="dash-table" id="albumTable">
+        <thead>
+          <tr>
+            <th>Album Title</th>
+            <th>Description</th>
+            <th>Songs</th>
+            <th>Total Streams</th>
+            <th>Created</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="7" class="text-center" style="padding: 3rem; color: #888;">No albums yet. Create your first album!</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Create Album Modal -->
+  <div class="dash-modal-overlay" id="createAlbumModal">
+    <div class="dash-modal">
+      <div class="dash-modal-header">
+        <h3><i class="bi bi-plus-circle-fill"></i> Create New Album</h3>
+        <button class="dash-modal-close" onclick="document.getElementById('createAlbumModal').classList.remove('show')">&times;</button>
+      </div>
+      <form method="post" action="/artist/manager/albums/create" enctype="multipart/form-data">
+        <div class="dash-modal-body">
+          <div class="dash-form-group">
+            <label class="dash-label">Album Title</label>
+            <input type="text" name="title" class="dash-input" required placeholder="Enter album name">
+          </div>
+          <div class="dash-form-group">
+            <label class="dash-label">Description</label>
+            <textarea name="description" class="dash-textarea" rows="3" placeholder="Describe this album..."></textarea>
+          </div>
+          <div class="dash-form-group">
+            <label class="dash-label">Cover Art URL</label>
+            <input type="url" name="coverArtUrl" class="dash-input" placeholder="https://...">
+          </div>
+          <div class="dash-form-group">
+            <label class="dash-label">Or Upload Cover Art</label>
+            <input type="file" name="coverArtFile" class="dash-input" accept="image/*">
+          </div>
+        </div>
+        <div class="dash-modal-footer">
+          <button type="button" class="dash-btn dash-btn-secondary" onclick="document.getElementById('createAlbumModal').classList.remove('show')">Cancel</button>
+          <button type="submit" class="dash-btn dash-btn-primary"><i class="bi bi-plus-lg"></i> Create Album</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Album Modal -->
+  <div class="dash-modal-overlay" id="editAlbumModal">
+    <div class="dash-modal">
+      <div class="dash-modal-header">
+        <h3><i class="bi bi-pencil-fill"></i> Edit Album</h3>
+        <button class="dash-modal-close" onclick="document.getElementById('editAlbumModal').classList.remove('show')">&times;</button>
+      </div>
+      <form method="post" id="editAlbumForm">
+        <div class="dash-modal-body">
+          <div class="dash-form-group">
+            <label class="dash-label">Album Title</label>
+            <input type="text" name="title" id="editAlbumTitle" class="dash-input" required>
+          </div>
+          <div class="dash-form-group">
+            <label class="dash-label">Description</label>
+            <textarea name="description" id="editAlbumDesc" class="dash-textarea" rows="3"></textarea>
+          </div>
+          <div class="dash-form-group">
+            <label class="dash-label">Cover Art URL</label>
+            <input type="url" name="coverArtUrl" id="editAlbumCover" class="dash-input">
+          </div>
+        </div>
+        <div class="dash-modal-footer">
+          <button type="button" class="dash-btn dash-btn-secondary" onclick="document.getElementById('editAlbumModal').classList.remove('show')">Cancel</button>
+          <button type="submit" class="dash-btn dash-btn-primary"><i class="bi bi-check-lg"></i> Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+      </div>
+    </main>
+  </div>
+
+  
+  <script>
+  function filterAlbumTable() {
+    const q = document.getElementById('albumSearch').value.toLowerCase();
+    document.querySelectorAll('#albumTable tbody tr').forEach(row => {
+      row.style.display = (row.dataset.name || '').includes(q) ? '' : 'none';
+    });
+  }
+  function openEditAlbum(id, title, desc, cover) {
+    document.getElementById('editAlbumForm').action = '/artist/manager/albums/' + id + '/update';
+    document.getElementById('editAlbumTitle').value = title;
+    document.getElementById('editAlbumDesc').value = desc;
+    document.getElementById('editAlbumCover').value = cover || '';
+    document.getElementById('editAlbumModal').classList.add('show');
+  }
+  </script>
+  
+</body>
+</html>

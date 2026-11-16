@@ -12,7 +12,8 @@ import numpy as np
 import jwt
 import bcrypt
 from sqlmodel import Session, select
-from .schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, SmartShuffleRequest, SmartShuffleResponse, CommentCreate, CommentRead
+from .schemas import LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, SmartShuffleRequest, SmartShuffleResponse, CommentCreate, CommentRead, KnnProjectionResponse, KnnProjectionPoint
+
 from .spotify_integration import SpotifyIntegration
 from .callback_server import start_callback_server, stop_callback_server, get_auth_code, reset_auth_code
 from .db import create_db_and_tables, engine
@@ -808,8 +809,11 @@ async def classify_file(file: UploadFile = File(...), current_user=Depends(get_c
 
 @app.get("/songs", response_model=list[SongRead])
 def list_songs(session: Session = Depends(get_session)):
-    """List all uploaded songs from SQL Server."""
-    songs = session.exec(select(Song)).all()
+    """List all uploaded songs (metadata only, heavy BLOBs deferred for fast loading)."""
+    from sqlalchemy.orm import defer
+    songs = session.exec(
+        select(Song).options(defer(Song.file_data), defer(Song.cover_art_data))
+    ).all()
     return songs
 
 
@@ -838,24 +842,70 @@ def get_song(song_id: UUID, session: Session = Depends(get_session)):
 
 @app.get("/songs/{song_id}/stream")
 def stream_song(song_id: UUID, session: Session = Depends(get_session)):
-    """Stream an uploaded song audio file from database for web playback."""
-    from fastapi.responses import StreamingResponse
+    """Stream an uploaded song audio file from disk or database for web playback with Range support."""
+    import urllib.parse
     import io
+    from fastapi.responses import StreamingResponse, FileResponse, Response
 
     song = session.get(Song, song_id)
     if not song:
         raise HTTPException(status_code=404, detail=f"Song {song_id} not found")
 
+    # If the file exists directly on disk, use FileResponse for instant Range/seeking support
+    if song.file_path and os.path.exists(song.file_path):
+        return FileResponse(
+            song.file_path,
+            media_type="audio/mpeg",
+            filename=f"song_{song_id}.mp3"
+        )
+
     if not song.file_data:
         raise HTTPException(status_code=404, detail="Audio file data not found in database")
 
+    # Use ASCII-only safe filename in header to strictly adhere to RFC latin-1 requirements
+    safe_title = urllib.parse.quote(f"{song.title or song_id}.mp3")
     return StreamingResponse(
         io.BytesIO(song.file_data),
         media_type="audio/mpeg",
         headers={
-            "Content-Disposition": f'inline; filename="{song.title or song_id}.mp3"',
+            "Content-Disposition": f'inline; filename="song_{song_id}.mp3"; filename*=UTF-8\'\'{safe_title}',
             "Accept-Ranges": "bytes"
         }
+    )
+
+
+DEFAULT_COVER_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="#282828">'
+    '<rect width="100" height="100" rx="10"/>'
+    '<text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" font-size="38" fill="#555">&#9835;</text>'
+    '</svg>'
+)
+
+@app.get("/songs/{song_id}/cover")
+def get_song_cover(song_id: UUID, session: Session = Depends(get_session)):
+    """Return album art cover image for a song with browser caching."""
+    from fastapi.responses import Response, FileResponse
+    song = session.get(Song, song_id)
+    if not song:
+        return Response(content=DEFAULT_COVER_SVG, media_type="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
+
+    if song.cover_art_data:
+        return Response(
+            content=song.cover_art_data,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=604800, immutable"}
+        )
+
+    if song.cover_art_url and os.path.exists(song.cover_art_url):
+        return FileResponse(
+            song.cover_art_url,
+            headers={"Cache-Control": "public, max-age=604800, immutable"}
+        )
+
+    return Response(
+        content=DEFAULT_COVER_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"}
     )
 
 
@@ -1001,6 +1051,141 @@ def smart_shuffle(request: SmartShuffleRequest, session: Session = Depends(get_s
     )
     
     return SmartShuffleResponse(song_ids=recommendations)
+
+
+@app.get('/api/knn-projection', response_model=KnnProjectionResponse)
+def get_knn_projection(
+    seed_id: str | None = None,
+    k_neighbors: int = 5,
+    session: Session = Depends(get_session)
+):
+    """
+    Computes 2D PCA feature projections for songs in the database (or synthetic demonstration set)
+    and highlights KNN nearest neighbors for the specified seed track or vibe.
+    """
+    from sklearn.decomposition import PCA
+    from sklearn.neighbors import NearestNeighbors
+
+    songs = session.exec(select(Song)).all()
+
+    # Synthetic demo generator if database has fewer than 5 songs
+    if len(songs) < 5:
+        np.random.seed(42)
+        demo_points = []
+        genres_list = ['Pop', 'Rock', 'Electronic', 'Hip-Hop', 'Indie', 'Jazz']
+        
+        playlist_vecs = np.random.rand(3, 6)
+        playlist_vecs[:, 0] = np.random.normal(0.8, 0.05, 3)
+        playlist_vecs[:, 1] = np.random.normal(0.2, 0.05, 3)
+        
+        cand_vecs = np.random.rand(30, 6)
+        all_vecs = np.vstack([playlist_vecs, cand_vecs])
+        
+        pca = PCA(n_components=2)
+        pca_res = pca.fit_transform(all_vecs)
+        
+        vibe_vec = np.mean(playlist_vecs, axis=0).reshape(1, -1)
+        knn = NearestNeighbors(metric='cosine', algorithm='brute')
+        knn.fit(cand_vecs)
+        k_count = min(k_neighbors, len(cand_vecs))
+        dists, indices = knn.kneighbors(vibe_vec, n_neighbors=k_count)
+        neighbor_indices = set(indices[0])
+
+        for i in range(len(playlist_vecs)):
+            demo_points.append(KnnProjectionPoint(
+                id=f"seed-{i+1}",
+                title=f"Seed Track {i+1}",
+                artist="Demo Artist",
+                genre=genres_list[i % len(genres_list)],
+                x=float(pca_res[i, 0]),
+                y=float(pca_res[i, 1]),
+                type="seed",
+                energy=float(playlist_vecs[i, 1]),
+                valence=float(playlist_vecs[i, 3])
+            ))
+            
+        for idx in range(len(cand_vecs)):
+            global_idx = idx + len(playlist_vecs)
+            is_neighbor = idx in neighbor_indices
+            demo_points.append(KnnProjectionPoint(
+                id=f"song-{idx+1}",
+                title=f"Acoustic Track {idx+1}",
+                artist=f"Artist {(idx % 5) + 1}",
+                genre=genres_list[idx % len(genres_list)],
+                x=float(pca_res[global_idx, 0]),
+                y=float(pca_res[global_idx, 1]),
+                type="neighbor" if is_neighbor else "candidate",
+                energy=float(cand_vecs[idx, 1]),
+                valence=float(cand_vecs[idx, 3])
+            ))
+
+        vibe_pca = pca.transform(vibe_vec)[0]
+        return KnnProjectionResponse(
+            points=demo_points,
+            vibe_x=float(vibe_pca[0]),
+            vibe_y=float(vibe_pca[1]),
+            k_neighbors=k_count
+        )
+
+    # Real DB songs
+    song_vectors = np.array([
+        [s.tempo, s.energy, s.danceability, s.valence, s.acousticness, s.instrumentalness]
+        for s in songs
+    ])
+    
+    pca = PCA(n_components=2)
+    pca_2d = pca.fit_transform(song_vectors)
+
+    seed_idx = 0
+    if seed_id:
+        for i, s in enumerate(songs):
+            if str(s.id) == seed_id:
+                seed_idx = i
+                break
+
+    seed_vec = song_vectors[seed_idx].reshape(1, -1)
+    
+    # Exclude seed from candidates
+    cand_mask = np.ones(len(songs), dtype=bool)
+    cand_mask[seed_idx] = False
+    
+    cand_vectors = song_vectors[cand_mask]
+    cand_indices = np.where(cand_mask)[0]
+
+    knn = NearestNeighbors(metric='cosine', algorithm='brute')
+    knn.fit(cand_vectors)
+    k_count = min(k_neighbors, len(cand_vectors))
+    dists, indices = knn.kneighbors(seed_vec, n_neighbors=k_count)
+    neighbor_global_indices = set(cand_indices[indices[0]])
+
+    points = []
+    for i, s in enumerate(songs):
+        pt_type = "candidate"
+        if i == seed_idx:
+            pt_type = "seed"
+        elif i in neighbor_global_indices:
+            pt_type = "neighbor"
+            
+        points.append(KnnProjectionPoint(
+            id=str(s.id),
+            title=s.title or s.file_name,
+            artist=s.artist or "Unknown Artist",
+            genre=s.genre or "Pop",
+            x=float(pca_2d[i, 0]),
+            y=float(pca_2d[i, 1]),
+            type=pt_type,
+            energy=float(s.energy),
+            valence=float(s.valence)
+        ))
+
+    vibe_pt = pca_2d[seed_idx]
+    return KnnProjectionResponse(
+        points=points,
+        vibe_x=float(vibe_pt[0]),
+        vibe_y=float(vibe_pt[1]),
+        k_neighbors=k_count
+    )
+
 
 
 # ============================================================
@@ -1191,6 +1376,91 @@ def get_comments(song_id: str, session: Session = Depends(get_session)):
     s_uuid = parse_frontend_song_id(song_id)
     comments = session.exec(select(Comment).where(Comment.song_id == s_uuid).order_by(Comment.timestamp_ms)).all()
     return comments
+
+
+# ============================================================
+# Playlist & Song Downloader Endpoints (spotDL -> Spotifake DB)
+# ============================================================
+
+from pydantic import BaseModel as _PydanticBaseModel
+from fastapi.staticfiles import StaticFiles
+
+class DownloadRequest(_PydanticBaseModel):
+    query: str
+
+
+@app.post("/api/downloader/download")
+def start_download_job(req: DownloadRequest):
+    """Start an asynchronous playlist/song download job using spotDL."""
+    if not req.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    from .downloader_service import create_download_job
+    job_id = create_download_job(req.query.strip())
+    return {"job_id": job_id, "query": req.query.strip(), "status": "pending"}
+
+
+@app.get("/api/downloader/jobs")
+def get_download_jobs():
+    """List recent download jobs and their statuses."""
+    from .downloader_service import list_jobs
+    return list_jobs()
+
+
+@app.get("/api/downloader/jobs/{job_id}")
+def get_download_job(job_id: str):
+    """Get status and logs for a download job."""
+    from .downloader_service import get_job
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@app.get("/api/downloader/jobs/{job_id}/events")
+async def stream_job_events_endpoint(job_id: str):
+    """Real-time SSE event stream for live download progress."""
+    from .downloader_service import stream_job_events
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        stream_job_events(job_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.get("/")
+def get_root_page():
+    """Serve the main Spotifake music platform web app."""
+    index_html = os.path.join(os.path.dirname(__file__), "..", "WebClient", "index.html")
+    if os.path.exists(index_html):
+        return FileResponse(index_html)
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+
+@app.get("/downloader")
+def get_downloader_page():
+    """Serve the Web UI for the playlist downloader."""
+    downloader_html = os.path.join(os.path.dirname(__file__), "..", "WebClient", "downloader.html")
+    if os.path.exists(downloader_html):
+        return FileResponse(
+            downloader_html,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+    raise HTTPException(status_code=404, detail="downloader.html not found")
+
+
+webclient_dir = os.path.join(os.path.dirname(__file__), "..", "WebClient")
+if os.path.exists(webclient_dir):
+    app.mount("/web", StaticFiles(directory=webclient_dir, html=True), name="web")
+
 
 if __name__ == "__main__":
     import uvicorn

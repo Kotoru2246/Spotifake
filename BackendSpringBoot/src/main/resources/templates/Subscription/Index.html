@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotifake Premium - Listen without limits</title>
+  <link rel="stylesheet" href="/css/subscription.css" />
+</head>
+<body class="subscription-page">
+
+  <!-- TOP NAVBAR -->
+  <header class="sub-nav">
+    <a href="/" class="sub-nav-brand">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"></path>
+      </svg>
+      <span class="sub-brand-title">Spotifake</span>
+      <span class="sub-brand-pill">Premium</span>
+    </a>
+
+    <div class="sub-nav-links">
+      <a href="/" class="sub-nav-btn">🎵 Web Player</a>
+      <a href="#plansSection" class="sub-nav-btn">Plans</a>
+      <a href="#faqSection" class="sub-nav-btn">FAQ</a>
+
+      <div th:if="${isAuthenticated}" class="sub-user-pill">
+        <span class="sub-status-dot" th:style="${isPremium} ? 'background: #1db954;' : 'background: #b3b3b3; box-shadow: none;'"></span>
+        <span th:text="${currentUser.username}">user_test</span>
+        <span th:if="${isPremium}" style="color: #ffc83b; font-size: 11px; margin-left: 4px;">✨ Premium</span>
+      </div>
+
+      <a th:unless="${isAuthenticated}" href="/Auth/Login" class="sub-nav-btn primary">Log In</a>
+      <a th:if="${isAuthenticated}" href="/" class="sub-nav-btn primary">Back to Player</a>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="sub-hero">
+    <div class="sub-hero-tag">Spotifake Premium</div>
+    <h1 class="sub-hero-title">Listen without limits.</h1>
+    <p class="sub-hero-subtitle">
+      Experience pure sound with zero interruptions. Ad-free music, unlimited skips, offline downloads, and synchronized lyrics across all your devices.
+    </p>
+    <div class="sub-hero-actions">
+      <a href="#plansSection" class="btn-hero-primary">View All Plans</a>
+      <button type="button" class="btn-hero-secondary" onclick="quickFillAndScroll('Individual')">⚡ 1-Click Test Checkout</button>
+    </div>
+  </section>
+
+  <!-- VALUE PROPOSITION -->
+  <section class="sub-features-section">
+    <div class="sub-section-header">
+      <h2 class="sub-section-title">Why go Premium?</h2>
+      <p class="sub-section-subtitle">Unlock the full power of your music collection</p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-box">
+        <div class="feature-icon">🚫</div>
+        <h3 class="feature-title">Ad-Free Music</h3>
+        <p class="feature-desc">No commercial breaks. Immerse yourself completely into non-stop albums, playlists, and tracks.</p>
+      </div>
+      <div class="feature-box">
+        <div class="feature-icon">⏭️</div>
+        <h3 class="feature-title">Unlimited Skips</h3>
+        <p class="feature-desc">No 6-skips-per-hour restriction. Jump to any song, rewind, or shuffle whenever inspiration strikes.</p>
+      </div>
+      <div class="feature-box">
+        <div class="feature-icon">📥</div>
+        <h3 class="feature-title">Offline Downloads</h3>
+        <p class="feature-desc">Save songs and playlists directly to your browser cache. Keep your beats rolling without Wi-Fi.</p>
+      </div>
+      <div class="feature-box">
+        <div class="feature-icon">📜</div>
+        <h3 class="feature-title">Full Synced Lyrics</h3>
+        <p class="feature-desc">Never miss a word. Unblurred, synchronized, real-time karaoke lyrics on every supported song.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLANS SECTION (No Student Tier) -->
+  <section class="sub-plans-section" id="plansSection">
+    <div class="sub-section-header">
+      <h2 class="sub-section-title">Pick your Premium plan</h2>
+      <p class="sub-section-subtitle">Cancel anytime with 1-click in your account dashboard</p>
+    </div>
+
+    <div class="plans-grid">
+      <!-- Individual Plan -->
+      <div class="plan-card active-selected" id="planCardIndividual" onclick="selectPlan('Individual', 4.99)">
+        <div class="plan-badge">Most Popular</div>
+        <div class="plan-header">
+          <h3 class="plan-name">Individual</h3>
+          <div class="plan-price-row">
+            <span class="plan-price">$4.99</span>
+            <span class="plan-period">/ month</span>
+          </div>
+          <div class="plan-accounts">1 Premium account</div>
+        </div>
+        <div class="plan-divider"></div>
+        <ul class="plan-perks">
+          <li><span class="check">✓</span> Ad-free music listening</li>
+          <li><span class="check">✓</span> Unlimited track skips</li>
+          <li><span class="check">✓</span> Offline download mode</li>
+          <li><span class="check">✓</span> Full synchronized lyrics</li>
+          <li><span class="check">✓</span> High quality audio playback</li>
+        </ul>
+        <button type="button" class="plan-select-btn" id="btnSelectIndividual">Select Individual</button>
+      </div>
+
+      <!-- Duo Plan -->
+      <div class="plan-card" id="planCardDuo" onclick="selectPlan('Duo', 6.99)">
+        <div class="plan-badge gold">Best Value</div>
+        <div class="plan-header">
+          <h3 class="plan-name">Duo</h3>
+          <div class="plan-price-row">
+            <span class="plan-price">$6.99</span>
+            <span class="plan-period">/ month</span>
+          </div>
+          <div class="plan-accounts">2 Premium accounts under one roof</div>
+        </div>
+        <div class="plan-divider"></div>
+        <ul class="plan-perks">
+          <li><span class="check">✓</span> 2 separate Premium accounts</li>
+          <li><span class="check">✓</span> Duo Mix: playlist updated with music both love</li>
+          <li><span class="check">✓</span> Ad-free listening on both accounts</li>
+          <li><span class="check">✓</span> Unlimited skips & offline downloads</li>
+          <li><span class="check">✓</span> Full synchronized lyrics</li>
+        </ul>
+        <button type="button" class="plan-select-btn" id="btnSelectDuo">Select Duo</button>
+      </div>
+
+      <!-- Family Plan -->
+      <div class="plan-card" id="planCardFamily" onclick="selectPlan('Family', 9.99)">
+        <div class="plan-badge">Ultimate</div>
+        <div class="plan-header">
+          <h3 class="plan-name">Family</h3>
+          <div class="plan-price-row">
+            <span class="plan-price">$9.99</span>
+            <span class="plan-period">/ month</span>
+          </div>
+          <div class="plan-accounts">Up to 6 Premium accounts</div>
+        </div>
+        <div class="plan-divider"></div>
+        <ul class="plan-perks">
+          <li><span class="check">✓</span> Up to 6 individual Premium accounts</li>
+          <li><span class="check">✓</span> Family Mix: shared family music queue</li>
+          <li><span class="check">✓</span> Explicit music filters for kids</li>
+          <li><span class="check">✓</span> Ad-free music for everyone</li>
+          <li><span class="check">✓</span> Unlimited skips & offline downloads</li>
+        </ul>
+        <button type="button" class="plan-select-btn" id="btnSelectFamily">Select Family</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CHECKOUT MACHINE SECTION -->
+  <section class="sub-checkout-section" id="checkoutSection">
+    <div class="checkout-container">
+      <!-- Left: Interactive Card Mockup & Testing Bar -->
+      <div class="card-preview-pane">
+        <div class="credit-card-mockup" id="creditCardMockup">
+          <div class="card-top">
+            <div class="card-chip"></div>
+            <div class="card-contactless">))))</div>
+          </div>
+          <div class="card-number-display" id="cardMockupNumber">•••• •••• •••• ••••</div>
+          <div class="card-bottom">
+            <div>
+              <div class="card-holder-label">Cardholder</div>
+              <div class="card-holder-name" id="cardMockupName">YOUR NAME</div>
+            </div>
+            <div>
+              <div class="card-expiry-label">Expires</div>
+              <div class="card-expiry-val" id="cardMockupExpiry">MM/YY</div>
+            </div>
+            <div class="card-brand-badge visa" id="cardMockupBrand">VISA</div>
+          </div>
+        </div>
+
+        <div class="test-cards-hint">
+          <div class="quick-test-bar">
+            <button type="button" class="btn-test-card" onclick="fillTestCard('4242')">
+              <span>⚡ 1-Click Test Card (Visa •••• 4242)</span>
+            </button>
+            <div style="font-size: 11px; color: #b3b3b3; text-align: center; margin-top: 4px;">
+              Test Banking Decline Simulation:
+            </div>
+            <div class="decline-test-group">
+              <button type="button" class="btn-decline-test" onclick="fillTestCard('0002')">...0002 Funds</button>
+              <button type="button" class="btn-decline-test" onclick="fillTestCard('0003')">...0003 Expired</button>
+              <button type="button" class="btn-decline-test" onclick="fillTestCard('0004')">...0004 Fraud</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Payment Form -->
+      <div class="checkout-form-pane">
+        <h3>Complete Your Subscription</h3>
+
+        <div class="subscribing-account-bar" style="background:#242424; padding:12px 16px; border-radius:10px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; border:1px solid #2e2e2e;">
+          <div>
+            <div style="font-size:11px; text-transform:uppercase; color:#b3b3b3; letter-spacing:0.5px; font-weight:700;">Account to upgrade</div>
+            <div style="font-size:15px; font-weight:800; color:#1db954; margin-top:2px;">
+              <span id="subscribingUsername" th:text="${isAuthenticated ? currentUser.username : 'user_test'}">user_test</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span style="font-size:12px; color:#727272; margin-right:4px;">Demo switch:</span>
+            <button type="button" class="btn-decline-test" style="border-color:#1db954; color:#1db954; background:rgba(29,185,84,0.1); font-weight:700;" onclick="switchSubUser('user_test')">user_test</button>
+            <button type="button" class="btn-decline-test" style="border-color:#ffc83b; color:#ffc83b; background:rgba(255,200,59,0.1); font-weight:700;" onclick="switchSubUser('artist_test')">artist_test</button>
+          </div>
+        </div>
+
+        <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
+          <div class="form-group">
+            <label for="cardholderName">Name on Card</label>
+            <input type="text" id="cardholderName" class="form-control" placeholder="e.g. Jane Doe" required oninput="updateCardMockup()" />
+          </div>
+
+          <div class="form-group">
+            <label for="cardNumber">Card Number</label>
+            <input type="text" id="cardNumber" class="form-control" placeholder="4242 •••• •••• 4242" maxlength="19" required oninput="handleCardNumberInput(event)" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cardExpiry">Expiration Date</label>
+              <input type="text" id="cardExpiry" class="form-control" placeholder="MM/YY" maxlength="5" required oninput="handleExpiryInput(event)" />
+            </div>
+            <div class="form-group">
+              <label for="cardCvc">Security Code (CVC)</label>
+              <input type="text" id="cardCvc" class="form-control" placeholder="123" maxlength="4" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="billingZip">Postal / ZIP Code</label>
+            <input type="text" id="billingZip" class="form-control" placeholder="90210" required />
+          </div>
+
+          <!-- Order Summary Box -->
+          <div class="order-summary-box">
+            <div class="summary-row">
+              <span id="summaryPlanName">Spotifake Premium (Individual)</span>
+              <span id="summaryPlanPrice">$4.99</span>
+            </div>
+            <div class="summary-row">
+              <span>Estimated Tax (0.00%)</span>
+              <span>$0.00</span>
+            </div>
+            <div class="summary-row total">
+              <span>Total Due Today</span>
+              <span class="total-amount" id="summaryTotalDue">$4.99</span>
+            </div>
+          </div>
+
+          <div id="checkoutErrorBanner" class="checkout-error-banner"></div>
+
+          <button type="submit" class="btn-complete-checkout" id="btnSubmitCheckout">
+            <span id="checkoutBtnSpinner" style="display:none;">⏳</span>
+            <span id="checkoutBtnText">Confirm & Subscribe ($4.99)</span>
+          </button>
+
+          <div style="display:flex; align-items:center; gap:12px; margin: 18px 0 14px;">
+            <div style="flex:1; height:1px; background:#2e2e2e;"></div>
+            <span style="font-size:11px; text-transform:uppercase; color:#727272; letter-spacing:0.8px; font-weight:700;">OR STRIPE CLOUD</span>
+            <div style="flex:1; height:1px; background:#2e2e2e;"></div>
+          </div>
+
+          <button type="button" class="btn-hero-secondary" style="width:100%; display:flex; justify-content:center; align-items:center; gap:10px; padding:13px; border-color:#635bff; color:#9b95ff; background:rgba(99,91,255,0.08); font-size:14px;" onclick="payWithStripeSandbox()">
+            <span>🌐 Pay via Stripe Sandbox (Test Mode)</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACTIVE SUBSCRIPTION & BILLING HISTORY SECTION -->
+  <section class="sub-dashboard-section" id="accountDashboard">
+    <div class="dashboard-card">
+      <div class="active-plan-banner">
+        <div class="active-tier-meta">
+          <h3>
+            <span>Current Tier: </span>
+            <span id="activeTierName" th:text="${subscriptionTier}">Free</span>
+            <span class="active-pill" id="activeTierPill" th:text="${isPremium} ? 'Active' : 'Free'">Free</span>
+          </h3>
+          <p style="color: #b3b3b3; font-size: 14px; margin-top: 6px;">
+            <span th:if="${isPremium}">Your membership is active and auto-renews monthly. You enjoy ad-free playback, unlimited skips, and offline listening.</span>
+            <span th:unless="${isPremium}">You are currently on the Free plan. Ads play every 3 songs and skips are limited to 6/hour.</span>
+          </p>
+        </div>
+        <div class="active-tier-actions" th:if="${isPremium}">
+          <button type="button" class="btn-cancel-sub" onclick="cancelSubscription()">Cancel Subscription (Downgrade to Free)</button>
+        </div>
+      </div>
+
+      <!-- Transaction History Table -->
+      <h4 style="font-size: 18px; font-weight: 800; margin-bottom: 16px;">Billing & Invoice History</h4>
+      <div class="tx-table-wrapper">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Transaction ID</th>
+              <th>Plan</th>
+              <th>Amount</th>
+              <th>Payment Method</th>
+              <th>Status</th>
+              <th>Invoice</th>
+            </tr>
+          </thead>
+          <tbody id="txTableBody">
+            <tr th:each="tx : ${transactions}">
+              <td th:text="${tx.createdAt}">2026-11-16</td>
+              <td><strong th:text="${tx.transactionId}">TX-0012954F</strong></td>
+              <td th:text="${tx.planType}">Individual</td>
+              <td th:text="'$' + ${#numbers.formatDecimal(tx.amount, 1, 2)}">$4.99</td>
+              <td th:text="${tx.cardBrand} + ' •••• ' + ${tx.cardLast4}">Visa •••• 4242</td>
+              <td><span class="tx-status-badge" th:text="${tx.status}">Completed</span></td>
+              <td>
+                <a th:href="'/api/subscription/receipt/' + ${tx.transactionId}" target="_blank" class="btn-view-invoice">
+                  🖨️ View Receipt
+                </a>
+              </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(transactions)}">
+              <td colspan="7" style="text-align: center; color: #727272; padding: 24px;">No past billing transactions found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ SECTION -->
+  <section class="sub-features-section" id="faqSection" style="padding-top: 0;">
+    <div class="sub-section-header">
+      <h2 class="sub-section-title">Frequently Asked Questions</h2>
+    </div>
+    <div style="max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
+      <div class="feature-box">
+        <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">How does billing work?</h4>
+        <p style="font-size: 14px; color: #b3b3b3;">You will be billed monthly on the date you subscribe. You can test realistic charges and live authorizations directly with our test credentials.</p>
+      </div>
+      <div class="feature-box">
+        <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">Can I cancel anytime?</h4>
+        <p style="font-size: 14px; color: #b3b3b3;">Yes! You can cancel your subscription with 1-click in the Billing section above at any time. Your account reverts back to Free tier immediately.</p>
+      </div>
+      <div class="feature-box">
+        <h4 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">What cards can I test?</h4>
+        <p style="font-size: 14px; color: #b3b3b3;">Click the <strong>⚡ 1-Click Test Card</strong> button to instantly populate <code>4242 4242 4242 4242</code>. You can also test decline codes ending in <code>...0002</code> (Insufficient Funds) or <code>...0003</code> (Expired Card).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CELEBRATION RECEIPT MODAL -->
+  <div class="celebrate-modal-overlay" id="celebrateModal" style="display: none;">
+    <div class="celebrate-card">
+      <div class="celebrate-icon">🎉</div>
+      <h2 class="celebrate-title">Welcome to Spotifake Premium!</h2>
+      <p class="celebrate-desc">Your payment has been authorized and your account is upgraded.</p>
+
+      <div class="celebrate-meta-box">
+        <div class="celebrate-row">
+          <span>Receipt ID:</span>
+          <strong id="receiptModalTxId">#TX-XXXXXX</strong>
+        </div>
+        <div class="celebrate-row">
+          <span>Plan:</span>
+          <strong id="receiptModalPlan">Spotifake Individual</strong>
+        </div>
+        <div class="celebrate-row">
+          <span>Amount Paid:</span>
+          <strong id="receiptModalAmount">$4.99</strong>
+        </div>
+        <div class="celebrate-row">
+          <span>Payment Method:</span>
+          <strong id="receiptModalCard">Visa •••• 4242</strong>
+        </div>
+        <div class="celebrate-row">
+          <span>Auth Code:</span>
+          <strong id="receiptModalAuth">AUTH-XXXXXX</strong>
+        </div>
+      </div>
+
+      <div class="celebrate-actions">
+        <a id="receiptModalPrintLink" href="#" target="_blank" class="btn-hero-primary" style="text-align: center;">
+          🖨️ Open Printable Tax Invoice
+        </a>
+        <button type="button" class="btn-hero-secondary" onclick="window.location.href='/'">
+          🎵 Return to Web Player & Listen Ad-Free
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="sub-footer">
+    <p>© 2026 Spotifake Inc. All rights reserved. Built with Spring Boot, Essentia Audio & SQLite.</p>
+  </footer>
+
+  <!-- CLIENT-SIDE SCRIPT -->
+  <script>
+    let currentSelectedPlan = 'Individual';
+    let currentSelectedPrice = 4.99;
+    let currentSubUser = document.getElementById('subscribingUsername')?.textContent.trim() || localStorage.getItem('spotifake.username') || 'user_test';
+
+    function switchSubUser(name) {
+      currentSubUser = name;
+      const el = document.getElementById('subscribingUsername');
+      if (el) el.textContent = name;
+      localStorage.setItem('spotifake.username', name);
+    }
+
+    function selectPlan(plan, price) {
+      currentSelectedPlan = plan;
+      currentSelectedPrice = price;
+
+      // Update card visual borders
+      document.querySelectorAll('.plan-card').forEach(el => el.classList.remove('active-selected'));
+      const activeEl = document.getElementById('planCard' + plan);
+      if (activeEl) activeEl.classList.add('active-selected');
+
+      // Update order summary
+      document.getElementById('summaryPlanName').textContent = 'Spotifake Premium (' + plan + ')';
+      document.getElementById('summaryPlanPrice').textContent = '$' + price.toFixed(2);
+      document.getElementById('summaryTotalDue').textContent = '$' + price.toFixed(2);
+      document.getElementById('checkoutBtnText').textContent = 'Confirm & Subscribe ($' + price.toFixed(2) + ')';
+    }
+
+    function quickFillAndScroll(plan) {
+      selectPlan(plan, plan === 'Individual' ? 4.99 : plan === 'Duo' ? 6.99 : 9.99);
+      fillTestCard('4242');
+      const el = document.getElementById('checkoutSection');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function handleCardNumberInput(e) {
+      let val = e.target.value.replace(/\D/g, '');
+      if (val.length > 16) val = val.substring(0, 16);
+      let formatted = val.match(/.{1,4}/g)?.join(' ') || val;
+      e.target.value = formatted;
+      updateCardMockup();
+    }
+
+    function handleExpiryInput(e) {
+      let val = e.target.value.replace(/\D/g, '');
+      if (val.length > 4) val = val.substring(0, 4);
+      if (val.length >= 2) {
+        val = val.substring(0, 2) + '/' + val.substring(2);
+      }
+      e.target.value = val;
+      updateCardMockup();
+    }
+
+    function updateCardMockup() {
+      const name = document.getElementById('cardholderName').value.trim() || 'YOUR NAME';
+      const num = document.getElementById('cardNumber').value.trim() || '•••• •••• •••• ••••';
+      const exp = document.getElementById('cardExpiry').value.trim() || 'MM/YY';
+
+      document.getElementById('cardMockupName').textContent = name.toUpperCase();
+      document.getElementById('cardMockupNumber').textContent = num;
+      document.getElementById('cardMockupExpiry').textContent = exp;
+
+      // Brand Detection
+      const cleanNum = num.replace(/\s+/g, '');
+      const brandBadge = document.getElementById('cardMockupBrand');
+      brandBadge.className = 'card-brand-badge';
+
+      if (cleanNum.startsWith('4')) {
+        brandBadge.textContent = 'VISA';
+        brandBadge.classList.add('visa');
+      } else if (/^(5[1-5]|2[2-7])/.test(cleanNum)) {
+        brandBadge.textContent = 'MC';
+        brandBadge.classList.add('mastercard');
+      } else if (/^(34|37)/.test(cleanNum)) {
+        brandBadge.textContent = 'AMEX';
+        brandBadge.classList.add('amex');
+      } else if (/^(6011|65)/.test(cleanNum)) {
+        brandBadge.textContent = 'DISC';
+        brandBadge.classList.add('discover');
+      } else {
+        brandBadge.textContent = 'CARD';
+      }
+    }
+
+    function fillTestCard(type) {
+      document.getElementById('cardholderName').value = 'Jane Doe';
+      document.getElementById('cardExpiry').value = '12/28';
+      document.getElementById('cardCvc').value = '123';
+      document.getElementById('billingZip').value = '90210';
+
+      const cardInput = document.getElementById('cardNumber');
+      if (type === '0002') {
+        cardInput.value = '4242 4242 4242 0002';
+      } else if (type === '0003') {
+        cardInput.value = '4242 4242 4242 0003';
+      } else if (type === '0004') {
+        cardInput.value = '4242 4242 4242 0004';
+      } else {
+        cardInput.value = '4242 4242 4242 4242';
+      }
+      updateCardMockup();
+    }
+
+    async function handleCheckoutSubmit(e) {
+      e.preventDefault();
+      const errBanner = document.getElementById('checkoutErrorBanner');
+      errBanner.style.display = 'none';
+
+      const btn = document.getElementById('btnSubmitCheckout');
+      const spinner = document.getElementById('checkoutBtnSpinner');
+      const btnText = document.getElementById('checkoutBtnText');
+
+      btn.disabled = true;
+      spinner.style.display = 'inline-block';
+      btnText.textContent = 'Authorizing payment with bank...';
+
+      const payload = {
+        planType: currentSelectedPlan,
+        cardholderName: document.getElementById('cardholderName').value.trim(),
+        cardNumber: document.getElementById('cardNumber').value.trim(),
+        expiryDate: document.getElementById('cardExpiry').value.trim(),
+        cvc: document.getElementById('cardCvc').value.trim(),
+        billingZip: document.getElementById('billingZip').value.trim(),
+        username: currentSubUser || 'user_test'
+      };
+
+      try {
+        const token = localStorage.getItem('spotifake.jwt') || '';
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const response = await fetch('/api/subscription/checkout', {
+          method: 'POST',
+          headers: headers,
+          credentials: 'same-origin',
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || 'Payment authorization failed');
+        }
+
+        // Save token and user details into localStorage
+        if (data.token) {
+          localStorage.setItem('spotifake.jwt', data.token);
+        }
+        if (data.user) {
+          localStorage.setItem('spotifake.user', JSON.stringify(data.user));
+          localStorage.setItem('spotifake.username', data.user.username);
+          localStorage.setItem('spotifake.role', data.user.role || 'user');
+        }
+
+        // Show celebration receipt modal
+        document.getElementById('receiptModalTxId').textContent = '#' + data.transactionId;
+        document.getElementById('receiptModalPlan').textContent = 'Spotifake ' + data.planType;
+        document.getElementById('receiptModalAmount').textContent = '$' + Number(data.amount).toFixed(2);
+        document.getElementById('receiptModalCard').textContent = data.cardBrand + ' •••• ' + data.cardLast4;
+        document.getElementById('receiptModalAuth').textContent = data.authCode;
+        document.getElementById('receiptModalPrintLink').href = '/api/subscription/receipt/' + data.transactionId;
+
+        document.getElementById('celebrateModal').style.display = 'flex';
+
+        // Prepend to transaction table
+        const tbody = document.getElementById('txTableBody');
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+          <td>Just now</td>
+          <td><strong>${data.transactionId}</strong></td>
+          <td>${data.planType}</td>
+          <td>$${Number(data.amount).toFixed(2)}</td>
+          <td>${data.cardBrand} •••• ${data.cardLast4}</td>
+          <td><span class="tx-status-badge">Completed</span></td>
+          <td><a href="/api/subscription/receipt/${data.transactionId}" target="_blank" class="btn-view-invoice">🖨️ View Receipt</a></td>
+        `;
+        if (tbody.children.length === 1 && tbody.children[0].children.length === 1) {
+          tbody.innerHTML = '';
+        }
+        tbody.prepend(newRow);
+
+        // Update active tier UI
+        document.getElementById('activeTierName').textContent = data.planType;
+        const pill = document.getElementById('activeTierPill');
+        pill.textContent = 'Active';
+        pill.style.background = 'rgba(29, 185, 84, 0.15)';
+        pill.style.color = '#1db954';
+
+      } catch (err) {
+        errBanner.textContent = '⚠️ ' + err.message;
+        errBanner.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Confirm & Subscribe ($' + currentSelectedPrice.toFixed(2) + ')';
+      }
+    }
+
+    async function payWithStripeSandbox() {
+      const errBanner = document.getElementById('checkoutErrorBanner');
+      if (errBanner) errBanner.style.display = 'none';
+
+      try {
+        const token = localStorage.getItem('spotifake.jwt') || '';
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const response = await fetch('/api/subscription/stripe/create-checkout-session', {
+          method: 'POST',
+          headers: headers,
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            planType: currentSelectedPlan,
+            username: currentSubUser || 'user_test'
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.url) {
+          window.location.href = data.url;
+        } else {
+          alert('ℹ️ ' + (data.message || 'Stripe sandbox mode is configured. Add your sk_test_... in application.properties to enable live cloud checkout. In the meantime, use the green "Confirm & Subscribe" button to test with our built-in simulator!'));
+        }
+      } catch (err) {
+        alert('Stripe Error: ' + err.message);
+      }
+    }
+
+    async function cancelSubscription() {
+      if (!confirm('Are you sure you want to cancel your Spotifake Premium subscription? Your account will revert to the Free tier.')) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('spotifake.jwt') || '';
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const response = await fetch('/api/subscription/cancel', {
+          method: 'POST',
+          headers: headers
+        });
+        const data = await response.json();
+        if (data.success) {
+          let user = JSON.parse(localStorage.getItem('spotifake.user') || '{}');
+          user.isPremium = false;
+          user.subscriptionTier = 'Free';
+          localStorage.setItem('spotifake.user', JSON.stringify(user));
+
+          alert('Subscription cancelled successfully. You are now on the Free tier.');
+          window.location.reload();
+        } else {
+          alert('Could not cancel subscription: ' + (data.message || 'Unknown error'));
+        }
+      } catch (e) {
+        alert('Network error while cancelling subscription.');
+      }
+    }
+  </script>
+</body>
+</html>

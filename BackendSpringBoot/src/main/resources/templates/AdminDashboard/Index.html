@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Overview - Spotifake</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link active">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+          <span th:if="${stats.pendingRequests != null and stats.pendingRequests > 0}" 
+                class="dash-badge red" style="margin-left: auto; padding: 2px 7px; font-size: 0.7rem;"
+                th:text="${stats.pendingRequests}">1</span>
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Enterprise Control Center</span>
+            <h1 class="dash-topbar-heading">System Overview</h1>
+          </div>
+        </div>
+        <div class="dash-topbar-right" style="display: flex; align-items: center; gap: 1rem;">
+          <div class="status-indicator">
+            <span class="status-dot online"></span>
+            <span style="color: var(--text-secondary); font-size: 0.85rem;">System Live (Port 9000)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Quick Action Tiles -->
+        <div class="dash-quick-actions">
+          <a href="/admin/dashboard/users" class="dash-action-tile">
+            <div class="dash-action-icon" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">
+              <i class="bi bi-person-gear"></i>
+            </div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Manage Users</div>
+              <div style="color: var(--text-secondary); font-size: 0.75rem;">Roles & subscriptions</div>
+            </div>
+          </a>
+          <a href="/admin/dashboard/artists" class="dash-action-tile">
+            <div class="dash-action-icon" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">
+              <i class="bi bi-patch-check"></i>
+            </div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Verify Artists</div>
+              <div style="color: var(--text-secondary); font-size: 0.75rem;">Badges & discography</div>
+            </div>
+          </a>
+          <a href="/admin/dashboard/songs" class="dash-action-tile">
+            <div class="dash-action-icon" style="background: rgba(29, 185, 84, 0.15); color: #1db954;">
+              <i class="bi bi-music-note-list"></i>
+            </div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Song Catalog</div>
+              <div style="color: var(--text-secondary); font-size: 0.75rem;">390+ tracks moderation</div>
+            </div>
+          </a>
+          <a href="/admin/dashboard/requests" class="dash-action-tile">
+            <div class="dash-action-icon" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">
+              <i class="bi bi-inbox-fill"></i>
+            </div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.95rem;">Pending Requests</div>
+              <div style="color: var(--text-secondary); font-size: 0.75rem;" th:text="${stats.pendingRequests + ' awaiting review'}">0 awaiting</div>
+            </div>
+          </a>
+        </div>
+
+        <!-- Dynamic Stat Cards -->
+        <div class="dash-stats-grid">
+          <div class="dash-stat-card">
+            <div class="stat-icon blue"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-label">Total Users</div>
+            <div class="stat-value dash-number" th:text="${stats.totalUsers}">0</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;" th:text="${stats.activeUsers + ' active accounts'}">Active</div>
+          </div>
+          <div class="dash-stat-card">
+            <div class="stat-icon purple"><i class="bi bi-mic-fill"></i></div>
+            <div class="stat-label">Total Artists</div>
+            <div class="stat-value dash-number" th:text="${stats.totalArtists}">0</div>
+            <div style="font-size: 0.75rem; color: var(--accent-green); margin-top: 4px;" th:text="${stats.verifiedArtists + ' verified'}">Verified</div>
+          </div>
+          <div class="dash-stat-card">
+            <div class="stat-icon cyan"><i class="bi bi-music-note-beamed"></i></div>
+            <div class="stat-label">Total Songs</div>
+            <div class="stat-value dash-number" th:text="${stats.totalSongs}">0</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Live in catalog</div>
+          </div>
+          <div class="dash-stat-card">
+            <div class="stat-icon green"><i class="bi bi-disc-fill"></i></div>
+            <div class="stat-label">Total Albums</div>
+            <div class="stat-value dash-number" th:text="${stats.totalAlbums}">0</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Published releases</div>
+          </div>
+          <div class="dash-stat-card">
+            <div class="stat-icon yellow"><i class="bi bi-headphones"></i></div>
+            <div class="stat-label">Total Streams</div>
+            <div class="stat-value dash-number" th:text="${stats.totalStreams}">0</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Track play counts</div>
+          </div>
+          <div class="dash-stat-card">
+            <div class="stat-icon red"><i class="bi bi-credit-card-2-front-fill"></i></div>
+            <div class="stat-label">Premium Subscribers</div>
+            <div class="stat-value dash-number" th:text="${stats.premiumUsers}">0</div>
+            <div style="font-size: 0.75rem; color: #facc15; margin-top: 4px; font-weight: 600;" th:text="'MRR: ' + ${stats.monthlyRevenue}">MRR: $0.00</div>
+          </div>
+        </div>
+
+        <!-- Growth Chart -->
+        <div class="dash-card" style="margin-bottom: 2rem;">
+          <div class="dash-card-header" style="flex-wrap: wrap; gap: 1rem;">
+            <h3><i class="bi bi-graph-up"></i> Platform Growth & Streaming Trends</h3>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <!-- Metric Mode Switcher -->
+              <div class="dash-sort-bar" style="margin-bottom: 0;">
+                <button class="dash-sort-btn active" id="btnModeAll" onclick="setChartMode('all', event)">All (Dual Scale)</button>
+                <button class="dash-sort-btn" id="btnModeCommunity" onclick="setChartMode('community', event)">Users & Artists</button>
+                <button class="dash-sort-btn" id="btnModeSongs" onclick="setChartMode('songs', event)">Songs Only</button>
+              </div>
+
+              <!-- Time Period Switcher -->
+              <div class="dash-sort-bar" style="margin-bottom: 0;">
+                <button class="dash-sort-btn active period-btn" onclick="setChartPeriod('all', event)">All Time</button>
+                <button class="dash-sort-btn period-btn" onclick="setChartPeriod('month', event)">Month</button>
+                <button class="dash-sort-btn period-btn" onclick="setChartPeriod('week', event)">Week</button>
+                <button class="dash-sort-btn period-btn" onclick="setChartPeriod('today', event)">Today</button>
+              </div>
+            </div>
+          </div>
+          <div class="dash-card-body">
+            <div class="dash-chart-container" style="height: 340px;">
+              <canvas id="growthChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Two Column Grid: Recent Users & Pending Applications -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
+          <!-- Recent Users -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="bi bi-person-lines-fill"></i> Recently Registered Users</h3>
+              <a href="/admin/dashboard/users" class="dash-btn dash-btn-sm dash-btn-secondary" style="text-decoration:none;">View All</a>
+            </div>
+            <div class="dash-card-body no-pad">
+              <table class="dash-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Tier</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="u : ${recentUsers}">
+                    <td>
+                      <span class="dash-avatar-circle" th:text="${#strings.substring(u.username, 0, 1).toUpperCase()}">U</span>
+                      <strong th:text="${u.username}">username</strong>
+                      <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${u.email}">email</div>
+                    </td>
+                    <td>
+                      <span class="dash-badge" th:classappend="${u.role == 'admin' ? 'red' : (u.role == 'artist' ? 'purple' : 'blue')}" th:text="${u.role}">user</span>
+                    </td>
+                    <td>
+                      <span th:if="${u.premium or u.subscriptionTier == 'Premium'}" class="dash-badge gold">Premium</span>
+                      <span th:unless="${u.premium or u.subscriptionTier == 'Premium'}" style="color: var(--text-muted); font-size: 0.8rem;">Free</span>
+                    </td>
+                    <td>
+                      <span class="dash-badge" th:classappend="${u.accountStatus == 'Active' ? 'green' : 'red'}" th:text="${u.accountStatus}">Active</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Pending Requests -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="bi bi-patch-question-fill"></i> Pending Artist Verification</h3>
+              <a href="/admin/dashboard/requests" class="dash-btn dash-btn-sm dash-btn-secondary" style="text-decoration:none;">Review All</a>
+            </div>
+            <div class="dash-card-body no-pad">
+              <table class="dash-table">
+                <thead>
+                  <tr>
+                    <th>Applicant</th>
+                    <th>Requested Stage</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="req : ${pendingRequests}">
+                    <td>
+                      <strong th:text="${req.user?.username != null ? req.user.username : 'User'}">User</strong>
+                      <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${req.createdAt}">Date</div>
+                    </td>
+                    <td>
+                      <span class="dash-badge purple" th:text="${req.stageName}">Stage Name</span>
+                    </td>
+                    <td>
+                      <a th:href="@{'/admin/dashboard/requests/' + ${req.requestId}}" class="dash-btn dash-btn-sm dash-btn-primary" style="text-decoration:none;">Inspect</a>
+                    </td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(pendingRequests)}">
+                    <td colspan="3" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                      <i class="bi bi-check-circle" style="color: var(--accent-green); font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+                      No pending artist applications. All caught up!
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+  let growthChart = null;
+  let currentPeriod = 'all';
+  let currentMode = 'all'; // 'all', 'community', 'songs'
+  let cachedData = null;
+
+  function setChartMode(mode, evt) {
+    if (evt && evt.target) {
+      document.querySelectorAll('#btnModeAll, #btnModeCommunity, #btnModeSongs').forEach(b => b.classList.remove('active'));
+      evt.target.classList.add('active');
+    }
+    currentMode = mode;
+    renderChart();
+  }
+
+  function setChartPeriod(period, evt) {
+    if (evt && evt.target) {
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      evt.target.classList.add('active');
+    }
+    currentPeriod = period;
+    fetchChartData();
+  }
+
+  async function fetchChartData() {
+    try {
+      const resp = await fetch('/admin/dashboard/chart-data?period=' + currentPeriod);
+      cachedData = await resp.json();
+      renderChart();
+    } catch (err) {
+      console.error('Failed to load chart data:', err);
+    }
+  }
+
+  function renderChart() {
+    if (!cachedData) return;
+    const ctx = document.getElementById('growthChart').getContext('2d');
+    if (growthChart) growthChart.destroy();
+
+    const datasets = [];
+    const isDualAxis = (currentMode === 'all');
+
+    // Songs Dataset
+    if (currentMode === 'all' || currentMode === 'songs') {
+      datasets.push({
+        label: 'Songs (Catalog)',
+        data: cachedData.songs,
+        borderColor: '#1db954',
+        backgroundColor: 'rgba(29, 185, 84, 0.12)',
+        yAxisID: isDualAxis ? 'y' : 'y',
+        tension: 0.35,
+        fill: true,
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointBackgroundColor: '#1db954'
+      });
+    }
+
+    // Users Dataset
+    if (currentMode === 'all' || currentMode === 'community') {
+      datasets.push({
+        label: 'Users (Accounts)',
+        data: cachedData.users,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        yAxisID: isDualAxis ? 'y1' : 'y',
+        tension: 0.35,
+        fill: currentMode === 'community',
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointBackgroundColor: '#3b82f6'
+      });
+    }
+
+    // Artists Dataset
+    if (currentMode === 'all' || currentMode === 'community') {
+      datasets.push({
+        label: 'Artists (Creators)',
+        data: cachedData.artists,
+        borderColor: '#a855f7',
+        backgroundColor: 'rgba(168, 85, 247, 0.15)',
+        yAxisID: isDualAxis ? 'y1' : 'y',
+        tension: 0.35,
+        fill: false,
+        borderWidth: 2.5,
+        pointRadius: 5,
+        pointBackgroundColor: '#a855f7'
+      });
+    }
+
+    const scalesConfig = {
+      x: {
+        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+        ticks: { color: '#718096', font: { family: 'Inter' } }
+      }
+    };
+
+    if (isDualAxis) {
+      scalesConfig.y = {
+        type: 'linear',
+        display: true,
+        position: 'left',
+        title: {
+          display: true,
+          text: 'Songs (Catalog Scale)',
+          color: '#1db954',
+          font: { family: 'Inter', size: 11, weight: 'bold' }
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+        ticks: { color: '#1db954', font: { family: 'Inter' } },
+        beginAtZero: true
+      };
+      scalesConfig.y1 = {
+        type: 'linear',
+        display: true,
+        position: 'right',
+        title: {
+          display: true,
+          text: 'Users & Artists (Accounts Scale)',
+          color: '#a855f7',
+          font: { family: 'Inter', size: 11, weight: 'bold' }
+        },
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#a855f7', font: { family: 'Inter' }, stepSize: 2 },
+        beginAtZero: true
+      };
+    } else {
+      scalesConfig.y = {
+        type: 'linear',
+        display: true,
+        position: 'left',
+        title: {
+          display: true,
+          text: currentMode === 'songs' ? 'Total Songs in Library' : 'Users & Artists Accounts',
+          color: currentMode === 'songs' ? '#1db954' : '#3b82f6',
+          font: { family: 'Inter', size: 11, weight: 'bold' }
+        },
+        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+        ticks: { color: '#a0aec0', font: { family: 'Inter' } },
+        beginAtZero: true
+      };
+    }
+
+    growthChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: cachedData.labels,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        },
+        plugins: {
+          legend: {
+            labels: { color: '#a0aec0', font: { family: 'Inter', size: 12, weight: '500' } }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.dataset.label || '';
+                const value = context.parsed.y;
+                if (label.includes('Songs')) return `🎵 ${label}: ${value} tracks`;
+                if (label.includes('Users')) return `👤 ${label}: ${value} users`;
+                return `🎤 ${label}: ${value} artists`;
+              }
+            }
+          }
+        },
+        scales: scalesConfig
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchChartData();
+  });
+  </script>
+</body>
+</html>

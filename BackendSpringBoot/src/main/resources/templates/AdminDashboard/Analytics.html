@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Streaming Analytics & Revenue - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link active">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <a href="/admin/dashboard" class="dash-back-btn">
+            <i class="bi bi-chevron-left"></i> Overview
+          </a>
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Audience Engagement & Billing</span>
+            <h1 class="dash-topbar-heading">Streaming Analytics</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Metric Cards -->
+        <div class="dash-stats-grid">
+          <div class="dash-stat-card">
+            <div class="stat-icon yellow"><i class="bi bi-headphones"></i></div>
+            <div class="stat-label">Total Platform Streams</div>
+            <div class="stat-value dash-number" th:text="${stats.totalStreams}">0</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Verified song play events</div>
+          </div>
+          <div class="dash-stat-card">
+            <div class="stat-icon red"><i class="bi bi-credit-card-2-front-fill"></i></div>
+            <div class="stat-label">Monthly Recurring Revenue</div>
+            <div class="stat-value dash-number" style="color: #facc15;" th:text="${stats.monthlyRevenue}">$0.00</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;" th:text="${stats.premiumUsers + ' active subscribers'}">0 active</div>
+          </div>
+          <div class="dash-stat-card">
+            <div class="stat-icon cyan"><i class="bi bi-disc"></i></div>
+            <div class="stat-label">Total Catalog Tracks</div>
+            <div class="stat-value dash-number" th:text="${stats.totalSongs}">0</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Available for streaming</div>
+          </div>
+          <div class="dash-stat-card">
+            <div class="stat-icon green"><i class="bi bi-receipt"></i></div>
+            <div class="stat-label">Total Transactions</div>
+            <div class="stat-value dash-number" th:text="${#lists.size(transactions)}">0</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Invoices & sandbox checkouts</div>
+          </div>
+        </div>
+
+        <!-- Two Column: Top Played Songs & Recent Stream Events -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <!-- Top Streamed Songs -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="bi bi-trophy-fill" style="color: #facc15;"></i> Top Streamed Songs</h3>
+              <span style="font-size: 0.8rem; color: var(--text-secondary);">By total play count</span>
+            </div>
+            <div class="dash-card-body no-pad">
+              <table class="dash-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Track</th>
+                    <th>Genre</th>
+                    <th>Total Streams</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="song, iter : ${topSongs}">
+                    <td style="width: 30px;">
+                      <span class="dash-badge" 
+                            th:classappend="${iter.count == 1 ? 'gold' : (iter.count == 2 ? 'blue' : (iter.count == 3 ? 'purple' : ''))}"
+                            th:text="${iter.count}">1</span>
+                    </td>
+                    <td>
+                      <strong style="color: #fff;" th:text="${song.title}">Song Title</strong>
+                      <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${song.artist}">Artist</div>
+                    </td>
+                    <td>
+                      <span class="dash-badge cyan" th:text="${song.genre != null and !song.genre.isEmpty() ? song.genre : 'Music'}">Genre</span>
+                    </td>
+                    <td>
+                      <span style="font-family: monospace; font-weight: 700; color: var(--accent-green);" th:text="${song.playCount}">0</span>
+                    </td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(topSongs)}">
+                    <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No stream data yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Live Stream Logs Feed -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="bi bi-broadcast"></i> Live Listening Stream Feed</h3>
+              <span class="status-indicator">
+                <span class="status-dot online"></span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">Real-Time</span>
+              </span>
+            </div>
+            <div class="dash-card-body no-pad">
+              <table class="dash-table">
+                <thead>
+                  <tr>
+                    <th>Track</th>
+                    <th>Listener</th>
+                    <th>Device</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="st : ${recentStreams}">
+                    <td>
+                      <strong style="color: #fff;" th:text="${st.SongTitle}">Track</strong>
+                      <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${st.ArtistName}">Artist</div>
+                    </td>
+                    <td>
+                      <span style="color: #93c5fd;" th:text="'@' + ${st.Username}">@user</span>
+                    </td>
+                    <td>
+                      <span class="dash-badge blue" th:text="${st.DeviceType}">Web</span>
+                    </td>
+                    <td>
+                      <span style="font-family: monospace; font-size: 0.75rem; color: #94a3b8;" th:text="${st.Timestamp != null ? st.Timestamp.replace('T', ' ').substring(11, 19) : '—'}">Time</span>
+                    </td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(recentStreams)}">
+                    <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 2.5rem;">
+                      <i class="bi bi-headphones" style="font-size: 1.75rem; color: #64748b; display: block; margin-bottom: 0.5rem;"></i>
+                      No live stream events recorded yet.<br>
+                      <small>Play a track on the web player to see live stream telemetry!</small>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Invoices & Billing Transactions -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-credit-card-fill"></i> Subscription Invoices & Checkout Transactions</h3>
+            <span style="font-size: 0.85rem; color: var(--text-secondary);">Stripe Sandbox & In-App Invoices</span>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Transaction ID</th>
+                  <th>Plan Tier</th>
+                  <th>Amount</th>
+                  <th>Payment Method</th>
+                  <th>Card</th>
+                  <th>Auth Code</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="tx : ${transactions}">
+                  <td>
+                    <span style="font-family: monospace; font-weight: 700; color: #fff;" th:text="${tx.transactionId}">TX-001</span>
+                  </td>
+                  <td>
+                    <span class="dash-badge" 
+                          th:classappend="${tx.planType == 'Family' ? 'purple' : (tx.planType == 'Duo' ? 'blue' : 'gold')}"
+                          th:text="${tx.planType}">Individual</span>
+                  </td>
+                  <td>
+                    <strong style="color: #facc15;" th:text="'$' + ${#numbers.formatDecimal(tx.amount, 1, 2)}">$4.99</strong>
+                  </td>
+                  <td th:text="${tx.paymentMethod}">Card</td>
+                  <td>
+                    <span style="font-family: monospace; font-size: 0.85rem;" th:text="${tx.cardBrand + ' •••• ' + tx.cardLast4}">Visa •••• 4242</span>
+                  </td>
+                  <td>
+                    <span style="font-family: monospace; font-size: 0.8rem; color: #94a3b8;" th:text="${tx.authCode != null and !tx.authCode.isEmpty() ? tx.authCode : 'AUTH-OK'}">AUTH-OK</span>
+                  </td>
+                  <td>
+                    <span class="dash-badge green" th:text="${tx.status}">Completed</span>
+                  </td>
+                  <td>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);" th:text="${tx.createdAt != null ? tx.createdAt.replace('T', ' ').substring(0, 19) : '—'}">Date</span>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(transactions)}">
+                  <td colspan="8" style="text-align: center; color: var(--text-secondary); padding: 2.5rem;">No transactions recorded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Content Moderation & Reports - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link" th:classappend="${activeTab == 'overview' ? 'active' : ''}">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link" th:classappend="${activeTab == 'analytics' ? 'active' : ''}">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link" th:classappend="${activeTab == 'system' ? 'active' : ''}">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link" th:classappend="${activeTab == 'songs' ? 'active' : ''}">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link" th:classappend="${activeTab == 'artists' ? 'active' : ''}">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link" th:classappend="${activeTab == 'requests' ? 'active' : ''}">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+          <span th:if="${stats != null and stats.pendingRequests != null and stats.pendingRequests > 0}" 
+                class="dash-badge red" style="margin-left: auto; padding: 2px 7px; font-size: 0.7rem;"
+                th:text="${stats.pendingRequests}">1</span>
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link" th:classappend="${activeTab == 'editorial' ? 'active' : ''}">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link" th:classappend="${activeTab == 'users' ? 'active' : ''}">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link" th:classappend="${activeTab == 'ads' ? 'active' : ''}">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link active">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link" th:classappend="${activeTab == 'audit-logs' ? 'active' : ''}">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link" th:classappend="${activeTab == 'settings' ? 'active' : ''}">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link" th:classappend="${activeTab == 'tools' ? 'active' : ''}">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Trust & Safety</span>
+            <h1 class="dash-topbar-heading">Content Moderation & DMCA Queue</h1>
+          </div>
+        </div>
+        <div class="dash-topbar-right">
+          <div class="dash-sort-bar" style="margin-bottom:0;">
+            <a href="/admin/dashboard/reports?status=all" class="dash-sort-btn" th:classappend="${selectedStatus == 'all' ? 'active' : ''}">All</a>
+            <a href="/admin/dashboard/reports?status=Pending" class="dash-sort-btn" th:classappend="${selectedStatus == 'Pending' ? 'active' : ''}">
+              Pending (<span th:text="${pendingCount}">0</span>)
+            </a>
+            <a href="/admin/dashboard/reports?status=Resolved" class="dash-sort-btn" th:classappend="${selectedStatus == 'Resolved' ? 'active' : ''}">Resolved</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-flag-fill" style="color: #ef4444;"></i> Flagged Content & Triage Reports</h3>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Report ID</th>
+                  <th>Item Type & Target</th>
+                  <th>Reason</th>
+                  <th>Description / Evidence</th>
+                  <th>Reported By</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="r : ${reports}">
+                  <td th:text="'#' + ${r.id}">#1</td>
+                  <td>
+                    <span class="dash-badge" th:classappend="${r.itemType == 'Song' ? 'cyan' : 'purple'}" th:text="${r.itemType}">Song</span>
+                    <strong style="margin-left: 6px;" th:text="${r.itemTitle}">Title</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);" th:text="'Item ID: ' + ${r.itemId}">ID: 1</div>
+                  </td>
+                  <td>
+                    <span class="dash-badge red" th:text="${r.reason}">Copyright</span>
+                  </td>
+                  <td>
+                    <div style="font-size: 0.85rem; max-width: 280px;" th:text="${r.description}">Details</div>
+                    <div th:if="${r.resolutionNotes != ''}" style="font-size: 0.75rem; color: var(--accent-green); margin-top: 4px;" th:text="'Note: ' + ${r.resolutionNotes}">Notes</div>
+                  </td>
+                  <td>
+                    <span th:text="${r.reportedBy}">user</span>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);" th:text="${r.createdAt}">Date</div>
+                  </td>
+                  <td>
+                    <span th:if="${r.status == 'Pending'}" class="dash-badge gold">Pending Review</span>
+                    <span th:if="${r.status == 'Resolved'}" class="dash-badge green">Resolved</span>
+                    <span th:if="${r.status == 'Dismissed'}" class="dash-badge blue">Dismissed</span>
+                    <span th:if="${r.status == 'ActionTaken'}" class="dash-badge red">Takedown Applied</span>
+                  </td>
+                  <td>
+                    <div th:if="${r.status == 'Pending'}" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                      <!-- Dismiss -->
+                      <form method="POST" th:action="@{'/admin/dashboard/reports/' + ${r.id} + '/resolve'}">
+                        <input type="hidden" name="action" value="Dismissed" />
+                        <input type="hidden" name="notes" value="Verified clean - report dismissed" />
+                        <button type="submit" class="dash-btn dash-btn-sm dash-btn-secondary" title="Dismiss Report">
+                          <i class="bi bi-x-circle"></i> Dismiss
+                        </button>
+                      </form>
+                      <!-- Content Warning -->
+                      <form method="POST" th:action="@{'/admin/dashboard/reports/' + ${r.id} + '/resolve'}">
+                        <input type="hidden" name="action" value="Resolved" />
+                        <input type="hidden" name="notes" value="Explicit warning tag applied" />
+                        <button type="submit" class="dash-btn dash-btn-sm dash-btn-secondary" style="color: #facc15;" title="Add Warning">
+                          <i class="bi bi-exclamation-triangle"></i> Warn
+                        </button>
+                      </form>
+                      <!-- Takedown -->
+                      <form method="POST" th:action="@{'/admin/dashboard/reports/' + ${r.id} + '/resolve'}" onsubmit="return confirm('Execute immediate content takedown?')">
+                        <input type="hidden" name="action" value="ActionTaken" />
+                        <input type="hidden" name="notes" value="Content delisted per DMCA / safety violation" />
+                        <button type="submit" class="dash-btn dash-btn-sm dash-btn-primary" style="background: #ef4444; border-color: #ef4444;" title="Takedown Content">
+                          <i class="bi bi-slash-circle-fill"></i> Takedown
+                        </button>
+                      </form>
+                    </div>
+                    <div th:unless="${r.status == 'Pending'}">
+                      <span style="font-size: 0.8rem; color: var(--text-muted);" th:text="'Resolved by ' + ${r.resolvedBy}">Resolved</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(reports)}">
+                  <td colspan="7" style="text-align:center; padding: 3rem; color: var(--text-muted);">
+                    <i class="bi bi-shield-check" style="font-size: 2rem; color: var(--accent-green); display: block; margin-bottom: 0.5rem;"></i>
+                    No content reports found. All queue items are resolved!
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Platform Settings & Feature Flags - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link" th:classappend="${activeTab == 'overview' ? 'active' : ''}">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link" th:classappend="${activeTab == 'analytics' ? 'active' : ''}">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link" th:classappend="${activeTab == 'system' ? 'active' : ''}">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link" th:classappend="${activeTab == 'songs' ? 'active' : ''}">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link" th:classappend="${activeTab == 'artists' ? 'active' : ''}">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link" th:classappend="${activeTab == 'requests' ? 'active' : ''}">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+          <span th:if="${stats != null and stats.pendingRequests != null and stats.pendingRequests > 0}" 
+                class="dash-badge red" style="margin-left: auto; padding: 2px 7px; font-size: 0.7rem;"
+                th:text="${stats.pendingRequests}">1</span>
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link" th:classappend="${activeTab == 'editorial' ? 'active' : ''}">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link" th:classappend="${activeTab == 'users' ? 'active' : ''}">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link" th:classappend="${activeTab == 'ads' ? 'active' : ''}">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link" th:classappend="${activeTab == 'reports' ? 'active' : ''}">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link" th:classappend="${activeTab == 'audit-logs' ? 'active' : ''}">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link active">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link" th:classappend="${activeTab == 'tools' ? 'active' : ''}">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Enterprise Governance</span>
+            <h1 class="dash-topbar-heading">Platform Settings & Feature Flags</h1>
+          </div>
+        </div>
+        <div class="dash-topbar-right">
+          <span class="dash-badge green" style="padding: 6px 12px; font-size: 0.8rem;">
+            <i class="bi bi-lightning-charge-fill"></i> Instant Hot-Reload Active
+          </span>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Save Feedback Banner -->
+        <div th:if="${param.saved}" class="dash-card" style="background: rgba(29, 185, 84, 0.15); border-color: rgba(29, 185, 84, 0.4); margin-bottom: 1.5rem; padding: 1rem 1.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.75rem; color: var(--accent-green); font-weight: 600;">
+            <i class="bi bi-check-circle-fill" style="font-size: 1.3rem;"></i>
+            <span>Platform settings updated successfully! Changes have been hot-reloaded to live services without requiring a restart.</span>
+          </div>
+        </div>
+
+        <form method="POST" action="/admin/dashboard/settings">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 1.5rem;">
+            
+            <!-- Free Tier Rules Card -->
+            <div class="dash-card">
+              <div class="dash-card-header">
+                <h3><i class="bi bi-funnel-fill" style="color: #3b82f6;"></i> Free Tier Experience Policy</h3>
+              </div>
+              <div class="dash-card-body" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div>
+                  <label class="dash-label" style="font-weight: 600; display: block; margin-bottom: 6px;">Hourly Skip Limit</label>
+                  <input type="number" name="free_tier_skip_limit" class="dash-input" th:value="${settingMap['free_tier_skip_limit'] ?: '6'}" min="1" max="50" required />
+                  <small style="color: var(--text-muted); display: block; margin-top: 4px;">Number of song skips allowed per hour before the cooldown banner triggers.</small>
+                </div>
+
+                <div>
+                  <label class="dash-label" style="font-weight: 600; display: block; margin-bottom: 6px;">Ad Break Frequency (Every N Tracks)</label>
+                  <input type="number" name="free_tier_ad_frequency" class="dash-input" th:value="${settingMap['free_tier_ad_frequency'] ?: '3'}" min="1" max="20" required />
+                  <small style="color: var(--text-muted); display: block; margin-top: 4px;">An audio/visual commercial is served after every N songs completed.</small>
+                </div>
+
+                <div>
+                  <label class="dash-label" style="font-weight: 600; display: block; margin-bottom: 6px;">Streaming Bitrate Quality Cap</label>
+                  <select name="free_tier_bitrate_cap" class="dash-input">
+                    <option value="128" th:selected="${settingMap['free_tier_bitrate_cap'] == '128'}">128 kbps (Standard Audio)</option>
+                    <option value="160" th:selected="${settingMap['free_tier_bitrate_cap'] == '160'}">160 kbps (Medium Fidelity)</option>
+                    <option value="320" th:selected="${settingMap['free_tier_bitrate_cap'] == '320'}">320 kbps (High Definition - Unrestricted)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="dash-label" style="font-weight: 600; display: block; margin-bottom: 6px;">Synced Lyrics Access</label>
+                  <select name="free_tier_lyrics_mode" class="dash-input">
+                    <option value="blur" th:selected="${settingMap['free_tier_lyrics_mode'] == 'blur'}">Blurred Teaser with Upgrade CTA</option>
+                    <option value="hidden" th:selected="${settingMap['free_tier_lyrics_mode'] == 'hidden'}">Completely Hidden for Free Users</option>
+                    <option value="full" th:selected="${settingMap['free_tier_lyrics_mode'] == 'full'}">Full Access (Unlocked for All)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Platform Switches Card -->
+            <div class="dash-card">
+              <div class="dash-card-header">
+                <h3><i class="bi bi-toggles2" style="color: #a855f7;"></i> Global Feature Toggles</h3>
+              </div>
+              <div class="dash-card-body" style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <div>
+                  <label class="dash-label" style="font-weight: 600; display: block; margin-bottom: 6px;">Allow New User Registrations</label>
+                  <select name="allow_user_registration" class="dash-input">
+                    <option value="true" th:selected="${settingMap['allow_user_registration'] == 'true'}">Enabled (Open to Public)</option>
+                    <option value="false" th:selected="${settingMap['allow_user_registration'] == 'false'}">Disabled (Invite Only / Closed)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="dash-label" style="font-weight: 600; display: block; margin-bottom: 6px;">Maintenance Mode</label>
+                  <select name="maintenance_mode" class="dash-input">
+                    <option value="false" th:selected="${settingMap['maintenance_mode'] == 'false'}">Disabled (Normal Operations)</option>
+                    <option value="true" th:selected="${settingMap['maintenance_mode'] == 'true'}">Enabled (Show Maintenance Alert)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="dash-label" style="font-weight: 600; display: block; margin-bottom: 6px;">Maintenance Alert Message</label>
+                  <textarea name="maintenance_message" class="dash-input" rows="3" th:text="${settingMap['maintenance_message']}"></textarea>
+                </div>
+
+                <div>
+                  <label class="dash-label" style="font-weight: 600; display: block; margin-bottom: 6px;">ChromaDB AI Recommendation Engine</label>
+                  <select name="ai_recommendation_engine" class="dash-input">
+                    <option value="true" th:selected="${settingMap['ai_recommendation_engine'] == 'true'}">Active (Hybrid Vector Search on Port 5000)</option>
+                    <option value="false" th:selected="${settingMap['ai_recommendation_engine'] == 'false'}">Standby / Fallback to Genre-Based</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pricing Model Card -->
+            <div class="dash-card" style="grid-column: 1 / -1;">
+              <div class="dash-card-header">
+                <h3><i class="bi bi-currency-dollar" style="color: #facc15;"></i> Subscription Pricing Plans</h3>
+              </div>
+              <div class="dash-card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+                  <!-- Individual -->
+                  <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h4 style="color: #fff; margin-bottom: 1rem;"><i class="bi bi-person-fill"></i> Premium Individual</h4>
+                    <div style="margin-bottom: 1rem;">
+                      <label style="font-size: 0.8rem; color: var(--text-muted); display: block;">USD Monthly</label>
+                      <input type="number" step="0.01" name="price_individual_usd" class="dash-input" th:value="${settingMap['price_individual_usd'] ?: '4.99'}" />
+                    </div>
+                    <div>
+                      <label style="font-size: 0.8rem; color: var(--text-muted); display: block;">VND Monthly</label>
+                      <input type="number" name="price_individual_vnd" class="dash-input" th:value="${settingMap['price_individual_vnd'] ?: '133619'}" />
+                    </div>
+                  </div>
+
+                  <!-- Student -->
+                  <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h4 style="color: #fff; margin-bottom: 1rem;"><i class="bi bi-mortarboard-fill"></i> Premium Student</h4>
+                    <div style="margin-bottom: 1rem;">
+                      <label style="font-size: 0.8rem; color: var(--text-muted); display: block;">USD Monthly</label>
+                      <input type="number" step="0.01" name="price_student_usd" class="dash-input" th:value="${settingMap['price_student_usd'] ?: '2.49'}" />
+                    </div>
+                    <div>
+                      <label style="font-size: 0.8rem; color: var(--text-muted); display: block;">VND Monthly</label>
+                      <input type="number" name="price_student_vnd" class="dash-input" th:value="${settingMap['price_student_vnd'] ?: '65000'}" />
+                    </div>
+                  </div>
+
+                  <!-- Family -->
+                  <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <h4 style="color: #fff; margin-bottom: 1rem;"><i class="bi bi-people-fill"></i> Premium Family</h4>
+                    <div style="margin-bottom: 1rem;">
+                      <label style="font-size: 0.8rem; color: var(--text-muted); display: block;">USD Monthly</label>
+                      <input type="number" step="0.01" name="price_family_usd" class="dash-input" th:value="${settingMap['price_family_usd'] ?: '8.99'}" />
+                    </div>
+                    <div>
+                      <label style="font-size: 0.8rem; color: var(--text-muted); display: block;">VND Monthly</label>
+                      <input type="number" name="price_family_vnd" class="dash-input" th:value="${settingMap['price_family_vnd'] ?: '240000'}" />
+                    </div>
+                  </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                  <button type="submit" class="dash-btn dash-btn-primary" style="padding: 0.85rem 2rem; font-size: 0.95rem; font-weight: 700;">
+                    <i class="bi bi-cloud-arrow-up-fill"></i> Save & Hot-Reload Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </form>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

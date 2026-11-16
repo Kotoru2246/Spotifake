@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotifake Player - Spotifake</title>
+    
+    <link rel="stylesheet" href="/css/site.css?v=20260723_search4" />
+    <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+    <!-- Global Announcement / Maintenance Banner -->
+    <div id="globalAnnouncementBanner" style="display: none; background: linear-gradient(90deg, #1db954, #1ed760); color: #000; font-weight: 700; padding: 10px 20px; font-size: 0.9rem; align-items: center; justify-content: space-between; z-index: 9999;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="announcementIcon" style="font-size: 1.2rem;">📢</span>
+            <span id="announcementText"></span>
+        </div>
+        <button onclick="document.getElementById('globalAnnouncementBanner').style.display='none'" style="background:none; border:none; color:#000; font-size:1.4rem; cursor:pointer; font-weight:bold; line-height:1;">&times;</button>
+    </div>
+    <header class="top-bar">
+    <div class="top-bar-left">
+        <svg viewBox="0 0 24 24" class="spotify-logo" width="32" height="32" fill="currentColor">
+            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"></path>
+        </svg>
+    </div>
+    <div class="top-bar-center">
+        <button class="nav-btn" onclick="showSection('home')" title="Home">🏠</button>
+        <div class="search-bar-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="What do you want to play?" oninput="handleSearchInput(event)" onkeypress="handleSearchSubmit(event)">
+            <button class="browse-btn" onclick="showSection('browse')" title="Browse All">🗂️</button>
+            <div id="searchDropdown" class="search-dropdown" hidden></div>
+        </div>
+    </div>
+    <div class="top-bar-right">
+        <button class="premium-nav-btn" id="explorePremiumBtn" onclick="window.location.href='/subscription'" title="Explore Premium">Explore Premium</button>
+        <span class="premium-badge-pill" id="premiumBadge" style="display:none; cursor:pointer;" onclick="window.location.href='/subscription'" title="Spotifake Premium Member - Manage Subscription">✨ Premium</span>
+        <button class="bell-btn" id="notificationBell" title="What's New">
+            🔔<span class="badge" id="bellBadge" hidden></span>
+        </button>
+        <div class="auth-actions">
+            <div class="auth-user-pill" id="authUserPill">Not signed in</div>
+            <button type="button" class="secondary-action" id="loginToggleButton">Log In</button>
+            <button type="button" class="secondary-action" id="signupToggleButton">Sign Up</button>
+            <button type="button" class="secondary-action auth-logout" id="logoutButton" hidden>Log Out</button>
+        </div>
+    </div>
+</header>
+
+<div class="login-gate" id="loginGate" hidden>
+    <section class="auth-panel" id="authPanel">
+        <div class="login-card auth-panel-card">
+            <div class="auth-card-header">
+                <div class="brand-lockup">
+                    <div class="brand-mark">S</div>
+                    <div>
+                        <h2 class="login-title" id="authPanelTitle">Sign in to Spotifake</h2>
+                        <p class="login-subtitle" id="authPanelSubtitle">Connect with real JWT authentication & SQL Server.</p>
+                    </div>
+                </div>
+                <button type="button" class="auth-close-btn" onclick="setAuthPanelOpen(false)" title="Close">✕</button>
+            </div>
+
+            <div class="auth-mode-switch">
+                <button type="button" class="auth-tab active" id="tabModeLogin" onclick="setAuthPanelMode('login')">Sign In</button>
+                <button type="button" class="auth-tab" id="tabModeSignup" onclick="setAuthPanelMode('signup')">Sign Up</button>
+            </div>
+
+            <div class="credentials-box" id="credentialsBox">
+                <h3>Demo Credentials (Quick Select)</h3>
+                <div class="credential-row" onclick="fillCredentials('user_test', 'User@123')"><span><span class="role-tag">User</span> user_test / User@123</span></div>
+                <div class="credential-row" onclick="fillCredentials('artist_test', 'Artist@123')"><span><span class="role-tag">Artist</span> artist_test / Artist@123</span></div>
+                <div class="credential-row" onclick="fillCredentials('admin_test', 'Admin@123')"><span><span class="role-tag">Admin</span> admin_test / Admin@123</span></div>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group" id="groupDisplayName" hidden>
+                    <label for="signupDisplayName">Display Name</label>
+                    <input type="text" id="signupDisplayName" name="display_name" placeholder="e.g. John Doe">
+                </div>
+
+                <div class="form-group" id="groupEmail" hidden>
+                    <label for="signupEmail">Email Address</label>
+                    <input type="email" id="signupEmail" name="email" placeholder="e.g. john@example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" name="username" placeholder="Enter username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" name="password" placeholder="Enter password" required>
+                </div>
+
+                <div class="form-group" id="groupConfirmPassword" hidden>
+                    <label for="signupConfirmPassword">Confirm Password</label>
+                    <input type="password" id="signupConfirmPassword" placeholder="Re-enter password">
+                </div>
+
+                <button type="submit" class="full-width primary-action" id="authSubmitBtn">Login</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginStatus" class="login-status"></div>
+            </form>
+        </div>
+    </section>
+</div>
+
+<!-- Create Playlist Modal -->
+<div class="login-gate" id="createPlaylistModal" style="display: none;" hidden>
+    <div class="auth-panel">
+        <div class="auth-panel-card">
+            <div class="auth-card-header">
+                <div class="brand-lockup">
+                    <div class="brand-mark">➕</div>
+                    <div>
+                        <h3 class="login-title">Create Playlist</h3>
+                        <p class="login-subtitle">Create a new playlist in your library</p>
+                    </div>
+                </div>
+                <button type="button" class="auth-close-btn" id="cancelCreatePlaylistButton" title="Close">✕</button>
+            </div>
+
+            <div class="form-group" style="margin-top: 16px;">
+                <label for="createPlaylistName">Playlist Name *</label>
+                <input type="text" id="createPlaylistName" placeholder="e.g. Chill Vibes" required>
+            </div>
+
+            <div class="form-group">
+                <label for="createPlaylistImageUrl">Cover Image URL (Optional)</label>
+                <input type="text" id="createPlaylistImageUrl" placeholder="e.g. https://example.com/cover.jpg">
+            </div>
+
+            <div class="form-group">
+                <label for="createPlaylistSongs">Initial Songs (Optional - Select multiple)</label>
+                <select id="createPlaylistSongs" multiple style="height: 120px;"></select>
+            </div>
+
+            <button type="button" class="primary-action full-width" id="submitCreatePlaylistButton">Create Playlist</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Song To Playlist Modal -->
+<div class="login-gate" id="addSongToPlaylistModal" style="display: none;" hidden>
+    <div class="auth-panel">
+        <div class="auth-panel-card">
+            <div class="auth-card-header">
+                <div class="brand-lockup">
+                    <div class="brand-mark">🎵</div>
+                    <div>
+                        <h3 class="login-title">Add to Playlist</h3>
+                        <p class="login-subtitle" id="addSongModalTrackLabel">Select a playlist to add this song</p>
+                    </div>
+                </div>
+                <button type="button" class="auth-close-btn" id="cancelAddSongModalButton" title="Close">✕</button>
+            </div>
+
+            <div class="form-group" style="margin-top: 16px;">
+                <label for="addSongPlaylistSelect">Choose Playlist</label>
+                <select id="addSongPlaylistSelect"></select>
+            </div>
+
+            <button type="button" class="primary-action full-width" id="confirmAddSongModalButton">Add Song</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Playlist Modal -->
+<div class="login-gate" id="editPlaylistModal" style="display: none;" hidden>
+    <div class="auth-panel">
+        <div class="auth-panel-card" style="max-width: 600px; width: 90%;">
+            <div class="auth-card-header">
+                <div class="brand-lockup">
+                    <div class="brand-mark">🎵</div>
+                    <div>
+                        <h3 class="login-title">Edit details</h3>
+                    </div>
+                </div>
+                <button type="button" class="auth-close-btn" onclick="setModalOpen(document.getElementById('editPlaylistModal'), false)" title="Close">✕</button>
+            </div>
+            
+            <div style="display: flex; gap: 16px; margin-top: 16px;">
+                <div style="width: 180px; height: 180px; background: #282828; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; color: #fff; position: relative;" onclick="document.getElementById('editPlaylistImageUrl').focus()">
+                    <svg role="img" height="48" width="48" viewBox="0 0 24 24" fill="currentColor"><path d="M17.318 1.975a3.329 3.329 0 114.707 4.707L8.451 20.256c-.49.49-1.082.867-1.735 1.103L2.34 22.94a1 1 0 01-1.28-1.28l1.581-4.376a4.509 4.509 0 011.103-1.735L17.318 1.975zm3.293 1.414a1.329 1.329 0 00-1.88 0L17 5.118l3.882 3.882 1.729-1.729a1.329 1.329 0 000-1.88zM15.586 6.53L4.143 17.973a2.509 2.509 0 00-.614.964l-1.036 2.869 2.87-1.036a2.509 2.509 0 00.963-.614L17.768 8.711 15.586 6.53z"></path></svg>
+                    <span style="margin-top: 8px;">Choose photo URL</span>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                    <div class="form-group" style="margin: 0;">
+                        <input type="text" id="editPlaylistName" placeholder="Playlist Name" style="width: 100%; padding: 12px; background: #333; border: 1px solid transparent; color: #fff; border-radius: 4px; font-size: 16px;">
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <input type="text" id="editPlaylistImageUrl" placeholder="Image URL (Optional)" style="width: 100%; padding: 12px; background: #333; border: 1px solid transparent; color: #fff; border-radius: 4px; font-size: 14px;">
+                    </div>
+                    <div class="form-group" style="margin: 0; flex: 1;">
+                        <textarea id="editPlaylistDescription" placeholder="Add an optional description" style="width: 100%; height: 100%; min-height: 80px; padding: 12px; background: #333; border: 1px solid transparent; color: #fff; border-radius: 4px; resize: none; font-size: 14px; font-family: inherit;"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 24px;">
+                <button type="button" class="primary-action" id="saveEditPlaylistButton" style="padding: 12px 32px; border-radius: 32px; font-size: 16px; font-weight: bold; width: auto;">Save</button>
+            </div>
+            
+            <p style="font-size: 11px; color: var(--muted); margin-top: 16px;">By proceeding, you agree to give Spotifake access to the image you choose to upload. Please make sure you have the right to upload the image.</p>
+        </div>
+    </div>
+</div>
+
+<div class="music-app-shell" id="appShell">
+    <aside class="compact-sidebar">
+        <div class="sidebar-top">
+            <button class="lib-btn" onclick="showSection('home')" title="Home">
+                <svg role="img" height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33zm-2-1.732a3 3 0 0 1 3 0l7.5 4.33a2 2 0 0 1 1 1.732V21a1 1 0 0 1-1 1h-6.5a1 1 0 0 1-1-1v-6h-3v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.577a2 2 0 0 1 1-1.732l7.5-4.33z"></path></svg>
+            </button>
+            <button class="lib-btn" onclick="showSection('library')" title="Your Library">
+                <svg role="img" height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 22a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v18a1 1 0 0 1-1 1zM15.5 2.134A1 1 0 0 0 14 3v18a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V6.464a1 1 0 0 0-.5-.866l-6-3.464zM9 2a1 1 0 0 0-1 1v18a1 1 0 1 0 2 0V3a1 1 0 0 0-1-1z"></path></svg>
+            </button>
+            <div style="position: relative; display: inline-block;">
+                <button class="add-btn" id="quickCreatePlaylistBtn" title="Create playlist or manage playlists" onclick="toggleSidebarAddMenu(event)">
+                    <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M15.25 8a.75.75 0 0 1-.75.75H8.75v5.75a.75.75 0 0 1-1.5 0V8.75H1.5a.75.75 0 0 1 0-1.5h5.75V1.5a.75.75 0 0 1 1.5 0v5.75h5.75a.75.75 0 0 1 .75.75z"></path></svg>
+                </button>
+                <div id="sidebarAddMenu" class="sidebar-add-popover" style="display: none; position: absolute; left: calc(100% + 10px); top: 0; background: #282828; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); z-index: 1000; min-width: 210px; padding: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                    <button type="button" class="sidebar-add-menu-item" onclick="openCreatePlaylistModal(); hideSidebarAddMenu();">
+                        <svg height="18" width="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                        <span>Create a new playlist</span>
+                    </button>
+                    <button type="button" class="sidebar-add-menu-item" onclick="showSection('playlists'); hideSidebarAddMenu();">
+                        <svg height="18" width="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+                        <span>Manage playlists</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="sidebar-scroll">
+            <div class="pinned-item liked-songs-tile" id="sidebarLikedSongsTile" onclick="openLikedSongsPlaylist()" title="Liked Songs">
+                <div class="liked-icon">
+                    <svg role="img" height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8.667 1.912c-2.193 0-4.049 1.638-4.493 3.738C3.73 7.75 4.382 10.121 7.221 12.879l4.779 4.619 4.779-4.62c2.839-2.757 3.49-5.128 3.047-7.23-.444-2.099-2.3-3.737-4.493-3.737-1.332 0-2.585.602-3.333 1.594A4.32 4.32 0 0 0 8.667 1.912z"></path></svg>
+                </div>
+            </div>
+            <div id="sidebarUserPlaylists"></div>
+            <button class="pinned-item" id="downloaderNavLink" onclick="window.open('http://' + window.location.hostname + ':5000/downloader', '_blank')" title="Music & Playlist Downloader" style="background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 8px; margin: 4px auto; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">
+                <div style="font-size: 1.25rem;">⬇️</div>
+            </button>
+            <button class="pinned-item admin-only" id="adminNavLink" onclick="window.location.href='http://' + window.location.hostname + ':9000/admin/dashboard'" title="Admin Dashboard" hidden>
+                <div class="admin-icon">⚙️</div>
+            </button>
+            <button class="pinned-item artist-only" id="artistNavLink" onclick="window.location.href='/artist/manager'" title="Artist Manager" hidden>
+                <div class="artist-icon">🎤</div>
+            </button>
+            <button class="pinned-item user-only" id="userArtistNavLink" onclick="window.location.href='/artist/manager'" title="Become an Artist" hidden>
+                <div class="artist-icon">🌟</div>
+            </button>
+        </div>
+    </aside>
+
+    <main class="main-panel">
+        <!-- Home View -->
+        <section class="section active" id="home">
+            <div class="home-header">
+                <div class="category-pills">
+                    <button class="pill active" onclick="setHomeCategoryFilter('all', this)">All</button>
+                    <button class="pill" onclick="setHomeCategoryFilter('music', this)">Music</button>
+                    <button class="pill" onclick="setHomeCategoryFilter('podcasts', this)">Podcasts</button>
+                </div>
+            </div>
+            
+            <h1 class="home-greeting" id="homeGreeting">Good evening</h1>
+
+            <div class="quick-grid" id="homeQuickGrid">
+                <!-- 8 cards populated by JS -->
+            </div>
+
+            <!-- Made For You Section -->
+            <div class="home-content-section" id="homeMadeForYouSection">
+                <div class="section-title-row">
+                    <h2>Made For You</h2>
+                    <a href="javascript:void(0)" class="show-all-link" onclick="openAllMixesView()">Show all</a>
+                </div>
+                <div class="card-carousel" id="homeMadeForYouCarousel">
+                    <!-- Daily Mixes & Discover Weekly populated by JS -->
+                </div>
+            </div>
+
+            <!-- Recently Played Section -->
+            <div class="home-content-section" id="homeRecentlyPlayedSection">
+                <div class="section-title-row">
+                    <h2>Recently Played</h2>
+                    <a href="javascript:void(0)" class="show-all-link" onclick="showSection('playlists')">Show all</a>
+                </div>
+                <div class="card-carousel" id="homeRecentlyPlayedCarousel">
+                    <!-- Populated dynamically from history -->
+                </div>
+            </div>
+
+            <!-- Popular Albums & Singles Section -->
+            <div class="home-content-section" id="homePopularAlbumsSection">
+                <div class="section-title-row">
+                    <h2>Popular Albums</h2>
+                    <a href="javascript:void(0)" class="show-all-link" onclick="showSection('browse')">Show all</a>
+                </div>
+                <div class="card-carousel" id="homePopularAlbumsCarousel">
+                    <!-- Populated dynamically with album cards -->
+                </div>
+            </div>
+
+            <!-- Popular Artists Section -->
+            <div class="home-content-section" id="homePopularArtistsSection">
+                <div class="section-title-row">
+                    <h2>Popular Artists</h2>
+                    <a href="javascript:void(0)" class="show-all-link" onclick="showSection('browse')">Show all</a>
+                </div>
+                <div class="card-carousel" id="homePopularArtistsCarousel">
+                    <!-- Populated dynamically with circular artist cards -->
+                </div>
+            </div>
+
+            <!-- Featured Playlists Section -->
+            <div class="home-content-section" id="homeFeaturedPlaylistsSection">
+                <div class="section-title-row">
+                    <h2>Featured Playlists</h2>
+                    <a href="javascript:void(0)" class="show-all-link" onclick="showSection('playlists')">Show all</a>
+                </div>
+                <div class="card-carousel" id="homeFeaturedPlaylistsCarousel">
+                    <!-- Populated dynamically with playlists -->
+                </div>
+            </div>
+
+            <!-- Podcasts Section -->
+            <div class="home-content-section" id="homePodcastsSection" style="display: none;">
+                <div class="section-title-row">
+                    <h2>Podcasts & Shows</h2>
+                </div>
+                <div class="card-carousel" id="homePodcastsCarousel">
+                    <!-- Populated dynamically with podcast shows -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Search Results View -->
+        <section class="section" id="search-results">
+            <div class="search-filters" style="margin-bottom: 15px; display: flex; gap: 10px;">
+                <button class="filter-chip active" onclick="setSearchFilter('all', this)">All</button>
+                <button class="filter-chip" onclick="setSearchFilter('songs', this)">Songs</button>
+                <button class="filter-chip" onclick="setSearchFilter('artists', this)">Artists</button>
+                <button class="filter-chip" onclick="setSearchFilter('albums', this)">Albums</button>
+                <button class="filter-chip" onclick="setSearchFilter('playlists', this)">Playlists</button>
+            </div>
+            <div class="search-content-grid">
+                <div class="top-result-col">
+                    <h2>Top result</h2>
+                    <div class="top-result-card" id="topResultCard">
+                    </div>
+                </div>
+                <div class="songs-result-col">
+                    <h2>Songs</h2>
+                    <div class="search-songs-list" id="searchSongsList">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ARTIST VIEW (Spotify Modern Desktop Fidelity) -->
+        <section class="section" id="artist-view">
+            <!-- 1. SPOTIFY ARTIST HERO BANNER -->
+            <div class="spotify-artist-hero" id="artistHero">
+                <div class="artist-hero-bg" id="artistHeroBg"></div>
+                <div class="artist-hero-gradient"></div>
+                <div class="artist-hero-content">
+                    <div id="artistViewVerified" class="artist-verified-badge" hidden>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="#3D91F4">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        <span>Verified by Spotify</span>
+                    </div>
+                    <h1 id="artistViewName" class="artist-hero-title">Artist Name</h1>
+                    <div id="artistViewListeners" class="artist-hero-listeners">0 monthly listeners</div>
+                </div>
+            </div>
+
+            <!-- 2. ACTION BAR -->
+            <div class="artist-action-bar">
+                <button class="artist-play-btn-large" id="artistPlayBtn" title="Play">
+                    <svg role="img" height="26" width="26" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"/>
+                    </svg>
+                </button>
+                <button class="artist-follow-btn" id="artistFollowBtn">Follow</button>
+                <button class="artist-more-btn" id="artistMoreBtn" title="More options for artist">
+                    <svg role="img" height="28" width="28" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4.5 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm15 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-7.5 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 3. POPULAR SECTION -->
+            <div class="artist-section-container">
+                <h2 class="artist-section-title">Popular</h2>
+                <div id="artistPopularTracks" class="spotify-tracks-table">
+                    <!-- Dynamic popular track rows -->
+                </div>
+                <button id="artistShowMorePopularBtn" class="artist-see-more-btn" style="display: none;">See more</button>
+            </div>
+
+            <!-- 4. DISCOGRAPHY SECTION -->
+            <div class="artist-section-container">
+                <div class="artist-section-header-row">
+                    <h2 class="artist-section-title">Discography</h2>
+                    <button id="artistDiscographyShowAllBtn" class="artist-show-all-link">Show all</button>
+                </div>
+                <div class="discography-filter-chips" id="discographyFilterChips">
+                    <button class="disco-filter-chip active" data-filter="popular">Popular releases</button>
+                    <button class="disco-filter-chip" data-filter="albums">Albums</button>
+                    <button class="disco-filter-chip" data-filter="singles">Singles and EPs</button>
+                </div>
+                <div id="artistDiscography" class="spotify-card-grid">
+                    <!-- Albums/Singles injected here -->
+                </div>
+            </div>
+
+            <!-- 5. FEATURING SECTION -->
+            <div class="artist-section-container" id="artistFeaturingSection">
+                <h2 class="artist-section-title" id="artistFeaturingTitle">Featuring Artist</h2>
+                <div id="artistFeaturingGrid" class="spotify-card-grid">
+                    <!-- This Is Artist, Radio, Curated playlists -->
+                </div>
+            </div>
+
+            <!-- 6. FANS ALSO LIKE SECTION -->
+            <div class="artist-section-container" id="artistRelatedSection">
+                <h2 class="artist-section-title">Fans Also Like</h2>
+                <div id="artistRelatedGrid" class="spotify-artist-circle-grid">
+                    <!-- Related artists circles -->
+                </div>
+            </div>
+
+            <!-- 7. ABOUT SECTION -->
+            <div class="artist-section-container" id="artistAboutSection">
+                <h2 class="artist-section-title">About</h2>
+                <div class="spotify-about-card" id="artistAboutCard">
+                    <div class="about-card-bg" id="artistAboutBg"></div>
+                    <div class="about-card-gradient"></div>
+                    <div class="about-card-content">
+                        <div class="about-listeners" id="artistAboutListeners">688,312 monthly listeners</div>
+                        <div class="about-bio" id="artistAboutBio"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Browse All View -->
+        <section class="section" id="browse">
+            <div class="browse-header">
+                <h2>Browse all</h2>
+            </div>
+            <div class="browse-grid" id="browseCategoryGrid">
+                <!-- Colorful category cards populated by JS -->
+            </div>
+        </section>
+
+        <!-- Song Detail View (Spotify Desktop Style) -->
+        <section class="section" id="song-detail-view">
+            <div class="song-detail-hero" id="sdHero">
+                <div class="sd-hero-content">
+                    <div class="sd-cover-wrap">
+                        <img id="sdCoverArt" src="" alt="Song Cover" />
+                    </div>
+                    <div class="sd-hero-info">
+                        <span class="sd-eyebrow">Song</span>
+                        <h1 id="sdTitle" class="sd-massive-title">Song Title</h1>
+
+                        <!-- Sound Waveform & Danmaku Container -->
+                        <div class="waveform-container" id="waveformContainer">
+                            <div class="danmaku-layer" id="danmakuLayer"></div>
+                            <canvas id="waveformCanvas" width="800" height="90"></canvas>
+                            <div class="waveform-progress" id="waveformProgress"></div>
+                            <div class="comment-input-popover" id="commentPopover" style="display: none;">
+                                <input type="text" id="commentInput" placeholder="Add a comment..." onkeypress="handleCommentSubmit(event)">
+                            </div>
+                        </div>
+
+                        <div class="sd-meta-line">
+                            <img id="sdArtistAvatar" class="sd-artist-avatar" src="" alt="Artist" onerror="this.src='https://ui-avatars.com/api/?name=Artist&background=333&color=fff&size=48'" />
+                            <a href="javascript:void(0)" class="sd-artist-link" id="sdArtistName">Artist Name</a>
+                            <span class="sd-dot">•</span>
+                            <a href="javascript:void(0)" class="sd-album-link" id="sdAlbumName">Album Name</a>
+                            <span class="sd-dot">•</span>
+                            <span id="sdReleaseYear">2024</span>
+                            <span class="sd-dot">•</span>
+                            <span id="sdDuration">3:20</span>
+                            <span class="sd-dot">•</span>
+                            <span id="sdStreamCount">1,000,000</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sd-action-bar">
+                <button class="sd-play-btn-large" id="sdPlayBtn" title="Play">
+                    <svg height="28" width="28" viewBox="0 0 24 24" fill="#000" id="sdPlayIcon"><path d="M7.05 3.606l13.49 7.788a.7.7 0 010 1.212L7.05 20.394A.7.7 0 016 19.788V4.212a.7.7 0 011.05-.606z"></path></svg>
+                </button>
+                <button class="sd-icon-btn" id="sdLikeBtn" title="Save to Your Library">
+                    <svg height="26" width="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="sdLikeIcon"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path></svg>
+                </button>
+                <button class="sd-icon-btn" id="sdMoreBtn" title="More options">
+                    <svg height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="4.5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19.5" cy="12" r="2"></circle></svg>
+                </button>
+            </div>
+
+            <div class="sd-main-columns">
+                <div class="sd-lyrics-column">
+                    <h2 class="sd-section-title">Lyrics</h2>
+                    <div class="sd-lyrics-container" id="sdLyricsContainer">
+                        <div class="sd-lyrics-content" id="sdLyricsContent">
+                            <!-- Clean lyrics injected here -->
+                        </div>
+                        <button class="sd-show-more-btn" id="sdShowMoreLyricsBtn" style="display: none;">...Show more</button>
+                    </div>
+                </div>
+
+                <div class="sd-artist-column">
+                    <div class="sd-artist-card" id="sdArtistCard">
+                        <img id="sdArtistCardAvatar" class="sd-artist-card-avatar" src="" alt="Artist" onerror="this.src='https://ui-avatars.com/api/?name=Artist&background=333&color=fff&size=160'" />
+                        <div class="sd-artist-card-info">
+                            <span class="sd-artist-card-label">Artist</span>
+                            <span class="sd-artist-card-name" id="sdArtistCardName">Artist Name</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sd-lower-section">
+                <div class="sd-sub-header">
+                    <h2 class="sd-section-title" style="margin-bottom: 2px;">Recommended</h2>
+                    <span class="sd-sub-title">Based on this song</span>
+                </div>
+                <div class="sd-recommended-list" id="sdRecommendedTracks">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div class="sd-lower-section">
+                <div class="sd-sub-header">
+                    <span class="sd-sub-title" style="margin-bottom: 2px;">Popular Tracks by</span>
+                    <h2 class="sd-section-title" id="sdPopularArtistTitle">Artist Name</h2>
+                </div>
+                <div class="sd-popular-list" id="sdPopularArtistTracks">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Playlist Detail View -->
+        <section class="section" id="playlist-view">
+            <div class="playlist-hero">
+                <div class="playlist-cover-shadow">
+                    <img id="pvCoverArt" src="" alt="Playlist Cover">
+                </div>
+                <div class="playlist-hero-info">
+                    <span id="pvTypeLabel" class="eyebrow">Playlist</span>
+                    <h1 id="pvTitle" class="massive-title">Playlist Title</h1>
+                    <div class="playlist-description" id="pvDescription">Description goes here</div>
+
+                    <div class="playlist-stats">
+                        <img id="pvCreatorAvatar" src="" class="creator-avatar" alt="User Avatar" onerror="this.style.display='none'">
+                        <span class="creator-name" id="pvCreatorName">Spotifake User</span>
+                        <span class="stats-dot">•</span>
+                        <span id="pvSongCount">0 songs</span>, 
+                        <span class="duration-text" id="pvTotalDuration">about 0 min</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="playlist-action-bar">
+                <button class="big-play-btn" id="pvPlayBtn" title="Play">
+                    <svg height="28" width="28" viewBox="0 0 24 24" fill="#000"><path d="M7.05 3.606l13.49 7.788a.7.7 0 010 1.212L7.05 20.394A.7.7 0 016 19.788V4.212a.7.7 0 011.05-.606z"></path></svg>
+                </button>
+                <button class="action-icon-btn" id="pvLikeBtn" title="Save to Liked Songs" onclick="toggleLikeInspectedTrack()">
+                    <svg role="img" height="32" width="32" viewBox="0 0 24 24" fill="currentColor"><path d="M5.21 1.57a6.757 6.757 0 016.708 1.545.124.124 0 00.165 0 6.741 6.741 0 015.715-1.78l.004.001a6.802 6.802 0 015.571 5.376v.003a6.689 6.689 0 01-1.49 5.655l-7.954 9.48a.25.25 0 01-.389 0l-7.954-9.48a6.688 6.688 0 01-1.49-5.655V6.71a6.804 6.804 0 015.57-5.376h.001l.004-.001a6.741 6.741 0 011.535.242z"></path></svg>
+                </button>
+                <div style="position: relative; display: inline-block;">
+                    <button class="action-icon-btn" id="pvMoreOptionsBtn" title="More options" onclick="togglePlaylistDropdown(event)">
+                        <svg role="img" height="32" width="32" viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm15 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm-7.5 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"></path></svg>
+                    </button>
+                    <div id="pvMoreOptionsDropdown" class="playlist-options-dropdown" style="display: none; position: absolute; top: 100%; left: 0; background: #282828; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 100; min-width: 200px; padding: 4px 0;">
+                        <!-- Content populated by JS based on ownership -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="track-table-container">
+                <table class="track-table">
+                    <thead>
+                        <tr>
+                            <th class="col-index">#</th>
+                            <th class="col-title">Title</th>
+                            <th class="col-album">Album</th>
+                            <th class="col-date">Date added</th>
+                            <th class="col-duration" style="padding-right: 16px;">
+                                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 48px; width: 100%;">
+                                    <span>🕒</span>
+                                    <span style="visibility: hidden; font-size: 18px; display: flex; align-items: center;">...</span>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="pvTrackList">
+                        <!-- Tracks populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Fullscreen Lyrics View -->
+        <section class="section lyrics-view-section" id="lyrics-view">
+            <div class="lyrics-canvas" id="lyricsCanvas">
+                <div class="lyrics-text-container" id="lyricsTextContainer">
+                    <div class="lyric-line active">♪ ♪ ♪</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Library Section -->
+        <section class="library-panel section" id="library">
+            <div class="section-header">
+                <div>
+                    <div class="eyebrow">SQL Server Storage</div>
+                    <h2>Track Library</h2>
+                </div>
+                <button onclick="showSection('home')" class="secondary-action">Back to Player</button>
+            </div>
+
+            <div class="library-status standalone" id="libraryStatus">Loading songs from SQL Server...</div>
+
+            <div class="playlist-grid" id="playlistGrid"></div>
+        </section>
+
+        <!-- AI Song Upload Section -->
+        <section class="import-songs-panel section" id="upload-ai">
+            <div class="section-header">
+                <div>
+                    <div class="eyebrow">Real AI Upload & Feature Extraction</div>
+                    <h2>Upload Audio File</h2>
+                </div>
+                <button onclick="showSection('library')" class="secondary-action">View Library</button>
+            </div>
+
+            <div class="ai-upload-card">
+                <form id="aiUploadForm" class="ai-upload-form">
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="uploadTitle">Song Title *</label>
+                            <input type="text" id="uploadTitle" placeholder="e.g. Midnight Dreams" required>
+                        </div>
+                        <div class="form-group half">
+                            <label for="uploadArtist">Artist Name *</label>
+                            <input type="text" id="uploadArtist" placeholder="e.g. Luna Waves" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="uploadAlbum">Album Name (Optional)</label>
+                        <input type="text" id="uploadAlbum" placeholder="e.g. Neon Nights">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="uploadAudioFile">Audio File (.mp3, .wav, .flac) *</label>
+                        <input type="file" id="uploadAudioFile" accept="audio/*" required>
+                    </div>
+
+                    <button type="submit" class="primary-action full-width" id="btnUploadSubmit">
+                        🎙️ Upload & Extract AI Features (Save to SQL Server)
+                    </button>
+                </form>
+
+                <div class="library-status" id="uploadAiStatus">
+                    Select an audio file and fill in title/artist. Uploading processes audio with Librosa signal processing and saves metadata directly into SQL Server (`MusicPlayerDb`).
+                </div>
+            </div>
+        </section>
+
+        <!-- Playlists Section -->
+        <section class="playlists-panel section" id="playlists">
+            <div class="section-header" style="margin-bottom: 24px;">
+                <div>
+                    <div class="eyebrow">Playlists</div>
+                    <h2>Create &amp; Manage Playlists</h2>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button type="button" class="primary-action" id="createPlaylistButton" onclick="openCreatePlaylistModal()">+ New Playlist</button>
+                    <button onclick="showSection('home')" class="secondary-action">Back to Player</button>
+                </div>
+            </div>
+
+            <div class="library-status" id="playlistStatus" style="margin-bottom: 16px;"></div>
+
+            <div class="admin-grid admin-grid-music playlist-manager-grid">
+                <!-- Left: Playlists List -->
+                <section class="admin-card playlist-manager-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div class="admin-card-subtitle" style="font-size: 15px; font-weight: 700; color: #fff;">Your Playlists</div>
+                        <button type="button" class="secondary-action" onclick="openCreatePlaylistModal()" style="font-size: 12px; padding: 6px 12px;">+ Create</button>
+                    </div>
+                    <div class="admin-list" id="userPlaylistList"></div>
+                </section>
+
+                <!-- Right: Selected Playlist Songs & Add Songs -->
+                <section class="admin-card playlist-manager-card">
+                    <div id="playlistDetailHeader" style="margin-bottom: 16px;">
+                        <div class="admin-song-detail-title" id="playlistManagerTitle" style="font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px;">Playlist Details</div>
+                        <div id="playlistManagerSubtitle" style="font-size: 13px; color: var(--muted);">Select a playlist from the left to view and edit its songs.</div>
+                    </div>
+
+                    <!-- Modern Search to Add Songs -->
+                    <div class="playlist-add-song-box" style="margin-bottom: 20px;">
+                        <input type="text" id="playlistSongSearchInput" placeholder="🔍 Search songs in library to add..." style="width: 100%; padding: 10px 14px; background: #242424; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 14px; outline: none;" oninput="filterPlaylistSongAdd(this.value)">
+                        <div id="playlistSongSearchResults" style="display: none; max-height: 220px; overflow-y: auto; background: #1e1e1e; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; margin-top: 6px; padding: 4px;"></div>
+                        <!-- Backward compatibility controls (hidden) -->
+                        <div style="display: none;">
+                            <select id="playlistSelect"></select>
+                            <select id="playlistSongSelect"></select>
+                            <button type="button" id="addSongToPlaylistButton">Add Song</button>
+                        </div>
+                    </div>
+
+                    <div class="admin-list" id="playlistSongsList"></div>
+                </section>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 3. Right Side Panel -->
+    <aside class="right-side-panel" id="rightSidePanel" hidden>
+        <div class="right-panel-header">
+            <h3 id="rightPanelContextTitle">My Playlist #1</h3>
+            <button class="icon-button" onclick="toggleQueuePanel()" title="Close">×</button>
+        </div>
+        <div class="right-panel-scroll">
+            <div id="rightPanelNowPlayingView">
+                <div class="large-album-art" id="rightPanelArtContainer">
+                    <div class="large-art-placeholder" id="rightPanelArt">♪</div>
+                </div>
+                <div class="right-panel-meta">
+                    <div class="title-row" style="display:flex; align-items:center;">
+                        <div style="flex: 1; min-width:0;">
+                            <div class="track-title" id="rightPanelTrackTitle" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Title</div>
+                            <div class="track-artist" id="rightPanelTrackArtist" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Artist</div>
+                        </div>
+                        <button class="add-to-playlist-btn" onclick="openAddToPlaylistModal()" title="Add to playlist" style="flex-shrink:0;">+</button>
+                        <button class="add-to-playlist-btn" id="rightPanelMoreOptionsBtn" title="More options" style="margin-left: 8px; flex-shrink:0;">...</button>
+                    </div>
+                </div>
+
+                <div class="artist-credits-card">
+                    <div class="credits-header">
+                        <h4>Credits</h4>
+                        <button class="text-link">Show all</button>
+                    </div>
+                    <div class="credits-body">
+                        <div class="credit-artist-info">
+                            <div class="credit-artist-name" id="rightPanelCreditName">Artist</div>
+                            <div class="credit-role">Main Artist</div>
+                        </div>
+                        <button class="follow-btn" id="rightPanelFollowBtn" onclick="toggleFollowArtist()">Follow</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="rightPanelQueueView" hidden>
+                <div class="queue-section-title">Now playing</div>
+                <div id="queueNowPlayingCard"></div>
+                <div class="queue-section-title" id="queueNextFromContext">Next up</div>
+                <div class="queue-list" id="queueList"></div>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<footer class="player-bar">
+    <div class="player-left">
+        <div class="mini-art" id="miniArt">♪</div>
+        <div class="player-track-info">
+            <div class="player-track" id="playerTrack">No Track Selected</div>
+            <div class="player-artist" id="playerArtist">Upload audio to begin</div>
+        </div>
+        <button class="action-icon-btn" id="playerLikeBtn" onclick="toggleLikeInspectedTrack()" title="Save to Liked Songs" style="margin-left: 8px; color: var(--muted); background: transparent; border: none; cursor: pointer;">
+            <svg role="img" height="16" width="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5.21 1.57a6.757 6.757 0 016.708 1.545.124.124 0 00.165 0 6.741 6.741 0 015.715-1.78l.004.001a6.802 6.802 0 015.571 5.376v.003a6.689 6.689 0 01-1.49 5.655l-7.954 9.48a.25.25 0 01-.389 0l-7.954-9.48a6.688 6.688 0 01-1.49-5.655V6.71a6.804 6.804 0 015.57-5.376h.001l.004-.001a6.741 6.741 0 011.535.242z"></path></svg>
+        </button>
+        <button class="add-to-playlist-btn" onclick="openAddToPlaylistModal()" title="Save to Your Library">+</button>
+    </div>
+
+    <div class="player-center">
+        <div class="control-row">
+            <button class="icon-button" id="shuffleButton" onclick="toggleShuffle()" title="Enable shuffle">
+                <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H11.16a3.75 3.75 0 0 0-2.873 1.34l-6.173 7.356A2.25 2.25 0 0 1 .39 12.5H0v1.5h.39a3.75 3.75 0 0 0 2.873-1.34l6.173-7.356a2.25 2.25 0 0 1 1.724-.804h1.947l-1.017 1.018a.75.75 0 0 0 1.06 1.06l2.305-2.305a.75.75 0 0 0 0-1.06L13.151.922zM.39 3.5H0V2h.39a3.75 3.75 0 0 1 2.873 1.34L4.86 5.21a.75.75 0 0 1-1.147.964L2.114 4.304A2.25 2.25 0 0 0 .39 3.5zm11.57 9a2.25 2.25 0 0 0 1.724-.804l1.017 1.018a.75.75 0 0 0 1.06-1.06l-2.305-2.305a.75.75 0 0 0-1.06 0l-2.305 2.305a.75.75 0 1 0 1.06 1.06l1.017-1.018h-1.77a3.75 3.75 0 0 1-2.873-1.34l-1.6-1.906a.75.75 0 0 1 1.147-.964l1.6 1.906a2.25 2.25 0 0 0 1.724.804h1.77z"></path></svg>
+            </button>
+            <button class="icon-button" onclick="previousTrack()" title="Previous">⏮</button>
+            <button class="icon-button strong" onclick="togglePlay()" id="playPauseButton" title="Play">▶</button>
+            <button class="icon-button" onclick="nextTrack()" title="Next">⏭</button>
+            <button class="icon-button" id="loopButton" onclick="cycleLoop()" title="Enable repeat">
+                <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L7.243 13.05a.75.75 0 0 1 0-1.06l2.525-2.525a.75.75 0 1 1 1.06 1.06L9.811 11.55h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5a.75.75 0 0 1 0 1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z"></path></svg>
+            </button>
+        </div>
+
+        <div class="progress-wrap">
+            <span id="currentTime" class="time-label">0:00</span>
+            <div class="progress-bar" onclick="seekFromClick(event)">
+                <div class="progress-fill" id="progressFill">
+                    <div class="progress-thumb"></div>
+                </div>
+            </div>
+            <span id="totalTime" class="time-label">0:00</span>
+        </div>
+    </div>
+
+    <div class="player-right">
+        <button class="right-icon-btn" onclick="toggleLyricsView()" title="Lyrics">🎤</button>
+        <button class="right-icon-btn" onclick="toggleQueuePanel()" title="Queue">≡</button>
+        <button class="right-icon-btn" onclick="toggleMiniPlayer()" title="Mini Player">🗔</button>
+        <div class="volume-wrap">
+            <button class="right-icon-btn" onclick="toggleMute()" title="Mute">🔊</button>
+            <div class="volume-slider-bar">
+                <input type="range" id="volumeControl" min="0" max="100" value="72" oninput="setVolume(this.value)">
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Checkout / Premium Modal -->
+<div class="login-gate" id="checkoutModal" style="display: none;" hidden>
+    <div class="auth-panel checkout-panel">
+        <div class="auth-panel-card checkout-card">
+            <div class="auth-card-header">
+                <div class="brand-lockup">
+                    <div class="brand-mark gold-mark">★</div>
+                    <div>
+                        <h2 class="login-title">Upgrade to Premium</h2>
+                        <p class="login-subtitle">Ad-free music, unlimited skips, full lyrics, and high-fidelity sound.</p>
+                    </div>
+                </div>
+                <button type="button" class="auth-close-btn" onclick="closeCheckoutModal()" title="Close">✕</button>
+            </div>
+
+            <!-- Plan Picker -->
+            <div class="checkout-plan-grid">
+                <div class="plan-card active" id="planIndividual" onclick="selectPlan('Individual', 4.99)">
+                    <div class="plan-badge">Popular</div>
+                    <div class="plan-title">Individual</div>
+                    <div class="plan-price">$4.99 <span class="per-month">/ month</span></div>
+                    <ul class="plan-perks">
+                        <li>✓ 1 Premium Account</li>
+                        <li>✓ Ad-free music listening</li>
+                        <li>✓ Unlimited skips</li>
+                        <li>✓ Full synchronized lyrics</li>
+                    </ul>
+                </div>
+                <div class="plan-card" id="planDuo" onclick="selectPlan('Duo', 6.99)">
+                    <div class="plan-badge duo-badge">Duo Pair</div>
+                    <div class="plan-title">Duo</div>
+                    <div class="plan-price">$6.99 <span class="per-month">/ month</span></div>
+                    <ul class="plan-perks">
+                        <li>✓ 2 Premium Accounts</li>
+                        <li>✓ For 2 people under one roof</li>
+                        <li>✓ Shared Duo playlist</li>
+                        <li>✓ Ad-free & unlimited skips</li>
+                    </ul>
+                </div>
+                <div class="plan-card" id="planFamily" onclick="selectPlan('Family', 9.99)">
+                    <div class="plan-badge family-badge">Best Value</div>
+                    <div class="plan-title">Family</div>
+                    <div class="plan-price">$9.99 <span class="per-month">/ month</span></div>
+                    <ul class="plan-perks">
+                        <li>✓ Up to 6 Accounts</li>
+                        <li>✓ Explicit music filtering</li>
+                        <li>✓ Spotify Kids access</li>
+                        <li>✓ All Premium perks included</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Interactive Card Mockup Preview -->
+            <div class="card-mockup-wrapper">
+                <div class="credit-card-mockup" id="cardMockup">
+                    <div class="cc-mock-top">
+                        <div class="cc-chip">
+                            <div class="cc-chip-line"></div>
+                        </div>
+                        <div class="cc-contactless">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M8.5 16.5a5 5 0 0 1 0-9M12 19a9 9 0 0 0 0-14M15.5 21.5a13 13 0 0 0 0-19"/></svg>
+                        </div>
+                        <div class="cc-brand-logo" id="mockBrandLogo">VISA</div>
+                    </div>
+                    <div class="cc-mock-number" id="mockCardNumber">•••• •••• •••• ••••</div>
+                    <div class="cc-mock-bottom">
+                        <div class="cc-mock-holder">
+                            <span class="cc-mock-label">Card Holder</span>
+                            <span class="cc-mock-val" id="mockCardHolder">YOUR NAME</span>
+                        </div>
+                        <div class="cc-mock-expiry">
+                            <span class="cc-mock-label">Expires</span>
+                            <span class="cc-mock-val" id="mockCardExpiry">MM/YY</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Test Card Actions -->
+            <div class="test-card-actions">
+                <button type="button" class="test-card-pill" onclick="fillTestCard('success')">⚡ 1-Click Test Card (Valid)</button>
+                <button type="button" class="test-card-pill outline" onclick="fillTestCard('decline_funds')">Declined: Funds (...0002)</button>
+                <button type="button" class="test-card-pill outline" onclick="fillTestCard('decline_expired')">Declined: Expired (...0003)</button>
+                <button type="button" class="test-card-pill outline" onclick="fillTestCard('decline_fraud')">Declined: Fraud (...0004)</button>
+            </div>
+
+            <!-- Payment Form -->
+            <form id="checkoutForm" onsubmit="handleCheckoutSubmit(event)">
+                <div class="form-group">
+                    <label for="ccName">Cardholder Name</label>
+                    <input type="text" id="ccName" placeholder="e.g. Jane Doe" required oninput="updateCardMockup()">
+                </div>
+
+                <div class="form-group">
+                    <label for="ccNumber">Card Number</label>
+                    <div class="cc-input-container">
+                        <input type="text" id="ccNumber" placeholder="4242 4242 4242 4242" maxlength="19" required oninput="handleCardNumberInput(event)">
+                        <span class="cc-brand-indicator" id="ccBrandIndicator">💳</span>
+                    </div>
+                </div>
+
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label for="ccExpiry">Expiry Date</label>
+                        <input type="text" id="ccExpiry" placeholder="MM/YY" maxlength="5" required oninput="handleExpiryInput(event)">
+                    </div>
+                    <div class="form-group">
+                        <label for="ccCvc">CVC / CVV</label>
+                        <input type="text" id="ccCvc" placeholder="123" maxlength="4" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="ccZip">Billing ZIP / Postal Code</label>
+                    <input type="text" id="ccZip" placeholder="90210" required>
+                </div>
+
+                <!-- Order Summary -->
+                <div class="checkout-summary-box">
+                    <div class="summary-line">
+                        <span id="summaryPlanName">Spotifake Individual Plan</span>
+                        <span id="summaryPlanPrice">$4.99 / mo</span>
+                    </div>
+                    <div class="summary-line text-muted">
+                        <span>Estimated Tax</span>
+                        <span>$0.00</span>
+                    </div>
+                    <div class="summary-line summary-total">
+                        <span>Total Due Today</span>
+                        <span id="summaryTotal">$4.99</span>
+                    </div>
+                </div>
+
+                <div id="checkoutError" class="login-error" style="display:none; margin-bottom: 12px;"></div>
+
+                <button type="submit" class="full-width primary-action checkout-btn" id="checkoutSubmitBtn">
+                    <span id="checkoutBtnText">Complete Purchase • $4.99</span>
+                    <span id="checkoutSpinner" class="spinner-small" style="display:none;"></span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt / Confirmation Modal -->
+<div class="login-gate" id="receiptModal" style="display: none;" hidden>
+    <div class="auth-panel">
+        <div class="auth-panel-card receipt-card">
+            <div class="receipt-celebrate-icon">🎉</div>
+            <h2 class="receipt-title">Welcome to Spotifake Premium!</h2>
+            <p class="receipt-subtitle">Your subscription is active. Enjoy ad-free listening and unlimited skips.</p>
+
+            <div class="receipt-box">
+                <div class="receipt-row">
+                    <span>Transaction ID</span>
+                    <strong id="receiptTxId">#TX-XXXXXXXX</strong>
+                </div>
+                <div class="receipt-row">
+                    <span>Plan</span>
+                    <strong id="receiptPlan">Individual ($4.99/mo)</strong>
+                </div>
+                <div class="receipt-row">
+                    <span>Amount Paid</span>
+                    <strong id="receiptAmount">$4.99</strong>
+                </div>
+                <div class="receipt-row">
+                    <span>Payment Method</span>
+                    <strong id="receiptCard">Visa •••• 4242</strong>
+                </div>
+                <div class="receipt-row">
+                    <span>Authorization</span>
+                    <strong id="receiptAuth">AUTH-XXXXXX</strong>
+                </div>
+            </div>
+
+            <div class="receipt-actions">
+                <button type="button" class="secondary-action receipt-action-btn" id="viewPrintableReceiptBtn" onclick="openPrintableReceipt()">
+                    🖨️ View Printable Receipt
+                </button>
+                <button type="button" class="primary-action receipt-action-btn" onclick="closeReceiptModal()">
+                    🎵 Start Listening Ad-Free
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Commercial Break / Audio Ad Overlay -->
+<div class="ad-break-overlay" id="adBreakOverlay" style="display:none;">
+    <div class="ad-break-content">
+        <div class="ad-break-badge">📢 Commercial Break • 1 of 1</div>
+        <h2 class="ad-break-title">Enjoying Spotifake? Go Premium.</h2>
+        <p class="ad-break-subtitle">Up next: your music • Ad-free listening, unlimited skips, high fidelity.</p>
+        <div class="ad-progress-bar-container">
+            <div class="ad-progress-bar-fill" id="adProgressBarFill"></div>
+        </div>
+        <button type="button" class="ad-break-upgrade-btn" onclick="openCheckoutModal('Individual')">
+            ⚡ Remove Ads with Premium ($4.99/mo)
+        </button>
+    </div>
+</div>
+
+<audio id="audioPlayer" preload="metadata"></audio>
+
+<!-- TRACK CONTEXT MENU -->
+<div id="trackContextMenu" class="context-menu" style="display: none; position: absolute; background: #282828; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); z-index: 1000; min-width: 170px; padding: 4px 0;">
+    <div class="menu-item" onclick="trackMenuAction('save-to-liked')" style="padding: 10px 16px; font-size: 14px; color: #fff; cursor: pointer;">Save to Liked Songs</div>
+    <div class="menu-item" onclick="trackMenuAction('add-to-playlist')" style="padding: 10px 16px; font-size: 14px; color: #fff; cursor: pointer;">Add to playlist</div>
+    <div class="menu-item" id="trackMenuRemoveFromPlaylist" onclick="trackMenuAction('remove-from-playlist')" style="padding: 10px 16px; font-size: 14px; color: #ff5c5c; cursor: pointer; display: none;">Remove from this playlist</div>
+    <div class="menu-item" onclick="trackMenuAction('add-to-queue')" style="padding: 10px 16px; font-size: 14px; color: #fff; cursor: pointer;">Add to queue</div>
+    <div style="border-top: 1px solid #3e3e3e; margin: 4px 0;"></div>
+    <div class="menu-item" id="trackMenuGoToArtist" onclick="trackMenuAction('go-to-artist')" style="padding: 10px 16px; font-size: 14px; color: #fff; cursor: pointer;">Go to artist</div>
+    <div class="menu-item" id="trackMenuGoToAlbum" onclick="trackMenuAction('go-to-album')" style="padding: 10px 16px; font-size: 14px; color: #fff; cursor: pointer; display: none;">Go to album</div>
+</div>
+
+<style>
+    .context-menu .menu-item:hover {
+        background: #3e3e3e;
+    }
+</style>
+
+
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error("Spotifake Error:", message, "Source:", source, "Line:", lineno, error);
+            return false;
+        };
+        window.addEventListener("unhandledrejection", function(event) {
+            console.error("Spotifake Unhandled Rejection:", event.reason);
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    <script src="/js/site.js" ></script>
+    
+</body>
+</html>

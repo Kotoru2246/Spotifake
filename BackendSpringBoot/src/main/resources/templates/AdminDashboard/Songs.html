@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Library & Moderation - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link active">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <a href="/admin/dashboard" class="dash-back-btn">
+            <i class="bi bi-chevron-left"></i> Overview
+          </a>
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Catalog Moderation</span>
+            <h1 class="dash-topbar-heading">Music Library</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Search and Genre Filter -->
+        <div class="dash-card" style="margin-bottom: 1.5rem;">
+          <div class="dash-card-body" style="padding: 1.25rem;">
+            <form method="get" action="/admin/dashboard/songs" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+              <div class="dash-search-wrapper" style="flex: 2; min-width: 250px; margin-bottom: 0;">
+                <i class="bi bi-search"></i>
+                <input type="text" name="search" class="dash-search-input" placeholder="Search track title, artist name, or album..." th:value="${search}">
+              </div>
+
+              <!-- Genre Select -->
+              <select name="genre" class="dash-search-input" style="flex: 1; min-width: 150px; height: 42px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border-color); border-radius: 8px; padding: 0 10px;">
+                <option value="all" th:selected="${genre == 'all'}">All Genres</option>
+                <option th:each="g : ${genres}" th:value="${g}" th:text="${g}" th:selected="${genre == g}">Genre</option>
+              </select>
+
+              <button type="submit" class="dash-btn dash-btn-primary" style="height: 42px; padding: 0 1.25rem;">
+                <i class="bi bi-funnel-fill"></i> Filter
+              </button>
+              <a href="/admin/dashboard/songs" class="dash-btn dash-btn-secondary" style="height: 42px; line-height: 40px; padding: 0 1rem; text-decoration: none;">
+                Reset
+              </a>
+            </form>
+          </div>
+        </div>
+
+        <!-- Songs Table -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3>
+              <i class="bi bi-music-note-list"></i> Catalog Tracks
+              <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: normal;" th:text="'(' + ${totalSongs} + ' tracks found)'">(0)</span>
+            </h3>
+            <div style="font-size: 0.85rem; color: var(--text-secondary);" th:text="'Page ' + ${currentPage} + ' of ' + ${totalPages}">Page 1 of 1</div>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Song & Artist</th>
+                  <th>Genre</th>
+                  <th>Audio Preview</th>
+                  <th>Plays</th>
+                  <th>Mood / Tags</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="s : ${songs}">
+                  <td>
+                    <strong style="color: #fff; font-size: 0.95rem;" th:text="${s.title}">Song Title</strong>
+                    <div style="font-size: 0.8rem; color: var(--accent-green); font-weight: 500;" th:text="${s.artist}">Artist</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);" th:text="${s.album != null and !s.album.isEmpty() ? s.album : 'Single'}">Album</div>
+                  </td>
+                  <td>
+                    <span class="dash-badge cyan" th:text="${s.genre != null and !s.genre.isEmpty() ? s.genre : 'Music'}">Genre</span>
+                  </td>
+                  <td>
+                    <audio controls preload="none" class="dash-song-audio" th:src="${'/api/songs/' + s.id + '/audio'}"></audio>
+                  </td>
+                  <td>
+                    <span style="font-family: monospace; font-weight: 600;" th:text="${s.playCount}">0</span>
+                  </td>
+                  <td>
+                    <span th:if="${s.mood != null and !s.mood.isEmpty()}" class="dash-badge purple" style="font-size: 0.75rem;" th:text="${s.mood}">Mood</span>
+                    <span th:if="${s.language != null and !s.language.isEmpty()}" class="dash-badge blue" style="font-size: 0.75rem;" th:text="${s.language}">en</span>
+                  </td>
+                  <td style="text-align: right;">
+                    <!-- Edit Song Metadata Button -->
+                    <button type="button" class="dash-btn-icon" title="Edit Metadata"
+                            th:attr="data-id=${s.id}, data-title=${s.title}, data-artist=${s.artist}, data-genre=${s.genre}, data-mood=${s.mood}, data-lang=${s.language}, data-tags=${s.tags}"
+                            onclick="openEditSong(this)">
+                      <i class="bi bi-pencil-square" style="color: #3b82f6;"></i>
+                    </button>
+
+                    <!-- Delete Song Button -->
+                    <form method="post" th:action="@{'/admin/dashboard/songs/' + ${s.id} + '/delete'}" style="display:inline;"
+                          onsubmit="return confirm('Delete ' + this.dataset.title + ' from library?');" th:attr="data-title=${s.title}">
+                      <button type="submit" class="dash-btn-icon" title="Delete Song">
+                        <i class="bi bi-trash3-fill" style="color: var(--accent-red);"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(songs)}">
+                  <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                    <i class="bi bi-music-note" style="font-size: 2rem; display: block; margin-bottom: 0.5rem; color: #64748b;"></i>
+                    No songs match your query.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="dash-pagination" th:if="${totalPages > 1}">
+          <a th:if="${currentPage > 1}" th:href="@{'/admin/dashboard/songs?search=' + ${search} + '&genre=' + ${genre} + '&page=' + ${currentPage - 1}}" class="dash-page-btn">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+
+          <a th:each="p : ${#numbers.sequence(1, totalPages)}"
+             th:if="${p >= currentPage - 2 and p <= currentPage + 2}"
+             th:href="@{'/admin/dashboard/songs?search=' + ${search} + '&genre=' + ${genre} + '&page=' + ${p}}"
+             class="dash-page-btn"
+             th:classappend="${p == currentPage ? 'active' : ''}"
+             th:text="${p}">1</a>
+
+          <a th:if="${currentPage < totalPages}" th:href="@{'/admin/dashboard/songs?search=' + ${search} + '&genre=' + ${genre} + '&page=' + ${currentPage + 1}}" class="dash-page-btn">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Interactive Edit Song Modal -->
+  <div id="editSongModal" class="dash-modal-overlay">
+    <div class="dash-modal-card">
+      <form id="editSongForm" method="post" action="">
+        <div class="dash-modal-header">
+          <h3><i class="bi bi-music-note-beamed"></i> Edit Song Metadata</h3>
+          <button type="button" class="dash-modal-close" onclick="closeEditSong()">&times;</button>
+        </div>
+        <div class="dash-modal-body">
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Track Title</label>
+            <input type="text" name="title" id="modalSongTitle" class="dash-search-input" style="width: 100%;" required>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Artist Name</label>
+            <input type="text" name="artistName" id="modalSongArtist" class="dash-search-input" style="width: 100%;" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Genre</label>
+              <input type="text" name="genre" id="modalSongGenre" class="dash-search-input" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Mood</label>
+              <input type="text" name="mood" id="modalSongMood" class="dash-search-input" style="width: 100%;">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Language</label>
+              <input type="text" name="language" id="modalSongLang" class="dash-search-input" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Tags (comma-separated)</label>
+              <input type="text" name="tags" id="modalSongTags" class="dash-search-input" style="width: 100%;">
+            </div>
+          </div>
+        </div>
+        <div class="dash-modal-footer">
+          <button type="button" class="dash-btn dash-btn-secondary" onclick="closeEditSong()">Cancel</button>
+          <button type="submit" class="dash-btn dash-btn-primary">Save Metadata</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openEditSong(btn) {
+      const id = btn.getAttribute('data-id');
+      const title = btn.getAttribute('data-title');
+      const artist = btn.getAttribute('data-artist');
+      const genre = btn.getAttribute('data-genre');
+      const mood = btn.getAttribute('data-mood');
+      const lang = btn.getAttribute('data-lang');
+      const tags = btn.getAttribute('data-tags');
+
+      document.getElementById('editSongForm').action = '/admin/dashboard/songs/' + id + '/edit';
+      document.getElementById('modalSongTitle').value = title || '';
+      document.getElementById('modalSongArtist').value = artist || '';
+      document.getElementById('modalSongGenre').value = genre || '';
+      document.getElementById('modalSongMood').value = mood || '';
+      document.getElementById('modalSongLang').value = lang || '';
+      document.getElementById('modalSongTags').value = tags || '';
+
+      document.getElementById('editSongModal').style.display = 'flex';
+    }
+
+    function closeEditSong() {
+      document.getElementById('editSongModal').style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+      const modal = document.getElementById('editSongModal');
+      if (event.target === modal) {
+        closeEditSong();
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Artist Requests - Spotifake</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link active">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <a href="/admin/dashboard" class="dash-back-btn">
+            <i class="bi bi-chevron-left"></i> Overview
+          </a>
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Admin Control</span>
+            <h1 class="dash-topbar-heading">Artist Requests</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Pending Applications -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-clipboard-check-fill"></i> Pending Applications</h3>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Applicant</th>
+                  <th>Stage Name</th>
+                  <th>CV</th>
+                  <th>Demo</th>
+                  <th>Submitted</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="req : ${pendingRequests != null ? pendingRequests : requests}" th:if="${req.status == 'Pending'}">
+                  <td>
+                    <a th:href="@{'/admin/dashboard/requests/' + ${req.requestId}}" style="font-weight: 600; color: #fff; text-decoration: none;" th:text="${req.user?.username != null ? req.user.username : 'Unknown'}">user</a>
+                  </td>
+                  <td th:text="${req.stageName}">Stage Name</td>
+                  <td>
+                    <a th:if="${req.cvFileName != null and !req.cvFileName.isEmpty()}" th:href="@{'/admin/dashboard/requests/' + ${req.requestId} + '/cv'}" target="_blank" class="dash-btn dash-btn-sm dash-btn-secondary" style="padding: 2px 8px; font-size: 0.8rem; text-decoration: none;">📄 CV</a>
+                    <span th:unless="${req.cvFileName != null and !req.cvFileName.isEmpty()}" style="color: #666;">No CV</span>
+                  </td>
+                  <td>
+                    <audio th:if="${req.demoFileName != null and !req.demoFileName.isEmpty()}" controls preload="none" th:src="@{'/admin/dashboard/requests/' + ${req.requestId} + '/demo'}" style="height:32px; vertical-align: middle; max-width: 200px;"></audio>
+                    <span th:unless="${req.demoFileName != null and !req.demoFileName.isEmpty()}" style="color: #666;">No demo</span>
+                  </td>
+                  <td th:text="${req.createdAt}">Submitted</td>
+                  <td>
+                    <form method="post" th:action="@{'/admin/dashboard/requests/' + ${req.requestId} + '/approve'}" style="display:inline;">
+                      <button type="submit" class="dash-btn dash-btn-sm dash-btn-primary">Approve</button>
+                    </form>
+                    <a th:href="@{'/admin/dashboard/requests/' + ${req.requestId}}" class="dash-btn dash-btn-sm dash-btn-secondary" style="margin-left: 4px; text-decoration: none;">Review</a>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(pendingRequests != null ? pendingRequests : requests)}">
+                  <td colspan="6" class="text-center" style="padding: 2.5rem; color: #888;">No pending applications.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Past Requests -->
+        <div class="dash-card" style="margin-top: 1.5rem;">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-clock-history"></i> Past Requests</h3>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Applicant</th>
+                  <th>Stage Name</th>
+                  <th>Status</th>
+                  <th>Resolved</th>
+                  <th>Admin Notes</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="req : ${pastRequests != null ? pastRequests : requests}" th:if="${req.status != 'Pending'}">
+                  <td>
+                    <a th:href="@{'/admin/dashboard/requests/' + ${req.requestId}}" style="font-weight: 600; color: #fff; text-decoration: none;" th:text="${req.user?.username != null ? req.user.username : 'Unknown'}">user</a>
+                  </td>
+                  <td th:text="${req.stageName}">Stage Name</td>
+                  <td>
+                    <span class="dash-badge" th:classappend="${req.status == 'Approved' ? 'green' : (req.status == 'Rejected' ? 'red' : 'yellow')}" th:text="${req.status}">Approved</span>
+                  </td>
+                  <td th:text="${req.resolvedAt}">Resolved</td>
+                  <td th:text="${req.adminNotes != null and !req.adminNotes.isEmpty() ? req.adminNotes : '—'}">—</td>
+                  <td>
+                    <a th:href="@{'/admin/dashboard/requests/' + ${req.requestId}}" class="dash-btn dash-btn-sm dash-btn-secondary" style="text-decoration: none;">View</a>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(pastRequests)}">
+                  <td colspan="6" class="text-center" style="padding: 2.5rem; color: #888;">No past applications.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -60,3 +60,20 @@ class CommentRead(BaseModel):
     timestamp_ms: int = 0
     content: str = ""
     created_at: datetime | None = None
+
+class KnnProjectionPoint(BaseModel):
+    id: str
+    title: str
+    artist: str
+    genre: str
+    x: float
+    y: float
+    type: str  # 'seed', 'neighbor', 'candidate'
+    energy: float = 0.5
+    valence: float = 0.5
+
+class KnnProjectionResponse(BaseModel):
+    points: list[KnnProjectionPoint]
+    vibe_x: float
+    vibe_y: float
+    k_neighbors: int

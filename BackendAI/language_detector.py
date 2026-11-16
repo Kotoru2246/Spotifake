@@ -1,6 +1,10 @@
-import os
-import whisper
+try:
+    import whisper
+    HAS_WHISPER = True
+except ImportError:
+    HAS_WHISPER = False
 import warnings
+
 
 # Suppress FP16 warnings on CPU
 warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead")
@@ -13,7 +17,10 @@ import librosa
 
 def get_whisper_model():
     global _MODEL
+    if not HAS_WHISPER:
+        raise RuntimeError("openai-whisper is not installed")
     if _MODEL is None:
+
         print("[LID] Loading Whisper 'base' model for Language Detection...")
         # Load the base model (approx 74MB) in memory
         _MODEL = whisper.load_model("base")

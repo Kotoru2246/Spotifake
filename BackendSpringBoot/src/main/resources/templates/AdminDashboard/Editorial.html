@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editorial & Announcements - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link" th:classappend="${activeTab == 'overview' ? 'active' : ''}">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link" th:classappend="${activeTab == 'analytics' ? 'active' : ''}">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link" th:classappend="${activeTab == 'system' ? 'active' : ''}">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link" th:classappend="${activeTab == 'songs' ? 'active' : ''}">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link" th:classappend="${activeTab == 'artists' ? 'active' : ''}">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link" th:classappend="${activeTab == 'requests' ? 'active' : ''}">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+          <span th:if="${stats != null and stats.pendingRequests != null and stats.pendingRequests > 0}" 
+                class="dash-badge red" style="margin-left: auto; padding: 2px 7px; font-size: 0.7rem;"
+                th:text="${stats.pendingRequests}">1</span>
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link active">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link" th:classappend="${activeTab == 'users' ? 'active' : ''}">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link" th:classappend="${activeTab == 'ads' ? 'active' : ''}">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link" th:classappend="${activeTab == 'reports' ? 'active' : ''}">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link" th:classappend="${activeTab == 'audit-logs' ? 'active' : ''}">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link" th:classappend="${activeTab == 'settings' ? 'active' : ''}">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link" th:classappend="${activeTab == 'tools' ? 'active' : ''}">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Editorial & Broadcast</span>
+            <h1 class="dash-topbar-heading">Global Player Announcements</h1>
+          </div>
+        </div>
+        <div class="dash-topbar-right">
+          <button onclick="document.getElementById('modalCreateAnnouncement').style.display='flex'" class="dash-btn dash-btn-primary">
+            <i class="bi bi-broadcast"></i> Broadcast New Banner
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Announcements Feed -->
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <h3><i class="bi bi-megaphone-fill" style="color: #3b82f6;"></i> Active & Scheduled Broadcast Banners</h3>
+          </div>
+          <div class="dash-card-body no-pad">
+            <table class="dash-table">
+              <thead>
+                <tr>
+                  <th>Banner Title</th>
+                  <th>Message Preview</th>
+                  <th>Level</th>
+                  <th>Audience</th>
+                  <th>Status</th>
+                  <th>Published</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr th:each="a : ${announcements}">
+                  <td>
+                    <strong th:text="${a.title}">Title</strong>
+                  </td>
+                  <td>
+                    <div style="font-size: 0.85rem; max-width: 320px;" th:text="${a.message}">Message preview...</div>
+                  </td>
+                  <td>
+                    <span th:if="${a.level == 'info'}" class="dash-badge blue">Info</span>
+                    <span th:if="${a.level == 'promo'}" class="dash-badge purple">Promotion</span>
+                    <span th:if="${a.level == 'warning'}" class="dash-badge gold">Warning</span>
+                    <span th:if="${a.level == 'success'}" class="dash-badge green">Notice</span>
+                  </td>
+                  <td>
+                    <span class="dash-badge" th:classappend="${a.targetRole == 'all' ? 'green' : 'blue'}" th:text="${#strings.toUpperCase(a.targetRole)}">ALL</span>
+                  </td>
+                  <td>
+                    <span th:if="${a.active}" class="dash-badge green">Broadcasting</span>
+                    <span th:unless="${a.active}" class="dash-badge red">Off-air</span>
+                  </td>
+                  <td>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);" th:text="${a.createdAt}">Date</span>
+                  </td>
+                  <td>
+                    <div style="display: flex; gap: 0.5rem;">
+                      <form method="POST" th:action="@{'/admin/dashboard/editorial/announcements/' + ${a.id} + '/toggle'}">
+                        <input type="hidden" name="active" th:value="${!a.active}" />
+                        <button type="submit" class="dash-btn dash-btn-sm" th:classappend="${a.active ? 'dash-btn-secondary' : 'dash-btn-primary'}">
+                          <i class="bi" th:classappend="${a.active ? 'bi-pause-fill' : 'bi-broadcast'}"></i>
+                          <span th:text="${a.active ? 'Mute' : 'Broadcast'}">Toggle</span>
+                        </button>
+                      </form>
+                      <form method="POST" th:action="@{'/admin/dashboard/editorial/announcements/' + ${a.id} + '/delete'}" onsubmit="return confirm('Delete this announcement?')">
+                        <button type="submit" class="dash-btn dash-btn-sm dash-btn-secondary" style="color: #ef4444;">
+                          <i class="bi bi-trash-fill"></i>
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(announcements)}">
+                  <td colspan="7" style="text-align:center; padding: 3rem; color: var(--text-muted);">
+                    No active announcements found. Click "Broadcast New Banner" to publish one!
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Create Announcement Modal -->
+  <div id="modalCreateAnnouncement" class="dash-modal-backdrop" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center;">
+    <div class="dash-card" style="width: 500px; max-width: 90%; background: #181818;">
+      <div class="dash-card-header" style="justify-content: space-between;">
+        <h3><i class="bi bi-broadcast"></i> Publish Broadcast Banner</h3>
+        <button onclick="document.getElementById('modalCreateAnnouncement').style.display='none'" style="background:none; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+      <div class="dash-card-body">
+        <form method="POST" action="/admin/dashboard/editorial/announcements/create">
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div>
+              <label class="dash-label">Banner Headline</label>
+              <input type="text" name="title" class="dash-input" placeholder="e.g. 🎉 Spotifake 2.0 Live!" required />
+            </div>
+            <div>
+              <label class="dash-label">Banner Message</label>
+              <textarea name="message" class="dash-input" rows="3" placeholder="Enter broadcast message displayed at top of music player..." required></textarea>
+            </div>
+            <div>
+              <label class="dash-label">Alert Severity Level</label>
+              <select name="level" class="dash-input">
+                <option value="info">Info (Blue)</option>
+                <option value="promo">Promo / Event (Purple)</option>
+                <option value="warning">Warning / Maintenance (Gold)</option>
+                <option value="success">Success / Milestone (Green)</option>
+              </select>
+            </div>
+            <div>
+              <label class="dash-label">Target Audience</label>
+              <select name="targetRole" class="dash-input">
+                <option value="all">All Listeners & Guests</option>
+                <option value="user">Free Tier Listeners Only</option>
+                <option value="premium">Premium Subscribers Only</option>
+                <option value="artist">Verified Artists Only</option>
+              </select>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+              <button type="button" onclick="document.getElementById('modalCreateAnnouncement').style.display='none'" class="dash-btn dash-btn-secondary">Cancel</button>
+              <button type="submit" class="dash-btn dash-btn-primary">Publish to Web Player</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

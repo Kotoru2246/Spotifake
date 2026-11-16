@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit & Activity Logs - Spotifake Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/dashboard.css" />
+</head>
+<body class="dash-body">
+  <div class="dash-wrapper">
+    <!-- Sidebar -->
+    <aside class="dash-sidebar">
+      <div class="dash-sidebar-brand">
+        <h2>SPOTIFAKE</h2>
+        <small>Admin Console</small>
+      </div>
+      <nav class="dash-sidebar-nav">
+        <!-- 1. Core & Operations -->
+        <div class="dash-sidebar-category">Core & Operations</div>
+        <a href="/admin/dashboard" class="dash-sidebar-link">
+          <i class="bi bi-speedometer2"></i> Overview
+        </a>
+        <a href="/admin/dashboard/analytics" class="dash-sidebar-link">
+          <i class="bi bi-graph-up-arrow"></i> Streaming Analytics
+        </a>
+        <a href="/admin/dashboard/system" class="dash-sidebar-link">
+          <i class="bi bi-cpu"></i> System Telemetry
+        </a>
+
+        <!-- 2. Catalog & Editorial -->
+        <div class="dash-sidebar-category">Catalog & Editorial</div>
+        <a href="/admin/dashboard/songs" class="dash-sidebar-link">
+          <i class="bi bi-music-note-beamed"></i> Music Library
+        </a>
+        <a href="/admin/dashboard/artists" class="dash-sidebar-link">
+          <i class="bi bi-mic-fill"></i> Artists
+        </a>
+        <a href="/admin/dashboard/requests" class="dash-sidebar-link">
+          <i class="bi bi-clipboard-check-fill"></i> Artist Requests
+        </a>
+        <a href="/admin/dashboard/editorial" class="dash-sidebar-link">
+          <i class="bi bi-megaphone-fill"></i> Announcements
+        </a>
+
+        <!-- 3. Monetization & Growth -->
+        <div class="dash-sidebar-category">Monetization & Ads</div>
+        <a href="/admin/dashboard/users" class="dash-sidebar-link">
+          <i class="bi bi-people-fill"></i> Users & Tiers
+        </a>
+        <a href="/admin/dashboard/ads" class="dash-sidebar-link">
+          <i class="bi bi-badge-ad-fill"></i> Ads & Sponsors
+        </a>
+
+        <!-- 4. Governance & Tools -->
+        <div class="dash-sidebar-category">Governance & Tools</div>
+        <a href="/admin/dashboard/reports" class="dash-sidebar-link">
+          <i class="bi bi-shield-fill-exclamation"></i> Content Moderation
+        </a>
+        <a href="/admin/dashboard/audit-logs" class="dash-sidebar-link active">
+          <i class="bi bi-journal-text"></i> Audit Logs
+        </a>
+        <a href="/admin/dashboard/settings" class="dash-sidebar-link">
+          <i class="bi bi-sliders"></i> Platform Settings
+        </a>
+        <a href="/admin/dashboard/tools" class="dash-sidebar-link">
+          <i class="bi bi-database-fill-gear"></i> Database & Exports
+        </a>
+      </nav>
+      <div class="dash-sidebar-footer">
+        <a href="javascript:void(0)" onclick="window.location.href='http://' + window.location.hostname + ':8000/'" class="dash-sidebar-back">
+          <i class="bi bi-arrow-left"></i> Back to Music Player
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="dash-main">
+      <!-- Top Bar -->
+      <div class="dash-topbar">
+        <div class="dash-topbar-left">
+          <a href="/admin/dashboard" class="dash-back-btn">
+            <i class="bi bi-chevron-left"></i> Overview
+          </a>
+          <div class="dash-topbar-title">
+            <span class="dash-topbar-eyebrow">Governance & Security</span>
+            <h1 class="dash-topbar-heading">Audit & Activity Logs</h1>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="dash-content">
+        <!-- Tabs -->
+        <div class="dash-tabs">
+          <button class="dash-tab active" onclick="switchLogTab('adminTab', event)">
+            <i class="bi bi-shield-lock-fill"></i> Admin Audit Trail (<span th:text="${#lists.size(auditLogs)}">0</span>)
+          </button>
+          <button class="dash-tab" onclick="switchLogTab('userTab', event)">
+            <i class="bi bi-person-walking"></i> User Activity Stream (<span th:text="${#lists.size(userActivity)}">0</span>)
+          </button>
+        </div>
+
+        <!-- Admin Audit Trail Panel -->
+        <div id="adminTab" class="dash-tab-content">
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="bi bi-journal-check"></i> System Administration Audit Trail</h3>
+              <span style="font-size: 0.85rem; color: var(--text-secondary);">Last 100 operations</span>
+            </div>
+            <div class="dash-card-body no-pad">
+              <table class="dash-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Operator / Admin</th>
+                    <th>Action</th>
+                    <th>Target Type</th>
+                    <th>Target ID</th>
+                    <th>Operation Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="log : ${auditLogs}">
+                    <td>
+                      <span style="font-family: monospace; font-size: 0.85rem; color: #94a3b8;" th:text="${log.Timestamp != null ? log.Timestamp.replace('T', ' ').substring(0, 19) : '—'}">Date</span>
+                    </td>
+                    <td>
+                      <strong style="color: #fff;" th:text="${log.AdminID}">admin</strong>
+                    </td>
+                    <td>
+                      <span class="dash-badge" 
+                            th:classappend="${#strings.contains(log.Action, 'DELETE') ? 'red' : (#strings.contains(log.Action, 'VERIFY') ? 'green' : (#strings.contains(log.Action, 'BILLING') ? 'gold' : 'blue'))}"
+                            th:text="${log.Action}">ACTION</span>
+                    </td>
+                    <td>
+                      <span class="dash-badge purple" th:text="${log.TargetType}">Target</span>
+                    </td>
+                    <td>
+                      <span style="font-family: monospace; font-size: 0.8rem; color: #cbd5e1;" th:text="${log.TargetID}">ID</span>
+                    </td>
+                    <td>
+                      <span style="color: #e2e8f0; font-size: 0.85rem;" th:text="${log.Details}">Details</span>
+                    </td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(auditLogs)}">
+                    <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                      <i class="bi bi-shield-check" style="font-size: 2rem; color: var(--accent-green); display: block; margin-bottom: 0.5rem;"></i>
+                      No admin operations logged yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Activity Stream Panel -->
+        <div id="userTab" class="dash-tab-content" style="display: none;">
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3><i class="bi bi-activity"></i> Live User Activity Log</h3>
+              <span style="font-size: 0.85rem; color: var(--text-secondary);">Last 100 events</span>
+            </div>
+            <div class="dash-card-body no-pad">
+              <table class="dash-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>User</th>
+                    <th>Event Type</th>
+                    <th>Activity Details</th>
+                    <th>Client IP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr th:each="act : ${userActivity}">
+                    <td>
+                      <span style="font-family: monospace; font-size: 0.85rem; color: #94a3b8;" th:text="${act.Timestamp != null ? act.Timestamp.replace('T', ' ').substring(0, 19) : '—'}">Date</span>
+                    </td>
+                    <td>
+                      <strong style="color: #fff;" th:text="'@' + ${act.Username}">@username</strong>
+                    </td>
+                    <td>
+                      <span class="dash-badge" 
+                            th:classappend="${#strings.contains(act.ActivityType, 'LOGIN') ? 'green' : (#strings.contains(act.ActivityType, 'REGISTER') ? 'purple' : (#strings.contains(act.ActivityType, 'SUBSCRIPTION') ? 'gold' : 'blue'))}"
+                            th:text="${act.ActivityType}">EVENT</span>
+                    </td>
+                    <td>
+                      <span style="color: #e2e8f0; font-size: 0.85rem;" th:text="${act.Details}">Details</span>
+                    </td>
+                    <td>
+                      <span style="font-family: monospace; font-size: 0.8rem; color: #94a3b8;" th:text="${act.IpAddress}">127.0.0.1</span>
+                    </td>
+                  </tr>
+                  <tr th:if="${#lists.isEmpty(userActivity)}">
+                    <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 3rem;">
+                      <i class="bi bi-clock-history" style="font-size: 2rem; color: #64748b; display: block; margin-bottom: 0.5rem;"></i>
+                      No user activity recorded yet.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script>
+    function switchLogTab(tabId, evt) {
+      document.querySelectorAll('.dash-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.dash-tab-content').forEach(c => c.style.display = 'none');
+
+      if (evt && evt.target) {
+        evt.target.closest('.dash-tab').classList.add('active');
+      }
+      const target = document.getElementById(tabId);
+      if (target) target.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
