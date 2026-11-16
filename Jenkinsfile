@@ -6,6 +6,8 @@ pipeline {
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         IMAGE_NAME = 'spotifake-backend'
+        CONTAINER_NAME = 'spotifake-app'
+        PROJECT_DIR = '/c/Users/jacky/.gemini/antigravity-ide/scratch/Spotifake'
     }
     stages {
         stage('Checkout') {
@@ -48,10 +50,26 @@ pipeline {
                 }
             }
         }
+        stage('Auto-Deploy') {
+            steps {
+                echo '=== Bước 6: Tự động triển khai (Auto-Deploy) Container ==='
+                sh """
+                    docker rm -f ${CONTAINER_NAME} || true
+                    docker run -d --name ${CONTAINER_NAME} --restart unless-stopped \
+                        -p 8085:8000 -p 9005:9000 \
+                        -v "${PROJECT_DIR}/backendai.db:/app/backendai.db" \
+                        -v "${PROJECT_DIR}/uploads:/app/uploads" \
+                        -v "${PROJECT_DIR}/music:/app/music" \
+                        ${IMAGE_NAME}:latest
+                """
+                echo '=== Running Containers ==='
+                sh "docker ps | grep ${CONTAINER_NAME} || true"
+            }
+        }
     }
     post {
         success {
-            echo "🎉 Pipeline thành công! Docker image '${IMAGE_NAME}:latest' đã được tạo."
+            echo "🎉 Pipeline & Tự động Triển khai thành công! Spotifake đang chạy tại http://localhost:8085"
         }
         failure {
             echo '❌ Pipeline thất bại!'

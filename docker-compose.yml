@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./BackendSpringBoot
+      dockerfile: Dockerfile
+    image: spotifake-backend:latest
+    container_name: spotifake-backend
+    restart: unless-stopped
+    ports:
+      - "8085:8000"
+      - "9005:9000"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATASOURCE_URL=jdbc:sqlite:/app/backendai.db
+      - APP_DB_PATH=/app/backendai.db
+      - ESSENTIA_URL=http://essentia:3000
+      - AI_SERVICE_URL=http://backendai:5000
+    volumes:
+      - ./backendai.db:/app/backendai.db
+      - ./uploads:/app/uploads
+      - ./music:/app/music
+    networks:
+      - spotifake-net
+
+  essentia:
+    build:
+      context: ./EssentiaService
+      dockerfile: Dockerfile
+    image: spotifake-essentia:latest
+    container_name: spotifake-essentia
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads:ro
+    networks:
+      - spotifake-net
+
+  backendai:
+    build:
+      context: ./BackendAI
+      dockerfile: Dockerfile
+    image: spotifake-ai:latest
+    container_name: spotifake-ai
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backendai.db:/app/backendai.db
+      - ./uploads:/app/uploads:ro
+    networks:
+      - spotifake-net
+
+networks:
+  spotifake-net:
+    driver: bridge
