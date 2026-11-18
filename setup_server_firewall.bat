@@ -32,6 +32,16 @@ if %errorLevel% equ 0 (
     echo       [ERROR] Failed to add rule for Port 8000.
 )
 
+REM Port 9000: Spotifake Admin Dashboard
+echo   [*] Configuring Port 9000 (Spotifake Admin Dashboard)...
+netsh advfirewall firewall delete rule name="Spotifake Admin Dashboard (9000)" >nul 2>&1
+netsh advfirewall firewall add rule name="Spotifake Admin Dashboard (9000)" dir=in action=allow protocol=TCP localport=9000 >nul
+if %errorLevel% equ 0 (
+    echo       [OK] Port 9000 TCP inbound allowed.
+) else (
+    echo       [ERROR] Failed to add rule for Port 9000.
+)
+
 REM Port 5000: Playlist Downloader & BackendAI
 echo   [*] Configuring Port 5000 (Playlist Downloader & BackendAI)...
 netsh advfirewall firewall delete rule name="Spotifake Downloader & AI (5000)" >nul 2>&1
