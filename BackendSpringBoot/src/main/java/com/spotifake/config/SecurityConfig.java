@@ -39,8 +39,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/music/**", "/music/**", "/songs/**", "/songs", "/api/albums/**", "/album/**", "/albums/**", "/api/search/**", "/search/**", "/api/playlists/**", "/playlists/**", "/api/recommendations/**", "/api/comments/**", "/api/subscription/**").permitAll()
                 .requestMatchers("/artist/details/**", "/api/artist/details/**").permitAll()
                 .requestMatchers("/artist/register", "/api/artist/register", "/artist/pending").permitAll()
-                .requestMatchers("/admin/dashboard/chart-data").permitAll()
-                // Admin dashboard
+                // Public settings, announcements, and ads for the web player
+                .requestMatchers("/admin/dashboard/api/public/**").permitAll()
+                // Admin dashboard (chart-data and management are strictly ADMIN only)
                 .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")
                 // Artist dashboard
                 .requestMatchers("/artist/**", "/api/artist/**").hasAnyRole("ARTIST", "ADMIN")

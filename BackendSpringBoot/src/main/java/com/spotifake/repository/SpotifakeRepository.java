@@ -1,11 +1,14 @@
 package com.spotifake.repository;
 
 import com.spotifake.model.*;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Repository;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.io.File;
 import java.sql.*;
 import java.time.Instant;
@@ -21,6 +24,7 @@ public class SpotifakeRepository {
     private String dbPathConfig;
 
     private String dbUrl;
+    private HikariDataSource pooledDataSource;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @PostConstruct
@@ -38,10 +42,35 @@ public class SpotifakeRepository {
             }
         }
         this.dbUrl = "jdbc:sqlite:" + file.getAbsolutePath();
+
+        try {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(this.dbUrl);
+            config.setDriverClassName("org.sqlite.JDBC");
+            config.setMaximumPoolSize(10);
+            config.setMinimumIdle(2);
+            config.setIdleTimeout(30000);
+            config.setConnectionTimeout(10000);
+            config.setConnectionInitSql("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;");
+            this.pooledDataSource = new HikariDataSource(config);
+        } catch (Exception e) {
+            System.err.println("HikariCP initialization failed, falling back to direct connection: " + e.getMessage());
+        }
+
         initSchema();
     }
 
+    @PreDestroy
+    public void close() {
+        if (pooledDataSource != null && !pooledDataSource.isClosed()) {
+            pooledDataSource.close();
+        }
+    }
+
     private Connection getConnection() throws SQLException {
+        if (pooledDataSource != null && !pooledDataSource.isClosed()) {
+            return pooledDataSource.getConnection();
+        }
         return DriverManager.getConnection(dbUrl);
     }
 
@@ -1476,7 +1505,13 @@ public class SpotifakeRepository {
         }
     }
 
+    private static final Set<String> ALLOWED_AGG_TABLES = Set.of("Users", "Songs", "ArtistProfiles", "Albums");
+    private static final Set<String> ALLOWED_AGG_COLS = Set.of("CreatedAt", "UploadedAt", "UpdatedAt");
+
     private int getCountBeforeDate(Connection conn, String table, String col, String dateStr) {
+        if (!ALLOWED_AGG_TABLES.contains(table) || !ALLOWED_AGG_COLS.contains(col)) {
+            throw new IllegalArgumentException("Unauthorized table or column for aggregation: " + table + "." + col);
+        }
         String sql = "SELECT COUNT(*) FROM " + table + " WHERE substr(" + col + ", 1, 10) <= ? AND IsDeleted = 0";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, dateStr);
@@ -1490,6 +1525,9 @@ public class SpotifakeRepository {
     }
 
     private int getCountBeforeTimestamp(Connection conn, String table, String col, String ts) {
+        if (!ALLOWED_AGG_TABLES.contains(table) || !ALLOWED_AGG_COLS.contains(col)) {
+            throw new IllegalArgumentException("Unauthorized table or column for aggregation: " + table + "." + col);
+        }
         String sql = "SELECT COUNT(*) FROM " + table + " WHERE " + col + " <= ? AND IsDeleted = 0";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, ts);

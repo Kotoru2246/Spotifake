@@ -22,9 +22,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
     private final SpotifakeRepository repository;
 
+    private static final long USER_CACHE_TTL_MS = 60_000L;
+    private static final java.util.concurrent.ConcurrentHashMap<String, CachedUser> userCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record CachedUser(User user, long timestamp) {}
+
+    public static void evictUser(String username) {
+        if (username != null) userCache.remove(username);
+    }
+
     public JwtAuthenticationFilter(JwtUtil jwtUtil, SpotifakeRepository repository) {
         this.jwtUtil = jwtUtil;
         this.repository = repository;
+    }
+
+    private User getCachedUser(String username) {
+        long now = System.currentTimeMillis();
+        CachedUser cached = userCache.get(username);
+        if (cached != null && (now - cached.timestamp()) < USER_CACHE_TTL_MS) {
+            return cached.user();
+        }
+        User fresh = repository.getUserByUsername(username);
+        if (fresh != null) {
+            userCache.put(username, new CachedUser(fresh, now));
+        }
+        return fresh;
     }
 
     @Override
@@ -35,7 +57,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (token != null && jwtUtil.validateToken(token)) {
             String username = jwtUtil.getUsernameFromToken(token);
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                User user = repository.getUserByUsername(username);
+                User user = getCachedUser(username);
                 if (user != null) {
                     String role = user.getRole() != null ? user.getRole().toUpperCase() : "USER";
                     SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);

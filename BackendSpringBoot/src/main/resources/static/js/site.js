@@ -142,8 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   let currentTrackIndex = 0;
   let isPlaying = false;
-  let shuffleMode = 'off';
-  let loopMode = 'off';
+  let shuffleMode = localStorage.getItem('spotifake.shuffleMode') || 'off';
+  let loopMode = localStorage.getItem('spotifake.loopMode') || 'off';
   let uploadedTrackUrls = [];
   let authToken = localStorage.getItem(authTokenKey) || '';
   let currentAuthRole = localStorage.getItem(authRoleKey) || '';
@@ -2606,6 +2606,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateTransportUI();
       renderQueue();
     }
+    try { localStorage.setItem('spotifake.shuffleMode', shuffleMode); } catch (e) {}
   }
 
   async function runSmartShuffle() {
@@ -2694,6 +2695,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (audioPlayer) {
       audioPlayer.loop = mode === 'track';
     }
+    try { localStorage.setItem('spotifake.loopMode', mode); } catch (e) {}
     updateTransportUI();
   }
 
@@ -3523,6 +3525,22 @@ document.addEventListener('DOMContentLoaded', () => {
       renderQueue();
     });
     audioPlayer.addEventListener('ended', handleTrackEnded);
+    audioPlayer.addEventListener('error', (e) => {
+      console.warn('Audio playback error:', e);
+      isPlaying = false;
+      updateTransportUI();
+      const list = getCurrentQueue();
+      const track = list && list[currentTrackIndex] ? list[currentTrackIndex] : null;
+      const trackName = track ? (track.title || track.fileName || 'track') : 'track';
+      if (typeof window.showToast === 'function') {
+        window.showToast(`Cannot play "${trackName}". Auto-skipping to next song...`, 'warning');
+      }
+      setTimeout(() => {
+        if (list && list.length > 1) {
+          playNextTrack(true);
+        }
+      }, 1500);
+    });
     audioPlayer.addEventListener('volumechange', () => {
       if (volumeControl) {
         volumeControl.value = String(Math.round((audioPlayer.volume || 0) * 100));
@@ -3604,48 +3622,76 @@ document.addEventListener('DOMContentLoaded', () => {
   window.adminViewSongDetails = handleAdminSongDetailClick;
   window.adminDeleteSong = handleAdminDeleteTrackClick;
 
-  // Search Logic
+  // Search Logic with 250ms Debounce and Hybrid Live Query
+  let searchDebounceTimer = null;
   window.handleSearchInput = function(event) {
-    const query = event.target.value.toLowerCase();
+    const rawQuery = (event.target.value || '').trim();
     const dropdown = document.getElementById('searchDropdown');
-    
-    if (query.length < 1) {
+    if (!dropdown) return;
+
+    if (rawQuery.length < 1) {
       dropdown.hidden = true;
       return;
     }
-    
-    const results = tracks.filter(t => 
-      (t.title || '').toLowerCase().includes(query) || 
-      (t.artist || '').toLowerCase().includes(query)
-    ).slice(0, 10);
-    
-    if (results.length === 0) {
-      dropdown.hidden = true;
-      return;
-    }
-    
-    dropdown.innerHTML = results.map(t => {
-      const idx = tracks.indexOf(t);
-      const isSong = true; // For now all items in tracks are songs
-      return `
-      <div class="search-dropdown-item" onclick="document.getElementById('searchInput').value=''; document.getElementById('searchDropdown').hidden=true; window.playLibraryTrack(${idx});">
-        <img src="${t.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.artist)}&background=random&color=fff`}" alt="art">
-        <div class="item-text">
-          <div class="item-title">${escapeHtml(t.title)}</div>
-          <div class="item-subtitle">
-            ${isSong ? 'Song • ' : ''}${escapeHtml(t.artist)}
+
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/search/global?q=${encodeURIComponent(rawQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.items || [];
+          if (items.length > 0) {
+            dropdown.innerHTML = items.slice(0, 8).map(item => {
+              const type = item.type || item.Type || 'Song';
+              const title = item.title || item.Title || 'Unknown';
+              const creator = item.creator || item.Creator || 'Spotifake';
+              const img = item.imageUrl || item.ImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=333&color=fff`;
+              const idVal = item.id || item.Id || title;
+              const isSong = type.toLowerCase() === 'song';
+              const clickAction = isSong
+                ? `document.getElementById('searchInput').value=''; document.getElementById('searchDropdown').hidden=true; window.playSearchResult('${encodeURIComponent(idVal)}', 'Song', '${encodeURIComponent(title)}');`
+                : `document.getElementById('searchInput').value=''; document.getElementById('searchDropdown').hidden=true; window.openProfileOrPlaylist('${encodeURIComponent(idVal)}', '${type}');`;
+              return `
+              <div class="search-dropdown-item" onclick="${clickAction}">
+                <img src="${img}" alt="art" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=Music&background=333&color=fff';">
+                <div class="item-text">
+                  <div class="item-title">${escapeHtml(title)}</div>
+                  <div class="item-subtitle">${type} • ${escapeHtml(creator)}</div>
+                </div>
+              </div>`;
+            }).join('');
+            dropdown.hidden = false;
+            return;
+          }
+        }
+      } catch (ignored) {}
+
+      // Local fallback
+      const query = rawQuery.toLowerCase();
+      const results = tracks.filter(t => 
+        (t.title || '').toLowerCase().includes(query) || 
+        (t.artist || '').toLowerCase().includes(query)
+      ).slice(0, 8);
+      
+      if (results.length === 0) {
+        dropdown.hidden = true;
+        return;
+      }
+      
+      dropdown.innerHTML = results.map(t => {
+        const idx = tracks.indexOf(t);
+        return `
+        <div class="search-dropdown-item" onclick="document.getElementById('searchInput').value=''; document.getElementById('searchDropdown').hidden=true; window.playLibraryTrack(${idx});">
+          <img src="${t.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.artist)}&background=random&color=fff`}" alt="art">
+          <div class="item-text">
+            <div class="item-title">${escapeHtml(t.title)}</div>
+            <div class="item-subtitle">Song • ${escapeHtml(t.artist)}</div>
           </div>
-        </div>
-        <div class="item-action" title="Add to Playlist" onclick="event.stopPropagation(); window.openAddSongToPlaylistModal('${escapeHtml(t.fileName || t.title)}');">
-            <svg height="24" width="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 7v10m-5-5h10"></path>
-            </svg>
-        </div>
-      </div>
-      `;
-    }).join('');
-    dropdown.hidden = false;
+        </div>`;
+      }).join('');
+      dropdown.hidden = false;
+    }, 250);
   };
 
   window.currentSearchFilter = 'all';
