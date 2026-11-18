@@ -1,9 +1,20 @@
 @echo off
-REM =====================================================
-REM  Spotifake - Start Spring Boot Backend
-REM =====================================================
-cd /d "%~dp0BackendSpringBoot"
-if not exist "target\spotifake-backend-2.0.0.jar" (
-    call run_mvn.cmd package -DskipTests
+title Spotifake Backend Server
+echo =====================================================
+echo  Spotifake - Starting Spring Boot Backend
+echo =====================================================
+echo.
+
+if exist "spotifake-backend-2.0.0.jar" (
+    java -jar spotifake-backend-2.0.0.jar
+) else if exist "BackendSpringBoot\target\spotifake-backend-2.0.0.jar" (
+    java -jar BackendSpringBoot\target\spotifake-backend-2.0.0.jar
+) else if exist "target\spotifake-backend-2.0.0.jar" (
+    java -jar target\spotifake-backend-2.0.0.jar
+) else (
+    echo [ERROR] spotifake-backend-2.0.0.jar was not found!
+    echo Current folder contains:
+    dir /b
 )
-call start_springboot.cmd
+echo.
+pause

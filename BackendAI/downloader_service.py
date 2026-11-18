@@ -116,6 +116,8 @@ def _execute_spotdl(job_id: str, query: str):
         "spotdl",
         "download",
         query,
+        "--format",
+        "m4a",
         "--output",
         music_out,
         "--overwrite",

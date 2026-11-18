@@ -91,21 +91,37 @@ def import_audio_file_to_db(
             if hasattr(audio, "tags") and audio.tags:
                 tags = audio.tags
 
-                # Title
+                # Title (MP3 / M4A / OGG)
                 if "TIT2" in tags:
                     title = str(tags["TIT2"])
+                elif "\xa9nam" in tags:
+                    title = str(tags["\xa9nam"][0] if isinstance(tags["\xa9nam"], list) else tags["\xa9nam"])
+                elif "title" in tags:
+                    title = str(tags["title"][0] if isinstance(tags["title"], list) else tags["title"])
 
-                # Artist
+                # Artist (MP3 / M4A / OGG)
                 if "TPE1" in tags:
                     artist = str(tags["TPE1"])
+                elif "\xa9ART" in tags:
+                    artist = str(tags["\xa9ART"][0] if isinstance(tags["\xa9ART"], list) else tags["\xa9ART"])
+                elif "artist" in tags:
+                    artist = str(tags["artist"][0] if isinstance(tags["artist"], list) else tags["artist"])
 
-                # Album
+                # Album (MP3 / M4A / OGG)
                 if "TALB" in tags:
                     album = str(tags["TALB"])
+                elif "\xa9alb" in tags:
+                    album = str(tags["\xa9alb"][0] if isinstance(tags["\xa9alb"], list) else tags["\xa9alb"])
+                elif "album" in tags:
+                    album = str(tags["album"][0] if isinstance(tags["album"], list) else tags["album"])
 
-                # Genre
+                # Genre (MP3 / M4A / OGG)
                 if "TCON" in tags:
                     genre = str(tags["TCON"])
+                elif "\xa9gen" in tags:
+                    genre = str(tags["\xa9gen"][0] if isinstance(tags["\xa9gen"], list) else tags["\xa9gen"])
+                elif "genre" in tags:
+                    genre = str(tags["genre"][0] if isinstance(tags["genre"], list) else tags["genre"])
 
                 # Release date / year
                 if "TDRC" in tags:
@@ -118,17 +134,32 @@ def import_audio_file_to_db(
                         release_date = datetime(int(str(tags["TYER"])), 1, 1)
                     except Exception:
                         pass
+                elif "\xa9day" in tags:
+                    try:
+                        raw_day = str(tags["\xa9day"][0] if isinstance(tags["\xa9day"], list) else tags["\xa9day"])
+                        release_date = datetime.fromisoformat(raw_day)
+                    except Exception:
+                        pass
 
                 # Lyrics
                 for k in tags.keys():
                     if k.startswith("USLT") or k.startswith("SYLT"):
                         lyrics = str(tags[k])
                         break
+                    elif k == "\xa9lyr":
+                        lyrics = str(tags["\xa9lyr"][0] if isinstance(tags["\xa9lyr"], list) else tags["\xa9lyr"])
+                        break
 
-                # Album Art (APIC frame)
+                # Album Art (APIC for MP3, covr for M4A, METADATA_BLOCK_PICTURE for OGG)
                 for k in tags.keys():
                     if k.startswith("APIC"):
                         cover_art_data = bytes(tags[k].data)
+                        break
+                    elif k == "covr" and tags["covr"]:
+                        cover_art_data = bytes(tags["covr"][0])
+                        break
+                    elif k.lower() == "metadata_block_picture" and tags[k]:
+                        cover_art_data = bytes(tags[k][0])
                         break
 
                 # Source url / WOAS
