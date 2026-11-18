@@ -552,8 +552,9 @@
           localStorage.setItem('spotifake.jwt', data.token);
         }
         if (data.user) {
-          localStorage.setItem('spotifake.user', JSON.stringify(data.user));
-          localStorage.setItem('spotifake.username', data.user.username);
+          localStorage.setItem('spotifake.user', data.user.username || '');
+          localStorage.setItem('spotifake.userData', JSON.stringify(data.user));
+          localStorage.setItem('spotifake.username', data.user.username || '');
           localStorage.setItem('spotifake.role', data.user.role || 'user');
         }
 
@@ -648,10 +649,10 @@
         });
         const data = await response.json();
         if (data.success) {
-          let user = JSON.parse(localStorage.getItem('spotifake.user') || '{}');
+          let user = JSON.parse(localStorage.getItem('spotifake.userData') || '{}');
           user.isPremium = false;
           user.subscriptionTier = 'Free';
-          localStorage.setItem('spotifake.user', JSON.stringify(user));
+          localStorage.setItem('spotifake.userData', JSON.stringify(user));
 
           alert('Subscription cancelled successfully. You are now on the Free tier.');
           window.location.reload();

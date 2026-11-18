@@ -245,6 +245,7 @@ button {
 
 .auth-user-pill {
   min-height: 42px;
+  max-width: 220px;
   padding: 10px 16px;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -252,6 +253,9 @@ button {
   color: var(--text);
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .auth-panel {

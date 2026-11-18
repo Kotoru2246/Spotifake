@@ -699,9 +699,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function cleanUsername(val) {
+    if (!val) return '';
+    if (typeof val === 'object') {
+      return val.username || val.displayName || 'User';
+    }
+    const str = String(val).trim();
+    if (str.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(str);
+        return parsed.username || parsed.displayName || 'User';
+      } catch (_) {}
+    }
+    return str;
+  }
+
   function updateAuthChrome(username, roleLabel, loggedIn) {
+    const cleanUser = cleanUsername(username);
     if (authUserPill) {
-      authUserPill.textContent = loggedIn ? `Logged in as ${username}` : 'Not signed in';
+      authUserPill.textContent = loggedIn ? `Logged in as ${cleanUser}` : 'Not signed in';
+      authUserPill.title = loggedIn ? `Logged in as ${cleanUser}` : '';
     }
     if (loginToggleButton) {
       loginToggleButton.hidden = loggedIn;
@@ -713,7 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
       logoutButton.hidden = !loggedIn;
     }
     if (loginStatus) {
-      loginStatus.textContent = loggedIn ? `Signed in as ${username} (${roleLabel})` : '';
+      loginStatus.textContent = loggedIn ? `Signed in as ${cleanUser} (${roleLabel})` : '';
     }
   }
 
@@ -3566,7 +3583,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (authToken) {
     const storedToken = localStorage.getItem(authTokenKey);
-    const storedUser = localStorage.getItem(authUserKey);
+    let storedUser = localStorage.getItem(authUserKey);
+    if (storedUser && storedUser.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        storedUser = parsed.username || parsed.displayName || '';
+        localStorage.setItem(authUserKey, storedUser);
+      } catch (_) {}
+    }
     const storedRole = localStorage.getItem(authRoleKey) || 'user';
     if (storedToken && storedUser) {
       authToken = storedToken;
