@@ -1240,12 +1240,17 @@ public class SpotifakeRepository {
                 while (rs.next()) {
                     Song s = mapSong(rs);
                     Map<String, Object> songMap = new HashMap<>();
+                    songMap.put("id", s.getId());
+                    songMap.put("title", s.getTitle());
                     songMap.put("fileName", s.getFilePath() != null && !s.getFilePath().isEmpty() ? s.getFilePath() : s.getId() + ".mp3");
                     songMap.put("displayName", s.getTitle());
                     songMap.put("artist", s.getArtist());
+                    songMap.put("album", s.getAlbum());
+                    songMap.put("coverArtUrl", s.getCoverArtUrl() != null ? s.getCoverArtUrl() : "");
                     songMap.put("artistId", s.getUserId() != null ? s.getUserId() : "");
                     songMap.put("albumId", s.getAlbumId() != null ? s.getAlbumId() : "");
                     songMap.put("durationSeconds", Math.round((s.getDurationMs() != 0 ? s.getDurationMs() : 180000) / 1000.0));
+                    songMap.put("lyrics", s.getLyrics() != null ? s.getLyrics() : "");
                     likedSongs.add(songMap);
                 }
             }
@@ -1301,12 +1306,17 @@ public class SpotifakeRepository {
                 while (rs.next()) {
                     Song s = mapSong(rs);
                     Map<String, Object> m = new HashMap<>();
+                    m.put("id", s.getId());
+                    m.put("title", s.getTitle());
                     m.put("fileName", s.getFilePath() != null && !s.getFilePath().isEmpty() ? s.getFilePath() : s.getId() + ".mp3");
                     m.put("displayName", s.getTitle());
                     m.put("artist", s.getArtist());
+                    m.put("album", s.getAlbum());
+                    m.put("coverArtUrl", s.getCoverArtUrl() != null ? s.getCoverArtUrl() : "");
                     m.put("artistId", s.getUserId() != null ? s.getUserId() : "");
                     m.put("albumId", s.getAlbumId() != null ? s.getAlbumId() : "");
                     m.put("durationSeconds", Math.round((s.getDurationMs() != 0 ? s.getDurationMs() : 180000) / 1000.0));
+                    m.put("lyrics", s.getLyrics() != null ? s.getLyrics() : "");
                     songs.add(m);
                 }
             }

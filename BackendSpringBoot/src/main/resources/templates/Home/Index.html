@@ -24,22 +24,45 @@
         </svg>
     </div>
     <div class="top-bar-center">
-        <button class="nav-btn" onclick="showSection('home')" title="Home">🏠</button>
+        <button class="nav-btn" onclick="showSection('home')" title="Home">
+            <svg role="img" height="24" width="24" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33zm-2-1.732a3 3 0 0 1 3 0l7.5 4.33A2 2 0 0 1 22 7.577V21a1 1 0 0 1-1 1h-6.5a1 1 0 0 1-1-1v-5h-3v5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.577a2 2 0 0 1 .999-1.732l7.5-4.33z"></path>
+            </svg>
+        </button>
         <div class="search-bar-container">
-            <span class="search-icon">🔍</span>
+            <span class="search-icon">
+                <svg role="img" height="20" width="20" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z"></path>
+                </svg>
+            </span>
             <input type="text" id="searchInput" placeholder="What do you want to play?" oninput="handleSearchInput(event)" onkeypress="handleSearchSubmit(event)">
-            <button class="browse-btn" onclick="showSection('browse')" title="Browse All">🗂️</button>
+            <button class="browse-btn" onclick="showSection('browse')" title="Browse All">
+                <svg role="img" height="20" width="20" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 2v14h16V5H4zm3 3h10v2H7V8zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"></path>
+                </svg>
+            </button>
             <div id="searchDropdown" class="search-dropdown" hidden></div>
         </div>
     </div>
     <div class="top-bar-right">
         <button class="premium-nav-btn" id="explorePremiumBtn" onclick="window.location.href='/subscription'" title="Explore Premium">Explore Premium</button>
-        <span class="premium-badge-pill" id="premiumBadge" style="display:none; cursor:pointer;" onclick="window.location.href='/subscription'" title="Spotifake Premium Member - Manage Subscription">✨ Premium</span>
+        <span class="premium-badge-pill" id="premiumBadge" style="display:none; cursor:pointer;" onclick="window.location.href='/subscription'" title="Spotifake Premium Member - Manage Subscription">
+            <svg height="14" width="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            <span>Premium</span>
+        </span>
         <button class="bell-btn" id="notificationBell" title="What's New">
-            🔔<span class="badge" id="bellBadge" hidden></span>
+            <svg role="img" height="18" width="18" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 22a2.98 2.98 0 0 0 2.818-2H9.182A2.98 2.98 0 0 0 12 22zm7-6v-5c0-3.07-1.64-5.64-4.5-6.32V4a2.5 2.5 0 0 0-5 0v.68C6.63 5.36 5 7.92 5 11v5l-2 2v1h18v-1l-2-2z"></path>
+            </svg>
+            <span class="badge" id="bellBadge" hidden></span>
         </button>
         <div class="auth-actions">
-            <div class="auth-user-pill" id="authUserPill">Not signed in</div>
+            <div class="auth-user-pill" id="authUserPill">
+                <svg height="15" width="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                <span class="auth-user-name">Not signed in</span>
+            </div>
             <button type="button" class="secondary-action" id="loginToggleButton">Log In</button>
             <button type="button" class="secondary-action" id="signupToggleButton">Sign Up</button>
             <button type="button" class="secondary-action auth-logout" id="logoutButton" hidden>Log Out</button>
@@ -167,6 +190,53 @@
     </div>
 </div>
 
+<!-- Report Song Modal -->
+<div class="login-gate" id="reportSongModal" style="display: none;" hidden>
+    <div class="auth-panel">
+        <div class="auth-panel-card" style="max-width: 480px;">
+            <div class="auth-card-header">
+                <div class="brand-lockup">
+                    <div class="brand-mark" style="background: rgba(233, 20, 41, 0.2); color: #e91429;">🚩</div>
+                    <div>
+                        <h3 class="login-title">Report Content</h3>
+                        <p class="login-subtitle" id="reportSongSubtitle">Report an issue with this track</p>
+                    </div>
+                </div>
+                <button type="button" class="auth-close-btn" onclick="closeReportSongModal()" title="Close">✕</button>
+            </div>
+
+            <input type="hidden" id="reportSongId" value="">
+            
+            <div class="form-group" style="margin-top: 16px;">
+                <label for="reportSongTitle">Track</label>
+                <input type="text" id="reportSongTitle" readonly style="opacity: 0.8; cursor: not-allowed; background: rgba(255,255,255,0.06);">
+            </div>
+
+            <div class="form-group">
+                <label for="reportReason">Reason for Report *</label>
+                <select id="reportReason" style="width: 100%; padding: 10px; border-radius: 6px; background: #242424; color: #fff; border: 1px solid rgba(255,255,255,0.15);">
+                    <option value="Wrong Audio / Wrong Version">Wrong Audio / Incorrect Song Version</option>
+                    <option value="Audio Quality / Corrupted File">Audio Quality Issue / Distorted / Glitch</option>
+                    <option value="Misleading Metadata">Misleading Title, Artist, or Album Art</option>
+                    <option value="Inappropriate / Offensive">Inappropriate or Offensive Content</option>
+                    <option value="Copyright Infringement">Copyright / DMCA Violation</option>
+                    <option value="Other">Other Policy Violation</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="reportDescription">Details / Description (Optional)</label>
+                <textarea id="reportDescription" rows="3" placeholder="Explain what is wrong with this track..." style="width: 100%; padding: 10px; border-radius: 6px; background: #242424; color: #fff; border: 1px solid rgba(255,255,255,0.15); resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" class="secondary-action" onclick="closeReportSongModal()" style="flex: 1; padding: 10px;">Cancel</button>
+                <button type="button" class="primary-action" id="btnSubmitSongReport" onclick="submitSongReport()" style="flex: 2; padding: 10px; background: #e91429;">Submit Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Edit Playlist Modal -->
 <div class="login-gate" id="editPlaylistModal" style="display: none;" hidden>
     <div class="auth-panel">
@@ -221,7 +291,7 @@
                 <button class="add-btn" id="quickCreatePlaylistBtn" title="Create playlist or manage playlists" onclick="toggleSidebarAddMenu(event)">
                     <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M15.25 8a.75.75 0 0 1-.75.75H8.75v5.75a.75.75 0 0 1-1.5 0V8.75H1.5a.75.75 0 0 1 0-1.5h5.75V1.5a.75.75 0 0 1 1.5 0v5.75h5.75a.75.75 0 0 1 .75.75z"></path></svg>
                 </button>
-                <div id="sidebarAddMenu" class="sidebar-add-popover" style="display: none; position: absolute; left: calc(100% + 10px); top: 0; background: #282828; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.6); z-index: 1000; min-width: 210px; padding: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                <div id="sidebarAddMenu" class="sidebar-add-popover" style="display: none; position: absolute; left: calc(100% + 12px); top: 0; background: #282828; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.8); z-index: 9999; min-width: 210px; padding: 6px; border: 1px solid rgba(255,255,255,0.15);">
                     <button type="button" class="sidebar-add-menu-item" onclick="openCreatePlaylistModal(); hideSidebarAddMenu();">
                         <svg height="18" width="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                         <span>Create a new playlist</span>
@@ -249,7 +319,7 @@
             <button class="pinned-item artist-only" id="artistNavLink" onclick="window.location.href='/artist/manager'" title="Artist Manager" hidden>
                 <div class="artist-icon">🎤</div>
             </button>
-            <button class="pinned-item user-only" id="userArtistNavLink" onclick="window.location.href='/artist/manager'" title="Become an Artist" hidden>
+            <button class="pinned-item user-only" id="userArtistNavLink" onclick="window.location.href='/artist/register'" title="Become an Artist" hidden>
                 <div class="artist-icon">🌟</div>
             </button>
         </div>
@@ -817,11 +887,32 @@
     </div>
 
     <div class="player-right">
-        <button class="right-icon-btn" onclick="toggleLyricsView()" title="Lyrics">🎤</button>
-        <button class="right-icon-btn" onclick="toggleQueuePanel()" title="Queue">≡</button>
-        <button class="right-icon-btn" onclick="toggleMiniPlayer()" title="Mini Player">🗔</button>
+        <button class="right-icon-btn" onclick="openReportSongModal()" title="Report Song / Issue">
+            <svg role="img" height="16" width="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6h-5.6z"/>
+            </svg>
+        </button>
+        <button class="right-icon-btn" onclick="toggleLyricsView()" title="Lyrics">
+            <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M12 4a4 4 0 1 0-8 0v4a4 4 0 0 0 8 0V4zM7 0a5 5 0 0 1 5 5v3a5 5 0 0 1-4.25 4.945V15h2.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1 0-1.5h2.5v-2.055A5 5 0 0 1 3 8V5a5 5 0 0 1 5-5z"/>
+            </svg>
+        </button>
+        <button class="right-icon-btn" onclick="toggleQueuePanel()" title="Queue">
+            <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M15 15H1v-1.5h14V15zm0-4.5H1V9h14v1.5zm-14-7A2.5 2.5 0 0 1 3.5 1h9a2.5 2.5 0 0 1 0 5h-9A2.5 2.5 0 0 1 1 3.5zm2.5-1a1 1 0 0 0 0 2h9a1 1 0 1 0 0-2h-9z"/>
+            </svg>
+        </button>
+        <button class="right-icon-btn" onclick="toggleMiniPlayer()" title="Mini Player">
+            <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M16 2.45v11.1a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V2.45a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1zM14.5 3H1.5v9.9h13V3zm-2.25 4a.75.75 0 0 0-.75.75v3.5c0 .414.336.75.75.75h4a.75.75 0 0 0 .75-.75v-3.5a.75.75 0 0 0-.75-.75h-4z"/>
+            </svg>
+        </button>
         <div class="volume-wrap">
-            <button class="right-icon-btn" onclick="toggleMute()" title="Mute">🔊</button>
+            <button class="right-icon-btn" onclick="toggleMute()" title="Mute" id="volumeButton">
+                <svg id="volumeIcon" role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M9.741.85a.75.75 0 0 1 .375.65v13a.75.75 0 0 1-1.125.65l-6.925-4H0V4.85h2.066l6.925-4a.75.75 0 0 1 .75 0zM8.616 2.606 2.657 6.05H1.5v3.9h1.157l5.959 3.444V2.606zm3.396 2.406a.75.75 0 0 1 1.06 0 5.485 5.485 0 0 1 0 7.776.75.75 0 1 1-1.06-1.06 3.985 3.985 0 0 0 0-5.656.75.75 0 0 1 0-1.06zm1.905-2.09a.75.75 0 0 1 1.06 0 8.474 8.474 0 0 1 0 12.008.75.75 0 1 1-1.06-1.06 6.974 6.974 0 0 0 0-9.888.75.75 0 0 1 0-1.06z"/>
+                </svg>
+            </button>
             <div class="volume-slider-bar">
                 <input type="range" id="volumeControl" min="0" max="100" value="72" oninput="setVolume(this.value)">
             </div>
@@ -1042,6 +1133,11 @@
     <div style="border-top: 1px solid #3e3e3e; margin: 4px 0;"></div>
     <div class="menu-item" id="trackMenuGoToArtist" onclick="trackMenuAction('go-to-artist')" style="padding: 10px 16px; font-size: 14px; color: #fff; cursor: pointer;">Go to artist</div>
     <div class="menu-item" id="trackMenuGoToAlbum" onclick="trackMenuAction('go-to-album')" style="padding: 10px 16px; font-size: 14px; color: #fff; cursor: pointer; display: none;">Go to album</div>
+    <div style="border-top: 1px solid #3e3e3e; margin: 4px 0;"></div>
+    <div class="menu-item" onclick="trackMenuAction('report-song')" style="padding: 10px 16px; font-size: 14px; color: #ff5c5c; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+        <svg height="14" width="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6h-5.6z"/></svg>
+        <span>Report this track</span>
+    </div>
 </div>
 
 <style>

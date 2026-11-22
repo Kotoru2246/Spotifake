@@ -717,7 +717,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateAuthChrome(username, roleLabel, loggedIn) {
     const cleanUser = cleanUsername(username);
     if (authUserPill) {
-      authUserPill.textContent = loggedIn ? `Logged in as ${cleanUser}` : 'Not signed in';
+      const displayText = loggedIn ? `Logged in as ${cleanUser}` : 'Not signed in';
+      authUserPill.innerHTML = `
+        <svg height="15" width="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <span class="auth-user-name">${escapeHtml(displayText)}</span>
+      `;
       authUserPill.title = loggedIn ? `Logged in as ${cleanUser}` : '';
     }
     if (loginToggleButton) {
@@ -3080,7 +3084,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      const endpoint = isSignup ? `${API_BASE_URL}/auth/register` : `${API_BASE_URL}/auth/login`;
+      const endpoint = isSignup ? `${API_BASE_URL}/api/auth/register` : `${API_BASE_URL}/api/auth/login`;
 
       const displayName = String(signupDisplayName?.value || '').trim() || username;
       const email = String(signupEmail?.value || '').trim() || `${username}@musicplayer.local`;
@@ -3089,7 +3093,8 @@ document.addEventListener('DOMContentLoaded', () => {
         username,
         email,
         password,
-        display_name: displayName
+        display_name: displayName,
+        displayName: displayName
       } : {
         username,
         password
@@ -3106,7 +3111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
-          if (loginError) loginError.textContent = payload.detail || payload.message || (isSignup ? 'Registration failed.' : 'Login failed.');
+          if (loginError) loginError.textContent = payload.message || payload.detail || payload.error || (isSignup ? 'Registration failed.' : 'Login failed.');
           if (loginStatus) loginStatus.textContent = '';
           return;
         }
@@ -3559,8 +3564,19 @@ document.addEventListener('DOMContentLoaded', () => {
       }, 1500);
     });
     audioPlayer.addEventListener('volumechange', () => {
+      const vol = Math.round((audioPlayer.volume || 0) * 100);
       if (volumeControl) {
-        volumeControl.value = String(Math.round((audioPlayer.volume || 0) * 100));
+        volumeControl.value = String(vol);
+      }
+      const volumeIcon = document.getElementById('volumeIcon');
+      if (volumeIcon) {
+        if (vol === 0) {
+          volumeIcon.innerHTML = '<path d="M13.86 5.47a.75.75 0 0 0-1.061 0l-1.47 1.47-1.47-1.47A.75.75 0 0 0 8.8 6.53L10.27 8l-1.47 1.47a.75.75 0 1 0 1.06 1.06l1.47-1.47 1.47 1.47a.75.75 0 0 0 1.06-1.06L12.39 8l1.47-1.47a.75.75 0 0 0 0-1.06zM9.741.85a.75.75 0 0 1 .375.65v13a.75.75 0 0 1-1.125.65l-6.925-4H0V4.85h2.066l6.925-4a.75.75 0 0 1 .75 0zM8.616 2.606 2.657 6.05H1.5v3.9h1.157l5.959 3.444V2.606z"/>';
+        } else if (vol < 50) {
+          volumeIcon.innerHTML = '<path d="M9.741.85a.75.75 0 0 1 .375.65v13a.75.75 0 0 1-1.125.65l-6.925-4H0V4.85h2.066l6.925-4a.75.75 0 0 1 .75 0zM8.616 2.606 2.657 6.05H1.5v3.9h1.157l5.959 3.444V2.606zm3.396 2.406a.75.75 0 0 1 1.06 0 5.485 5.485 0 0 1 0 7.776.75.75 0 1 1-1.06-1.06 3.985 3.985 0 0 0 0-5.656.75.75 0 0 1 0-1.06z"/>';
+        } else {
+          volumeIcon.innerHTML = '<path d="M9.741.85a.75.75 0 0 1 .375.65v13a.75.75 0 0 1-1.125.65l-6.925-4H0V4.85h2.066l6.925-4a.75.75 0 0 1 .75 0zM8.616 2.606 2.657 6.05H1.5v3.9h1.157l5.959 3.444V2.606zm3.396 2.406a.75.75 0 0 1 1.06 0 5.485 5.485 0 0 1 0 7.776.75.75 0 1 1-1.06-1.06 3.985 3.985 0 0 0 0-5.656.75.75 0 0 1 0-1.06zm1.905-2.09a.75.75 0 0 1 1.06 0 8.474 8.474 0 0 1 0 12.008.75.75 0 1 1-1.06-1.06 6.974 6.974 0 0 0 0-9.888.75.75 0 0 1 0-1.06z"/>';
+        }
       }
     });
   }
@@ -6475,6 +6491,16 @@ document.addEventListener('DOMContentLoaded', () => {
           case 'share':
               showToast('success', 'Share', 'Link copied to clipboard!');
               break;
+          case 'report-song':
+              let repTrack = null;
+              if (typeof tracks !== 'undefined' && Array.isArray(tracks)) {
+                  repTrack = tracks.find(t => (songId && (t.id === songId || t.Id === songId)) || (fileName && (t.fileName === fileName || t.title === fileName)));
+              }
+              if (!repTrack) {
+                  repTrack = { id: songId, fileName: fileName, title: fileName, artist: artistName || '' };
+              }
+              openReportSongModal(repTrack);
+              break;
       }
       contextMenuTargetSong = null;
   };
@@ -7124,6 +7150,125 @@ document.addEventListener('DOMContentLoaded', () => {
   window.handleCheckoutSubmit = handleCheckoutSubmit;
   window.openPrintableReceipt = openPrintableReceipt;
   window.closeReceiptModal = closeReceiptModal;
+
+  // Song Content Reporting
+  window.openReportSongModal = function(targetTrack) {
+    let track = targetTrack;
+    if (!track) {
+      const q = typeof getCurrentQueue === 'function' ? getCurrentQueue() : (typeof activeQueue !== 'undefined' && activeQueue && activeQueue.length > 0 ? activeQueue : (typeof tracks !== 'undefined' ? tracks : []));
+      if (q && q.length > 0 && typeof currentTrackIndex === 'number' && q[currentTrackIndex]) {
+        track = q[currentTrackIndex];
+      }
+    }
+
+    if (!track) {
+      const pTrack = document.getElementById('playerTrack');
+      const pArtist = document.getElementById('playerArtist');
+      if (pTrack && pTrack.textContent && pTrack.textContent !== 'No Track Selected' && pTrack.textContent !== 'No Tracks Available') {
+        track = {
+          title: pTrack.textContent.trim(),
+          displayName: pTrack.textContent.trim(),
+          artist: pArtist ? pArtist.textContent.trim() : '',
+          id: pTrack.dataset ? (pTrack.dataset.songId || '') : ''
+        };
+      }
+    }
+
+    const modal = document.getElementById('reportSongModal');
+    if (!modal) {
+      console.warn('reportSongModal element not found in DOM');
+      return;
+    }
+
+    const idInput = document.getElementById('reportSongId');
+    const titleInput = document.getElementById('reportSongTitle');
+    const subtitle = document.getElementById('reportSongSubtitle');
+    const descInput = document.getElementById('reportDescription');
+
+    if (track) {
+      const trackTitle = track.displayName || track.title || track.Title || 'Unknown Track';
+      const trackArtist = track.artist || track.Artist || '';
+      const fullTrackName = trackArtist ? `${trackTitle} - ${trackArtist}` : trackTitle;
+
+      if (idInput) idInput.value = track.id || track.Id || track.fileName || '';
+      if (titleInput) {
+        titleInput.value = fullTrackName;
+        titleInput.readOnly = true;
+      }
+      if (subtitle) subtitle.textContent = `Reporting "${fullTrackName}" to moderators`;
+    } else {
+      if (idInput) idInput.value = '0';
+      if (titleInput) {
+        titleInput.value = '';
+        titleInput.placeholder = 'Type song title or describe the audio issue...';
+        titleInput.readOnly = false;
+      }
+      if (subtitle) subtitle.textContent = 'Report an audio or metadata issue to moderators';
+    }
+
+    if (descInput) descInput.value = '';
+
+    if (typeof setModalOpen === 'function') {
+      setModalOpen(modal, true);
+    } else {
+      modal.hidden = false;
+      modal.removeAttribute('hidden');
+      modal.style.display = 'flex';
+    }
+  };
+
+  window.closeReportSongModal = function() {
+    const modal = document.getElementById('reportSongModal');
+    if (modal) {
+      if (typeof setModalOpen === 'function') {
+        setModalOpen(modal, false);
+      } else {
+        modal.style.display = 'none';
+        modal.hidden = true;
+      }
+    }
+  };
+
+  window.submitSongReport = async function() {
+    const id = document.getElementById('reportSongId')?.value;
+    const title = document.getElementById('reportSongTitle')?.value;
+    const reason = document.getElementById('reportReason')?.value || 'Inappropriate Content';
+    const description = document.getElementById('reportDescription')?.value || '';
+    const btn = document.getElementById('btnSubmitSongReport');
+
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+    }
+
+    try {
+      const response = await authenticatedFetch('/api/music/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          songId: id,
+          title: title,
+          reason: reason,
+          description: description
+        })
+      });
+
+      const res = await response.json().catch(() => ({}));
+      if (response.ok && (res.success || res.status === 200)) {
+        showToast('success', 'Report Submitted', 'Thank you! Our moderation team has received your report.');
+        closeReportSongModal();
+      } else {
+        showToast('error', 'Report Failed', res.message || 'Could not submit report.');
+      }
+    } catch (err) {
+      showToast('error', 'Network Error', 'Failed to communicate with reporting service.');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Submit Report';
+      }
+    }
+  };
 
   // Set Right Panel default state to "Now Playing"
   if (rightSidePanel) {

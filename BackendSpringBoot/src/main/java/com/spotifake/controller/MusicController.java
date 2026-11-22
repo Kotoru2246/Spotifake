@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
+import java.net.URI;
 import java.nio.file.Files;
 import java.util.*;
 
@@ -53,7 +54,7 @@ public class MusicController {
             map.put("releaseDate", s.getReleaseDate() != null ? s.getReleaseDate() : "");
             map.put("genre", s.getGenre() != null ? s.getGenre() : "");
             map.put("mood", s.getMood() != null ? s.getMood() : "");
-            map.put("lyrics", s.getLyrics() != null ? s.getLyrics() : "");
+            map.put("hasLyrics", s.getLyrics() != null && !s.getLyrics().isBlank());
             list.add(map);
         }
         return list;
@@ -114,7 +115,12 @@ public class MusicController {
     }
 
     @GetMapping({"/cover/{songId}", "/{songId}/cover"})
-    public ResponseEntity<byte[]> getCoverArt(@PathVariable String songId) {
+    public ResponseEntity<?> getCoverArt(@PathVariable String songId) {
+        Song s = repository.getSongById(songId);
+        if (s == null) s = repository.getSongByFilePathOrTitle(songId);
+        if (s != null && s.getCoverArtUrl() != null && s.getCoverArtUrl().startsWith("http")) {
+            return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(s.getCoverArtUrl())).build();
+        }
         byte[] data = songService.getCoverArtData(songId);
         if (data == null || data.length == 0) {
             return ResponseEntity.notFound().build();
@@ -180,6 +186,43 @@ public class MusicController {
             "title", song.getTitle() != null ? song.getTitle() : "",
             "artist", song.getArtist() != null ? song.getArtist() : "",
             "lyrics", song.getLyrics() != null ? song.getLyrics() : ""
+        ));
+    }
+
+    @PostMapping({"/{songId}/report", "/report"})
+    public ResponseEntity<?> reportSong(@PathVariable(required = false) String songId,
+                                        @RequestBody(required = false) Map<String, Object> body,
+                                        @AuthenticationPrincipal User user) {
+        Map<String, Object> reqBody = body != null ? body : Collections.emptyMap();
+        String idStr = songId != null ? songId : String.valueOf(reqBody.getOrDefault("songId", ""));
+        Song song = null;
+        if (!idStr.isEmpty()) {
+            song = repository.getSongById(idStr);
+            if (song == null) {
+                song = repository.getSongByFilePathOrTitle(idStr);
+            }
+        }
+
+        int numericId = 0;
+        try {
+            if (song != null) {
+                numericId = Integer.parseInt(song.getId());
+            } else if (!idStr.isEmpty()) {
+                numericId = Integer.parseInt(idStr);
+            }
+        } catch (Exception ignored) {}
+
+        String title = song != null
+                ? (song.getTitle() + " - " + song.getArtist())
+                : String.valueOf(reqBody.getOrDefault("title", "Song #" + idStr));
+        String reason = String.valueOf(reqBody.getOrDefault("reason", "Inappropriate Content"));
+        String description = String.valueOf(reqBody.getOrDefault("description", ""));
+        String reporter = user != null ? user.getUsername() : String.valueOf(reqBody.getOrDefault("reportedBy", "anonymous"));
+
+        repository.createContentReport("Song", numericId, title, reason, description, reporter);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Report submitted successfully. Thank you for helping keep Spotifake safe."
         ));
     }
 

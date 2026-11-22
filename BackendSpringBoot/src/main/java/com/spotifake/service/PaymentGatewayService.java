@@ -194,7 +194,9 @@ public class PaymentGatewayService {
     }
 
     public boolean isStripeConfigured() {
-        return stripeApiKey != null && stripeApiKey.trim().startsWith("sk_");
+        if (stripeApiKey == null) return false;
+        String key = stripeApiKey.trim();
+        return key.startsWith("sk_") && !key.toLowerCase().contains("placeholder") && key.length() > 25;
     }
 
     public String getStripePublicKey() {

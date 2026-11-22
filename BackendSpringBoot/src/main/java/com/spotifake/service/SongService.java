@@ -154,6 +154,7 @@ public class SongService {
 
     public byte[] getCoverArtData(String songId) {
         Song s = repository.getSongById(songId);
+        if (s == null) s = repository.getSongByFilePathOrTitle(songId);
         if (s != null && s.getCoverArtData() != null && s.getCoverArtData().length > 0) {
             return s.getCoverArtData();
         }

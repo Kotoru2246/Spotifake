@@ -24,6 +24,7 @@ public class AuthDto {
         private String username;
         private String email;
         private String password;
+        @com.fasterxml.jackson.annotation.JsonAlias({"display_name", "displayName", "name"})
         private String displayName;
 
         public RegisterRequest() {}
@@ -37,8 +38,9 @@ public class AuthDto {
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
 
-        public String getDisplayName() { return displayName; }
+        public String getDisplayName() { return displayName != null && !displayName.isBlank() ? displayName : username; }
         public void setDisplayName(String displayName) { this.displayName = displayName; }
+        public void setDisplay_name(String displayName) { this.displayName = displayName; }
     }
 
     public static class AuthResponse {

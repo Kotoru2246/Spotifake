@@ -61,32 +61,55 @@ public class AuthController {
     }
 
 
-    @PostMapping("/api/auth/register")
+    @PostMapping(value = {"/api/auth/register", "/auth/register"}, consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<?> apiRegister(@RequestBody AuthDto.RegisterRequest req, HttpServletResponse response) {
-        if (repository.getUserByUsername(req.getUsername()) != null) {
+        if (req.getUsername() == null || req.getUsername().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Username is required", "detail", "Username is required"));
+        }
+        if (req.getEmail() == null || req.getEmail().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Email is required", "detail", "Email is required"));
+        }
+        if (req.getPassword() == null || req.getPassword().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Password is required", "detail", "Password is required"));
+        }
+
+        if (repository.getUserByUsername(req.getUsername().trim()) != null) {
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
-            err.put("message", "Username already exists");
+            err.put("message", "Username already exists. Please choose another username or sign in.");
+            err.put("detail", "Username already exists. Please choose another username or sign in.");
             return ResponseEntity.badRequest().body(err);
         }
 
-        if (repository.getUserByEmail(req.getEmail()) != null) {
+        if (repository.getUserByEmail(req.getEmail().trim()) != null) {
             Map<String, Object> err = new HashMap<>();
             err.put("success", false);
-            err.put("message", "Email already in use");
+            err.put("message", "Email address is already registered. Please sign in or use another email.");
+            err.put("detail", "Email address is already registered. Please sign in or use another email.");
             return ResponseEntity.badRequest().body(err);
         }
 
         String userId = UUID.randomUUID().toString();
         String hash = passwordEncoder.encode(req.getPassword());
-        User user = repository.createUser(userId, req.getUsername(), req.getEmail(), hash, "user", req.getDisplayName());
+        User user = repository.createUser(userId, req.getUsername().trim(), req.getEmail().trim(), hash, "user", req.getDisplayName());
+
+        if (user == null) {
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "message", "Failed to create user account", "detail", "Database error creating user"));
+        }
 
         String token = jwtUtil.generateToken(user);
         setCookie(response, token);
         repository.logUserActivity(user.getId(), "REGISTER", "New user registered: @" + user.getUsername(), "127.0.0.1");
 
-        AuthDto.AuthResponse res = new AuthDto.AuthResponse(true, "Registration successful", token, user);
+        Map<String, Object> res = new HashMap<>();
+        res.put("success", true);
+        res.put("message", "Registration successful");
+        res.put("token", token);
+        res.put("access_token", token);
+        res.put("role", user.getRole());
+        res.put("username", user.getUsername());
+        res.put("user", user);
         return ResponseEntity.ok(res);
     }
 
