@@ -33,7 +33,7 @@ The `?fileName=` form of `/api/music/stream` stays because file names such as
 | `/songs/{id}/cover`, `/api/songs/{id}/cover` | `/api/music/cover/{id}` | also the `coverUrl` returned by smart-shuffle |
 | `/api/songs/{id}/audio` (admin templates; never existed) | `/api/music/stream/{id}` | fixes the admin song preview players |
 | `/music/listen`, `/api/music/listen`, `.../api/play`, `.../api/listen` | `/api/music/play` | |
-| `/songs/upload`, `/music/upload` | `/api/music/upload` | |
+| `/songs/upload`, `/music/upload` | `/api/music/upload` | also the Artist Studio upload form |
 | `/api/music/{id}/lyrics` | `/api/music/lyrics/{id}` | |
 | `/api/music/{id}/report` | `/api/music/report` (songId in body) | |
 | `/album/**`, `/albums/**` | `/api/albums/**` | |
@@ -73,6 +73,6 @@ from the old FastAPI backend in `BackendAI/main.py`):
 - `POST /music/albums/save/{id}`, `POST /music/albums/unsave/{id}`, `POST /playlists/save/{id}`
 - `PUT /api/playlists/{id}` (rename), `POST /api/playlists/{id}/unsave`, `POST /api/playlists/{id}/visibility`
 - `GET ${API_BASE_URL}/songs/{id}/features`, `GET|POST ${API_BASE_URL}/songs/{id}/comments`
-- Artist Studio: `GET /api/artists/{id}/albums`, `POST /api/albums`
+- Artist Studio: `GET /api/artists/{id}/albums`, `POST /api/albums`, and the test-mode upload `POST /songs/test_upload`
 
 These are listed in TODO.md.

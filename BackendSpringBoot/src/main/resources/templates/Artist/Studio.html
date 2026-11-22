@@ -481,7 +481,7 @@
             }
 
             const formData = new FormData(this);
-            const targetUrl = isTestMode ? `${window.location.origin}/songs/test_upload` : `${window.location.origin}/songs/upload`;
+            const targetUrl = isTestMode ? `${window.location.origin}/songs/test_upload` : `${window.location.origin}/api/music/upload`;
 
             try {
                 // Ensure auth token is passed to backend AI
