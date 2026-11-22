@@ -92,3 +92,11 @@ spotify-downloader/
 
 BackendAI/fma_data/*.zip
 BackendAI/fma_data/metadata/fma_metadata/*.csv
+
+# Large binaries (archived outside the repo in C:\Users\jacky\SpotifakeArchive)
+*.zip
+*.apk
+*.exe
+
+# Local screenshots
+docs/screenshots/

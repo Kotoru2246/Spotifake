@@ -35,7 +35,6 @@ public class SongService {
         File targetFile = new File(uploadDir, diskFileName);
         file.transferTo(targetFile);
 
-        byte[] fileBytes = Files.readAllBytes(targetFile.toPath());
         byte[] coverBytes = null;
         String coverUrl = "";
 
@@ -74,8 +73,8 @@ public class SongService {
         song.setAlbum(parsedAlbum);
         song.setGenre(parsedGenre);
         song.setDurationMs(durationMs);
+        // Audio lives only on disk; FileData is kept solely as a read fallback for legacy rows.
         song.setFilePath(diskFileName);
-        song.setFileData(fileBytes);
         song.setCoverArtUrl(coverUrl);
         song.setCoverArtData(coverBytes);
         song.setStorageUrl("/api/music/stream/" + songId);

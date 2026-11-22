@@ -7,5 +7,7 @@ echo.
 echo Forwarding port 8000 to Cloudflare's secure public network...
 echo Look for the https://....trycloudflare.com URL below:
 echo.
-"%~dp0cloudflared.exe" tunnel --url http://127.0.0.1:8000
+rem cloudflared.exe lives outside the repo; override with the CLOUDFLARED env var.
+if not defined CLOUDFLARED set "CLOUDFLARED=C:\Users\jacky\SpotifakeArchive\cloudflared.exe"
+"%CLOUDFLARED%" tunnel --url http://127.0.0.1:8000
 pause
