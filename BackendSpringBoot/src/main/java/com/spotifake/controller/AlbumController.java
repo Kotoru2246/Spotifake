@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping({"/api/albums", "/album", "/albums"})
+@RequestMapping("/api/albums")
 public class AlbumController {
 
     private final SpotifakeRepository repository;
@@ -18,12 +18,12 @@ public class AlbumController {
         this.repository = repository;
     }
 
-    @GetMapping({"", "/list"})
+    @GetMapping("")
     public List<Album> getAllAlbums() {
         return repository.getAllAlbums();
     }
 
-    @GetMapping({"/{albumId}", "/details/{albumId}"})
+    @GetMapping("/{albumId}")
     public ResponseEntity<?> getAlbum(@PathVariable String albumId) {
         Album album = repository.getAlbumById(albumId);
         if (album == null) {

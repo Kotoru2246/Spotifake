@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping({"/api/recommendations", "/api"})
+@RequestMapping("/api/recommendations")
 public class RecommendationController {
 
     private final SpotifakeRepository repository;
@@ -19,7 +19,7 @@ public class RecommendationController {
         this.recommendationService = recommendationService;
     }
 
-    @PostMapping({"/smart-shuffle", "/recommendations/smart-shuffle"})
+    @PostMapping("/smart-shuffle")
     public Map<String, Object> smartShuffle(@RequestBody(required = false) Map<String, Object> body) {
         if (body == null) body = Collections.emptyMap();
         @SuppressWarnings("unchecked")
@@ -67,7 +67,7 @@ public class RecommendationController {
             map.put("mood", s.getMood());
             map.put("fileName", s.getFilePath() != null && !s.getFilePath().isEmpty() ? s.getFilePath() : s.getId() + ".mp3");
             map.put("durationSeconds", Math.round((s.getDurationMs() != 0 ? s.getDurationMs() : 180000) / 1000.0));
-            map.put("coverUrl", "/api/songs/" + s.getId() + "/cover");
+            map.put("coverUrl", "/api/music/cover/" + s.getId());
             result.add(map);
         }
 
@@ -77,14 +77,14 @@ public class RecommendationController {
         return response;
     }
 
-    @GetMapping({"/knn-projection", "/recommendations/knn-projection"})
+    @GetMapping("/knn-projection")
     public Map<String, Object> knnProjection(@RequestParam(value = "seed_id", required = false) String seedId,
                                              @RequestParam(value = "k_neighbors", defaultValue = "5") int kNeighbors) {
         List<Song> allSongs = repository.getAllSongs();
         return recommendationService.getKnnProjection(allSongs, seedId, kNeighbors);
     }
 
-    @GetMapping({"/hybrid", "/recommendations/hybrid"})
+    @GetMapping("/hybrid")
     public Map<String, Object> hybrid(@RequestParam("seed_id") String seedId,
                                       @RequestParam(value = "limit", defaultValue = "10") int limit) {
         Song seed = repository.getSongById(seedId);

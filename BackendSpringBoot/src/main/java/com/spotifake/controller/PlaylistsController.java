@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping({"/api/playlists", "/playlists"})
+@RequestMapping("/api/playlists")
 public class PlaylistsController {
 
     private final SpotifakeRepository repository;
@@ -22,14 +22,14 @@ public class PlaylistsController {
         return user != null ? user.getUsername() : "user_test";
     }
 
-    @GetMapping({"", "/my"})
+    @GetMapping({"", "/my" /* legacy alias for spotifake_mobile */})
     public List<Map<String, Object>> getPlaylists(@AuthenticationPrincipal User user) {
 
         String username = resolveUsername(user);
         return repository.getUserPlaylists(username);
     }
 
-    @GetMapping({"/{playlistId}", "/details/{playlistId}"})
+    @GetMapping("/{playlistId}")
     public ResponseEntity<?> getPlaylistDetails(@PathVariable String playlistId) {
         Map<String, Object> details = repository.getPlaylistDetails(playlistId);
         if (details == null) {
@@ -38,7 +38,7 @@ public class PlaylistsController {
         return ResponseEntity.ok(details);
     }
 
-    @PostMapping({"", "/my"})
+    @PostMapping("")
     public ResponseEntity<?> createPlaylist(@RequestBody Map<String, Object> body,
                                             @AuthenticationPrincipal User user) {
         String username = resolveUsername(user);
@@ -55,7 +55,7 @@ public class PlaylistsController {
         return ResponseEntity.ok(repository.getUserPlaylists(username));
     }
 
-    @DeleteMapping({"/{playlistId}", "/my/{playlistId}"})
+    @DeleteMapping("/{playlistId}")
     public ResponseEntity<?> deletePlaylist(@PathVariable String playlistId,
                                             @AuthenticationPrincipal User user) {
         repository.deletePlaylist(playlistId);
@@ -63,7 +63,7 @@ public class PlaylistsController {
         return ResponseEntity.ok(repository.getUserPlaylists(username));
     }
 
-    @PostMapping({"/{playlistId}/songs", "/my/{playlistId}/songs"})
+    @PostMapping("/{playlistId}/songs")
     public ResponseEntity<?> addSong(@PathVariable String playlistId,
                                      @RequestBody Map<String, String> body,
                                      @AuthenticationPrincipal User user) {
@@ -77,7 +77,7 @@ public class PlaylistsController {
         return ResponseEntity.ok(repository.getUserPlaylists(username));
     }
 
-    @DeleteMapping({"/{playlistId}/songs", "/my/{playlistId}/songs", "/my/{playlistId}/songs/{songFileName}"})
+    @DeleteMapping({"/{playlistId}/songs", "/{playlistId}/songs/{songFileName}"})
     public ResponseEntity<?> removeSong(@PathVariable String playlistId,
                                         @PathVariable(required = false) String songFileName,
                                         @RequestBody(required = false) Map<String, String> body,
@@ -95,7 +95,7 @@ public class PlaylistsController {
         return ResponseEntity.ok(repository.getUserPlaylists(username));
     }
 
-    @PostMapping({"/toggle-favorite", "/my/liked/toggle"})
+    @PostMapping("/toggle-favorite")
     public ResponseEntity<?> toggleFavorite(@RequestBody Map<String, String> body,
                                             @AuthenticationPrincipal User user) {
         String username = resolveUsername(user);

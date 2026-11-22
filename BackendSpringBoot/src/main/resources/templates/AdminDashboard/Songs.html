@@ -148,7 +148,7 @@
                     <span class="dash-badge cyan" th:text="${s.genre != null and !s.genre.isEmpty() ? s.genre : 'Music'}">Genre</span>
                   </td>
                   <td>
-                    <audio controls preload="none" class="dash-song-audio" th:src="${'/api/songs/' + s.id + '/audio'}"></audio>
+                    <audio controls preload="none" class="dash-song-audio" th:src="${'/api/music/stream/' + s.id}"></audio>
                   </td>
                   <td>
                     <span style="font-family: monospace; font-weight: 600;" th:text="${s.playCount}">0</span>

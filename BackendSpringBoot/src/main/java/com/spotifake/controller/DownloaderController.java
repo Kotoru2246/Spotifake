@@ -12,13 +12,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @RestController
-@RequestMapping({"/api/downloader", "/downloader"})
+@RequestMapping("/api/downloader")
 public class DownloaderController {
 
     private final ExecutorService executor = Executors.newFixedThreadPool(2);
     private final Map<String, Map<String, Object>> jobs = new ConcurrentHashMap<>();
 
-    @PostMapping({"/download", "/start"})
+    @PostMapping({"/start", "/download" /* legacy alias for spotifake_mobile */})
     public ResponseEntity<?> startDownload(@RequestBody Map<String, String> body) {
         String query = body.get("query");
         if (query == null || query.trim().isEmpty()) {
@@ -39,7 +39,7 @@ public class DownloaderController {
         return ResponseEntity.ok(job);
     }
 
-    @GetMapping({"/jobs", "/list"})
+    @GetMapping("/jobs")
     public List<Map<String, Object>> getJobs() {
         List<Map<String, Object>> list = new ArrayList<>(jobs.values());
         list.sort((a, b) -> b.get("id").toString().compareTo(a.get("id").toString()));

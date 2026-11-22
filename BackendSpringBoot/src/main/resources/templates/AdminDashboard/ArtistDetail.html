@@ -180,7 +180,7 @@
                     <span style="font-family: monospace;" th:text="${s.playCount}">0</span>
                   </td>
                   <td>
-                    <audio controls preload="none" class="dash-song-audio" th:src="${'/api/songs/' + s.id + '/audio'}"></audio>
+                    <audio controls preload="none" class="dash-song-audio" th:src="${'/api/music/stream/' + s.id}"></audio>
                   </td>
                   <td>
                     <span th:text="${(s.durationSeconds / 60) + ':' + (s.durationSeconds % 60 < 10 ? '0' : '') + (s.durationSeconds % 60)}">3:00</span>

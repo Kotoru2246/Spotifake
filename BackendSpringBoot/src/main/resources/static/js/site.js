@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function syncPlatformRuntime() {
     try {
-      const resp = await fetch('/admin/dashboard/api/public/settings');
+      const resp = await fetch('/api/public/settings');
       if (resp.ok) {
         const data = await resp.json();
         window.platformSettings = Object.assign(window.platformSettings, data);
@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
 
     try {
-      const resp = await fetch('/admin/dashboard/api/public/announcements');
+      const resp = await fetch('/api/public/announcements');
       if (resp.ok) {
         const announcements = await resp.json();
         if (announcements && announcements.length > 0) {
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const notifBell = document.getElementById('notificationBell');
   if (notifBell) {
     notifBell.addEventListener('click', () => {
-      fetch('/admin/dashboard/api/public/announcements')
+      fetch('/api/public/announcements')
         .then(r => r.ok ? r.json() : [])
         .then(list => {
           if (list && list.length > 0) {
@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function normalizeBackendSong(song) {
     const title = song.title || song.displayName || song.name || 'Untitled Track';
     const filePath = song.file_path || song.storage_url || song.filePath || song.storageUrl || song.fileName || (song.title ? `${song.title}.mp3` : '');
-    const cover = song.coverUrl || song.cover_art_url || song.coverArtUrl || (song.id ? `${API_BASE_URL}/songs/${song.id}/cover` : '');
+    const cover = song.coverUrl || song.cover_art_url || song.coverArtUrl || (song.id ? `${API_BASE_URL}/api/music/cover/${song.id}` : '');
     return {
       id: song.id,
       Id: song.id,
@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
       instrumentalness: song.instrumentalness || 0,
       color: initials(title) || 'AI',
       accent: '#1db954',
-      src: `${API_BASE_URL}/songs/${song.id}/stream`,
+      src: `${API_BASE_URL}/api/music/stream/${song.id}`,
       coverUrl: cover,
       coverArt: cover,
       duration: Math.round((song.duration_ms || (song.durationSeconds ? song.durationSeconds * 1000 : 0)) / 1000),
@@ -377,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (!coverUrl && typeof tracks !== 'undefined' && tracks) {
         const match = tracks.find(t => (t.album && t.album.toLowerCase() === title.toLowerCase()) || (t.title && t.title.toLowerCase() === title.toLowerCase()));
-        if (match) coverUrl = match.coverUrl || (match.id ? `${API_BASE_URL}/songs/${match.id}/cover` : '');
+        if (match) coverUrl = match.coverUrl || (match.id ? `${API_BASE_URL}/api/music/cover/${match.id}` : '');
       }
 
       const artist = container.artist || (container.songs && container.songs[0] ? container.songs[0].artist : '') || '';
@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const albumId = track.albumId || track.AlbumId || null;
       const artistId = track.artistId || track.ArtistId || null;
       const genre = track.genre || track.Genre || 'Uncategorized';
-      const coverUrl = track.coverUrl || (songId ? `${API_BASE_URL}/songs/${songId}/cover` : '') || track.coverArt || '';
+      const coverUrl = track.coverUrl || (songId ? `${API_BASE_URL}/api/music/cover/${songId}` : '') || track.coverArt || '';
       const playlistName = context.playlistName || (typeof currentQueueTitle !== 'undefined' ? currentQueueTitle : null) || (typeof currentViewedPlaylist !== 'undefined' && currentViewedPlaylist ? currentViewedPlaylist.name : null) || null;
 
       // Deduplication: if exact same song was recorded within the last 3 seconds, skip duplicate
@@ -893,7 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     playlistSongsList.innerHTML = selected.songs.map((song, idx) => {
-      const coverSrc = song.coverUrl || (song.id ? `${API_BASE_URL}/songs/${song.id}/cover` : '') || '';
+      const coverSrc = song.coverUrl || (song.id ? `${API_BASE_URL}/api/music/cover/${song.id}` : '') || '';
       return `
         <article class="playlist-song-item" style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(255,255,255,0.03); margin-bottom: 6px;">
           <span style="font-size: 12px; color: #727272; width: 20px; text-align: center;">${idx + 1}</span>
@@ -969,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
         artist: typeof song === 'string' ? 'Artist' : (song.artist || 'Artist'),
         album: typeof song === 'string' ? 'Single' : (song.album || 'Single'),
         fileName: songFileName,
-        src: `/music/stream?fileName=${encodeURIComponent(songFileName)}`,
+        src: `/api/music/stream?fileName=${encodeURIComponent(songFileName)}`,
         color: '🎵',
         duration: 0,
         durationSeconds: 0
@@ -1213,7 +1213,7 @@ document.addEventListener('DOMContentLoaded', () => {
       openPlaylistDetailView(playlist);
     } else {
       try {
-          const res = await authenticatedFetch(`/playlists/details/${encodeURIComponent(playlistId)}`);
+          const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}`);
           if (res.ok) {
               const data = await res.json();
               openPlaylistDetailView(data);
@@ -1234,7 +1234,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
       }
       try {
-          const res = await authenticatedFetch(`/album/details/${encodeURIComponent(albumId)}`);
+          const res = await authenticatedFetch(`/api/albums/${encodeURIComponent(albumId)}`);
           if (res.ok) {
               const albumData = await res.json();
               openPlaylistDetailView(albumData);
@@ -1281,7 +1281,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           
           try {
-              const res = await authenticatedFetch(`/playlists/my/${encodeURIComponent(playlistId)}`, {
+              const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ name: newName, imageUrl: newImage })
@@ -1311,7 +1311,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.removeSavedItem = async function(id, type) {
       try {
           if (type === 'Playlist') {
-              const res = await authenticatedFetch(`/playlists/my/${encodeURIComponent(id)}/unsave`, { method: 'POST' });
+              const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(id)}/unsave`, { method: 'POST' });
               if (res.ok) {
                   showToast('success', 'Removed', 'Playlist removed from library');
                   await loadUserPlaylists();
@@ -1333,7 +1333,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.removePlaylist = async function(id) {
       if (!confirm('Are you sure you want to delete this playlist? This action cannot be undone.')) return;
       try {
-          const res = await authenticatedFetch(`/playlists/my/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(id)}`, { method: 'DELETE' });
           if (res.ok) {
               showToast('success', 'Deleted', 'Playlist deleted successfully');
               await loadUserPlaylists();
@@ -1348,7 +1348,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.togglePlaylistVisibility = async function(playlistId, isPublic) {
       try {
-          const res = await authenticatedFetch(`/playlists/my/${encodeURIComponent(playlistId)}/visibility`, {
+          const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}/visibility`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ isPublic: isPublic })
@@ -1453,7 +1453,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const response = await authenticatedFetch('/playlists/my');
+    const response = await authenticatedFetch('/api/playlists');
     const payload = await response.json().catch(() => ([]));
     if (!response.ok) {
       throw new Error(payload.detail || 'Unable to load playlists.');
@@ -1479,7 +1479,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const response = await authenticatedFetch('/playlists/my', {
+    const response = await authenticatedFetch('/api/playlists', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, imageUrl, songFileNames }),
@@ -1497,7 +1497,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function deletePlaylist(playlistId) {
-    const response = await authenticatedFetch(`/playlists/my/${encodeURIComponent(playlistId)}`, {
+    const response = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}`, {
       method: 'DELETE',
     });
     const payload = await response.json().catch(() => ({}));
@@ -1525,7 +1525,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const response = await authenticatedFetch(`/playlists/my/${encodeURIComponent(playlistId)}/songs`, {
+    const response = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}/songs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fileName }),
@@ -1563,7 +1563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const playlistId = selectedPlaylistId;
     if (!playlistId) return;
 
-    const response = await authenticatedFetch(`/playlists/my/${encodeURIComponent(playlistId)}/songs/${encodeURIComponent(fileName)}`, {
+    const response = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}/songs/${encodeURIComponent(fileName)}`, {
       method: 'DELETE',
     });
     const payload = await response.json().catch(() => ({}));
@@ -1586,7 +1586,7 @@ document.addEventListener('DOMContentLoaded', () => {
       songId: matchedTrack?.id || (fileName.length >= 32 ? fileName : '')
     };
 
-    const response = await authenticatedFetch(`/playlists/my/${encodeURIComponent(playlistId)}/songs`, {
+    const response = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}/songs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payloadBody),
@@ -1679,7 +1679,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Right Side Panel Art & Mini Art
-    const trackCoverUrl = track.coverUrl || (track.id ? `${API_BASE_URL}/songs/${track.id}/cover` : '');
+    const trackCoverUrl = track.coverUrl || (track.id ? `${API_BASE_URL}/api/music/cover/${track.id}` : '');
     const rightPanelArtContainer = document.getElementById('rightPanelArtContainer');
     if (rightPanelArtContainer) {
         if (trackCoverUrl) {
@@ -1785,7 +1785,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function refreshLibrary() {
     try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/songs`);
+      const response = await authenticatedFetch(`${API_BASE_URL}/api/music`);
       if (!response.ok) {
         throw new Error('Unable to load songs from SQL Server backend.');
       }
@@ -2116,7 +2116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!track?.fileName) return;
     if (lastReportedListenFileName === track.fileName) return;
 
-    const response = await authenticatedFetch('/music/listen', {
+    const response = await authenticatedFetch('/api/music/play', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2327,7 +2327,7 @@ document.addEventListener('DOMContentLoaded', () => {
       item.type = 'button';
       item.className = 'queue-item' + (track.isSmartRecommendation ? ' smart-rec-item' : '');
       item.dataset.trackIndex = String(trackIndex);
-      const cover = track.coverUrl || track.coverArt || (track.id ? `${API_BASE_URL}/songs/${track.id}/cover` : '');
+      const cover = track.coverUrl || track.coverArt || (track.id ? `${API_BASE_URL}/api/music/cover/${track.id}` : '');
       const thumbHtml = cover 
         ? `<div class="queue-thumb"><img src="${cover}" alt="art" onerror="this.onerror=null; this.parentElement.textContent='${escapeHtml(track.color || '🎵')}';"></div>`
         : `<div class="queue-thumb">${track.color || '🎵'}</div>`;
@@ -2351,7 +2351,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (nowPlayingCard) {
       const currentTrack = list[currentTrackIndex];
       if (currentTrack) {
-        const npCover = currentTrack.coverUrl || currentTrack.coverArt || (currentTrack.id ? `${API_BASE_URL}/songs/${currentTrack.id}/cover` : '');
+        const npCover = currentTrack.coverUrl || currentTrack.coverArt || (currentTrack.id ? `${API_BASE_URL}/api/music/cover/${currentTrack.id}` : '');
         const npThumb = npCover 
           ? `<div class="queue-thumb"><img src="${npCover}" alt="art" onerror="this.onerror=null; this.parentElement.textContent='${escapeHtml(currentTrack.color || '🎵')}';"></div>`
           : `<div class="queue-thumb">${currentTrack.color || '🎵'}</div>`;
@@ -2866,7 +2866,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (overlay) overlay.style.display = 'flex';
     if (fill) fill.style.width = '0%';
 
-    fetch('/admin/dashboard/api/public/ads/stream').then(r => r.ok ? r.json() : null).then(ad => {
+    fetch('/api/public/ads/stream').then(r => r.ok ? r.json() : null).then(ad => {
       if (ad && overlay) {
         const titleEl = overlay.querySelector('h2') || overlay.querySelector('h3') || overlay.querySelector('p');
         if (titleEl) titleEl.textContent = `📢 Sponsored by ${ad.sponsor}: ${ad.title}`;
@@ -2971,7 +2971,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
 
-    const response = await authenticatedFetch('/music/upload', {
+    const response = await authenticatedFetch('/api/music/upload', {
       method: 'POST',
       body: formData,
     });
@@ -3160,7 +3160,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (logoutButton) {
     logoutButton.addEventListener('click', async () => {
       try {
-        await authenticatedFetch('/auth/logout', {
+        await authenticatedFetch('/api/auth/logout', {
           method: 'POST',
         });
       } catch {
@@ -3216,7 +3216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btnUploadSubmit) btnUploadSubmit.disabled = true;
         if (uploadAiStatus) uploadAiStatus.textContent = '⏳ Uploading file...';
 
-        const response = await authenticatedFetch(`${API_BASE_URL}/songs/upload`, {
+        const response = await authenticatedFetch(`${API_BASE_URL}/api/music/upload`, {
           method: 'POST',
           body: formData
         });
@@ -3677,7 +3677,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(async () => {
       try {
-        const res = await fetch(`/search/global?q=${encodeURIComponent(rawQuery)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(rawQuery)}`);
         if (res.ok) {
           const data = await res.json();
           const items = data.items || [];
@@ -3767,7 +3767,7 @@ document.addEventListener('DOMContentLoaded', () => {
       songsList.innerHTML = '';
 
       try {
-          const res = await fetch(`/search/global?q=${encodeURIComponent(query)}`);
+          const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
           const data = await res.json();
           const rawResults = data.items || [];
           let results = rawResults.map(item => ({
@@ -3922,7 +3922,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
       } else if (type === 'Playlist') {
           try {
-              const res = await authenticatedFetch(`/playlists/details/${encodeURIComponent(id)}`);
+              const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(id)}`);
               if (res.ok) {
                   const data = await res.json();
                   if (data && data.songs && data.songs.length > 0) {
@@ -3936,7 +3936,7 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch(e) { }
       } else if (type === 'Album') {
           try {
-              const res = await authenticatedFetch(`/album/details/${encodeURIComponent(id)}`);
+              const res = await authenticatedFetch(`/api/albums/${encodeURIComponent(id)}`);
               if (res.ok) {
                   const data = await res.json();
                   if (data && data.songs && data.songs.length > 0) {
@@ -3961,7 +3961,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       try {
           if (type === 'Song') {
-              const res = await authenticatedFetch('/playlists/my/liked/toggle', {
+              const res = await authenticatedFetch('/api/playlists/toggle-favorite', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ fileName: fileName, songFileName: fileName, songId: id })
@@ -4220,7 +4220,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (item.albumId) {
         try {
-          const res = await authenticatedFetch(`/album/details/${encodeURIComponent(item.albumId)}`);
+          const res = await authenticatedFetch(`/api/albums/${encodeURIComponent(item.albumId)}`);
           if (res.ok) {
             const data = await res.json();
             if (data && data.songs && data.songs.length > 0) {
@@ -4249,7 +4249,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (item.artistId) {
         try {
-          const res = await fetch(`/artist/details/${encodeURIComponent(item.artistId)}`);
+          const res = await fetch(`/api/artists/${encodeURIComponent(item.artistId)}`);
           if (res.ok) {
             const data = await res.json();
             if (data && data.popularSongs && data.popularSongs.length > 0) {
@@ -4278,7 +4278,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (item.playlistId) {
         try {
-          const res = await authenticatedFetch(`/playlists/details/${encodeURIComponent(item.playlistId)}`);
+          const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(item.playlistId)}`);
           if (res.ok) {
             const data = await res.json();
             if (data && data.songs && data.songs.length > 0) {
@@ -4368,7 +4368,7 @@ document.addEventListener('DOMContentLoaded', () => {
           subtitle: `${t.artist || 'Album'} • Album`,
           albumId: t.albumId || null,
           id: t.albumId || alb,
-          coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/songs/${t.id}/cover` : ''),
+          coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/api/music/cover/${t.id}` : ''),
           count: 1
         });
       } else {
@@ -4393,7 +4393,7 @@ document.addEventListener('DOMContentLoaded', () => {
           subtitle: 'Artist',
           artistId: t.artistId || null,
           id: t.artistId || art,
-          coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/songs/${t.id}/cover` : ''),
+          coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/api/music/cover/${t.id}` : ''),
           count: 1
         });
       } else {
@@ -4421,14 +4421,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item.type === 'Album') {
           const match = tracks.find(t => (t.album || '').toLowerCase().includes(item.title.toLowerCase()) || item.title.toLowerCase().includes((t.album || '').toLowerCase()));
           if (match) {
-            item.coverUrl = match.coverUrl || (match.id ? `${API_BASE_URL}/songs/${match.id}/cover` : '');
+            item.coverUrl = match.coverUrl || (match.id ? `${API_BASE_URL}/api/music/cover/${match.id}` : '');
             if (match.albumId) item.albumId = match.albumId;
             if (match.artist) item.artist = match.artist;
           }
         } else if (item.type === 'Artist') {
           const match = tracks.find(t => (t.artist || '').toLowerCase() === item.title.toLowerCase());
           if (match) {
-            item.coverUrl = match.coverUrl || (match.id ? `${API_BASE_URL}/songs/${match.id}/cover` : '');
+            item.coverUrl = match.coverUrl || (match.id ? `${API_BASE_URL}/api/music/cover/${match.id}` : '');
             if (match.artistId) item.artistId = match.artistId;
           }
         }
@@ -4489,7 +4489,7 @@ document.addEventListener('DOMContentLoaded', () => {
           seenKeys.add(key);
           let cover = pl.imageUrl || '';
           if (!cover && pl.songs && pl.songs[0]) {
-            cover = pl.songs[0].coverUrl || (pl.songs[0].id ? `${API_BASE_URL}/songs/${pl.songs[0].id}/cover` : '');
+            cover = pl.songs[0].coverUrl || (pl.songs[0].id ? `${API_BASE_URL}/api/music/cover/${pl.songs[0].id}` : '');
           }
           recentItems.push({
             type: 'Playlist',
@@ -4518,7 +4518,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title: t.album,
             artist: t.artist,
             subtitle: `${t.artist || 'Album'} • Album`,
-            coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/songs/${t.id}/cover` : '')
+            coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/api/music/cover/${t.id}` : '')
           });
         }
       }
@@ -4537,7 +4537,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title: t.title,
             artist: t.artist,
             subtitle: t.artist,
-            coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/songs/${t.id}/cover` : ''),
+            coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/api/music/cover/${t.id}` : ''),
             fileName: t.fileName || t.id
           });
         }
@@ -4756,7 +4756,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return first.coverUrl;
         }
         if (first.id) {
-          return `${API_BASE_URL}/songs/${first.id}/cover`;
+          return `${API_BASE_URL}/api/music/cover/${first.id}`;
         }
       }
       return fallbackSvg;
@@ -5232,7 +5232,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let albumList = [];
     try {
-      const res = await authenticatedFetch('/api/albums/list');
+      const res = await authenticatedFetch('/api/albums');
       if (res.ok) {
         albumList = await res.json();
       }
@@ -5508,7 +5508,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!fileName && !track.id) return;
 
     try {
-      const response = await authenticatedFetch('/playlists/my/liked/toggle', {
+      const response = await authenticatedFetch('/api/playlists/toggle-favorite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -6403,7 +6403,7 @@ document.addEventListener('DOMContentLoaded', () => {
           case 'save-to-liked':
               if (songId || fileName) {
                   try {
-                      const res = await authenticatedFetch('/playlists/my/liked/toggle', {
+                      const res = await authenticatedFetch('/api/playlists/toggle-favorite', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ fileName: fileName || songId, songFileName: fileName || songId, songId: songId || '' })
@@ -6431,7 +6431,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const isLiked = targetPlaylist.name === 'Liked Songs' || targetPlaylist.id === 'liked-songs' || (targetPlaylist.id && targetPlaylist.id.startsWith('liked-songs'));
               if (isLiked) {
                   try {
-                      const res = await authenticatedFetch('/playlists/my/liked/toggle', {
+                      const res = await authenticatedFetch('/api/playlists/toggle-favorite', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ fileName: songTarget, songFileName: songTarget, songId: songId || '' })
@@ -6447,7 +6447,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   }
               } else if (targetPlaylist.id) {
                   try {
-                      const res = await authenticatedFetch(`/playlists/my/${encodeURIComponent(targetPlaylist.id)}/songs`, {
+                      const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(targetPlaylist.id)}/songs`, {
                           method: 'DELETE',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ fileName: songTarget, songFileName: songTarget, songId: songId || '' })
@@ -6512,7 +6512,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       showSection('artist-view');
       try {
-          const res = await authenticatedFetch(`/artist/details?name=${encodeURIComponent(artistId)}&artistId=${encodeURIComponent(artistId)}`);
+          const res = await authenticatedFetch(`/api/artists?name=${encodeURIComponent(artistId)}&artistId=${encodeURIComponent(artistId)}`);
           if (!res.ok) throw new Error('Failed to fetch artist');
           const data = await res.json();
           

@@ -36,15 +36,16 @@ public class SecurityConfig {
                 .requestMatchers("/css/**", "/js/**", "/lib/**", "/favicon.ico", "/WebClientMVC.styles.css", "/uploads/**").permitAll()
                 // Public MVC and API
                 .requestMatchers("/", "/Home/**", "/home/**", "/Auth/**", "/auth/**", "/api/auth/**").permitAll()
-                .requestMatchers("/api/music/**", "/music/**", "/songs/**", "/songs", "/api/albums/**", "/album/**", "/albums/**", "/api/search/**", "/search/**", "/api/playlists/**", "/playlists/**", "/api/recommendations/**", "/api/comments/**", "/api/subscription/**").permitAll()
-                .requestMatchers("/artist/details/**", "/api/artist/details/**").permitAll()
-                .requestMatchers("/artist/register", "/api/artist/register", "/artist/pending").permitAll()
+                .requestMatchers("/api/music/**", "/api/albums/**", "/api/search/**", "/api/playlists/**", "/api/recommendations/**", "/api/subscription/**", "/api/artists/**").permitAll()
+                // "/artist/details" is a legacy alias for spotifake_mobile (canonical: /api/artists)
+                .requestMatchers("/artist/details/**").permitAll()
+                .requestMatchers("/artist/register", "/artist/pending").permitAll()
                 // Public settings, announcements, and ads for the web player
-                .requestMatchers("/admin/dashboard/api/public/**").permitAll()
+                .requestMatchers("/api/public/**").permitAll()
                 // Admin dashboard (chart-data and management are strictly ADMIN only)
                 .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")
                 // Artist dashboard
-                .requestMatchers("/artist/**", "/api/artist/**").hasAnyRole("ARTIST", "ADMIN")
+                .requestMatchers("/artist/**").hasAnyRole("ARTIST", "ADMIN")
                 .anyRequest().permitAll()
 
             )

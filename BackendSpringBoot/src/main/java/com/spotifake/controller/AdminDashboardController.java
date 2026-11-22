@@ -671,40 +671,5 @@ public class AdminDashboardController {
         }
     }
 
-    // ==========================================
-    // PUBLIC / PLAYER API ENDPOINTS
-    // ==========================================
-    @GetMapping("/api/public/settings")
-    @ResponseBody
-    public ResponseEntity<?> getPublicSettings() {
-        return ResponseEntity.ok(repository.getPublicSettingsMap());
-    }
-
-    @GetMapping("/api/public/announcements")
-    @ResponseBody
-    public ResponseEntity<?> getPublicAnnouncements(@RequestParam(required = false, defaultValue = "all") String role) {
-        return ResponseEntity.ok(repository.getActiveAnnouncements(role));
-    }
-
-    @GetMapping("/api/public/ads/stream")
-    @ResponseBody
-    public ResponseEntity<?> getStreamingAd() {
-        List<Advertisement> audioAds = repository.getActiveAdvertisements("audio");
-        if (audioAds.isEmpty()) {
-            audioAds = repository.getActiveAdvertisements("all");
-        }
-        if (!audioAds.isEmpty()) {
-            Advertisement ad = audioAds.get(0);
-            repository.recordAdImpression(ad.getId());
-            return ResponseEntity.ok(ad);
-        }
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/api/public/ads/click/{id}")
-    @ResponseBody
-    public ResponseEntity<?> recordAdClick(@PathVariable int id) {
-        repository.recordAdClick(id);
-        return ResponseEntity.ok(Map.of("status", "success"));
-    }
+    // Public player endpoints (settings, announcements, ads) moved to PublicApiController (/api/public/**).
 }

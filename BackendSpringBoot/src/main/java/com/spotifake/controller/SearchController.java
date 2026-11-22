@@ -19,7 +19,7 @@ public class SearchController {
         this.repository = repository;
     }
 
-    @GetMapping({"/api/search", "/search/global"})
+    @GetMapping("/api/search")
     public Map<String, Object> search(@RequestParam(value = "q", required = false) String q,
                                       @RequestParam(value = "query", required = false) String query) {
         String searchTerm = q != null ? q : query;

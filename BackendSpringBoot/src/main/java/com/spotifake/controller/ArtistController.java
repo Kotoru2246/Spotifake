@@ -179,7 +179,8 @@ public class ArtistController {
         return "Artist/Pending";
     }
 
-    @GetMapping({"/details/{artistId}", "/details", "/api/details/{artistId}", "/api/details"})
+    // Canonical JSON route is /api/artists (ArtistApiController delegates here).
+    @GetMapping("/details") // legacy alias for spotifake_mobile (?name=...)
     @ResponseBody
     public ResponseEntity<?> getArtistDetails(@PathVariable(required = false) String artistId,
                                               @RequestParam(value = "artistId", required = false) String artistParam,

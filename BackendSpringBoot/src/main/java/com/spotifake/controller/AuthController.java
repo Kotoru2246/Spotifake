@@ -34,7 +34,7 @@ public class AuthController {
     // ==========================================
     // REST API ENDPOINTS
     // ==========================================
-    @PostMapping(value = {"/api/auth/login", "/auth/login"}, consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/api/auth/login", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<?> apiLogin(@RequestBody AuthDto.LoginRequest req, HttpServletResponse response) {
         User user = repository.getUserByUsername(req.getUsername());
@@ -61,7 +61,7 @@ public class AuthController {
     }
 
 
-    @PostMapping(value = {"/api/auth/register", "/auth/register"}, consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+    @PostMapping(value = "/api/auth/register", consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<?> apiRegister(@RequestBody AuthDto.RegisterRequest req, HttpServletResponse response) {
         if (req.getUsername() == null || req.getUsername().trim().isEmpty()) {

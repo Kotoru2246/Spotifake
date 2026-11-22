@@ -19,7 +19,7 @@ import java.nio.file.Files;
 import java.util.*;
 
 @RestController
-@RequestMapping({"/api/music", "/music", "/songs", "/api/songs"})
+@RequestMapping("/api/music")
 public class MusicController {
 
     private final SpotifakeRepository repository;
@@ -30,7 +30,7 @@ public class MusicController {
         this.songService = songService;
     }
 
-    @GetMapping({"", "/list", "/library"})
+    @GetMapping("")
     public List<Map<String, Object>> getSongList() {
 
         List<Song> songs = repository.getAllSongs();
@@ -60,7 +60,8 @@ public class MusicController {
         return list;
     }
 
-    @GetMapping(value = {"/stream/{identifier}", "/stream", "/{identifier}/stream"})
+    // "/stream?fileName=..." is kept for file names containing "/" (encoded slashes are rejected in paths).
+    @GetMapping(value = {"/stream/{identifier}", "/stream"})
     public void streamAudio(@PathVariable(required = false) String identifier,
                             @RequestParam(required = false) String fileName,
                             HttpServletRequest request,
@@ -114,7 +115,7 @@ public class MusicController {
         }
     }
 
-    @GetMapping({"/cover/{songId}", "/{songId}/cover"})
+    @GetMapping("/cover/{songId}")
     public ResponseEntity<?> getCoverArt(@PathVariable String songId) {
         Song s = repository.getSongById(songId);
         if (s == null) s = repository.getSongByFilePathOrTitle(songId);
@@ -130,7 +131,7 @@ public class MusicController {
         return new ResponseEntity<>(data, headers, HttpStatus.OK);
     }
 
-    @PostMapping({"/play", "/listen", "/api/play", "/api/listen"})
+    @PostMapping("/play")
     public ResponseEntity<?> recordPlay(@RequestBody(required = false) Map<String, String> body,
                                         HttpServletRequest request,
                                         @AuthenticationPrincipal User user) {
@@ -173,7 +174,7 @@ public class MusicController {
         return ResponseEntity.ok(song);
     }
 
-    @GetMapping({"/lyrics/{songIdOrFileName}", "/{songIdOrFileName}/lyrics"})
+    @GetMapping("/lyrics/{songIdOrFileName}")
     public ResponseEntity<?> getLyrics(@PathVariable String songIdOrFileName) {
         Song song = repository.getSongByFilePathOrTitle(songIdOrFileName);
         if (song == null) {
@@ -189,12 +190,11 @@ public class MusicController {
         ));
     }
 
-    @PostMapping({"/{songId}/report", "/report"})
-    public ResponseEntity<?> reportSong(@PathVariable(required = false) String songId,
-                                        @RequestBody(required = false) Map<String, Object> body,
+    @PostMapping("/report")
+    public ResponseEntity<?> reportSong(@RequestBody(required = false) Map<String, Object> body,
                                         @AuthenticationPrincipal User user) {
         Map<String, Object> reqBody = body != null ? body : Collections.emptyMap();
-        String idStr = songId != null ? songId : String.valueOf(reqBody.getOrDefault("songId", ""));
+        String idStr = String.valueOf(reqBody.getOrDefault("songId", ""));
         Song song = null;
         if (!idStr.isEmpty()) {
             song = repository.getSongById(idStr);
