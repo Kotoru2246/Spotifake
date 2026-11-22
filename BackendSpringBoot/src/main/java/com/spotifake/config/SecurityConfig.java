@@ -44,6 +44,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/public/**").permitAll()
                 // Admin dashboard (chart-data and management are strictly ADMIN only)
                 .requestMatchers("/admin/**", "/api/admin/**").hasRole("ADMIN")
+                // spotdl downloader runs processes on the host
+                .requestMatchers("/api/downloader/**").hasRole("ADMIN")
                 // Artist dashboard
                 .requestMatchers("/artist/**").hasAnyRole("ARTIST", "ADMIN")
                 .anyRequest().permitAll()
