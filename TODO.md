@@ -1,83 +1,63 @@
-# Migration: WebClient -> WebClientMvc ✅ COMPLETE
+# TODO
 
-## Architecture
-Browser → WebClientMvc (Views only) → JavaScript (site.js) → FastAPI REST API → SQL Server
+Remaining work after the 2026-11 cleanup (disk hygiene, `/api` routes, downloader hardening,
+site.js module split, tests). Most important first.
 
-## Completed Steps
+## Security
 
-### ✅ Step 1: Configure appsettings.json
-- Removed server-side JWT config (Issuer, Audience, Key, ExpiresMinutes)
-- Added `ApiSettings:BaseUrl` pointing to `http://127.0.0.1:8000`
+- [ ] **JWT secret is committed** in `application.properties` (`app.jwt.secret`), and `JwtUtil` pads
+      short keys predictably. Load it from an env var, fail startup if it is missing or short, and
+      rotate it. `BackendAI/main.py` has the same default secret.
+- [ ] **Default-allow**: `SecurityConfig` ends with `.anyRequest().permitAll()`. Switch to
+      default-deny and list the public routes explicitly.
+- [ ] **Anonymous uploads**: `POST /api/music/upload` is public and falls back to a hard-coded user
+      id. Require ARTIST/ADMIN.
+- [ ] **CSRF is disabled** while the JWT is also accepted from a cookie, so cookie-authenticated
+      form posts (admin dashboard, artist manager) can be forged cross-site. Enable CSRF for
+      cookie-authenticated requests, or set `SameSite=Strict` and require the Bearer header for
+      state-changing calls.
+- [ ] Controllers fall back to demo accounts when nobody is logged in (`PlaylistsController` →
+      `user_test`, `ArtistController` → `artist_test`, `AdminDashboardController` → `admin_test`).
+      Return 401 instead.
+- [ ] Mobile downloader: `/api/downloader/**` is now ADMIN-only, and `spotifake_mobile` sends no
+      token, so "Add album" on mobile gets 401. Add login to the app, or drop the feature there.
 
-### ✅ Step 2: Simplify Program.cs
-- Removed `AddAuthentication()` / `AddAuthorization()` / `UseAuthentication()` / `UseAuthorization()`
-- Removed JwtBearer middleware configuration
-- Removed all `using` statements for auth namespaces
-- MVC serves views only — no server-side auth
+## API cleanup
 
-### ✅ Step 3: Clean AuthController.cs
-- Removed all hardcoded test users (`user_test`, `artist_test`, `admin_test`)
-- Removed local JWT generation logic
-- Removed all auth endpoints (`/auth/login`, `/auth/me`)
-- Reduced to minimal controller that redirects to Home/Index
-- Auth is now handled 100% client-side via JavaScript → FastAPI
+- [ ] Remove the legacy aliases once a new APK is out: `GET /api/playlists/my`,
+      `POST /api/downloader/download`, `GET /artist/details` (update `spotifake_mobile/lib/services/api_service.dart`).
+- [ ] Front-end calls with no backend route (pre-existing 404s, listed in docs/API.md): record-play,
+      import, download, album/playlist save/unsave, playlist rename/visibility, song features and
+      comments, studio album list/create, studio test upload. Implement or remove them.
+- [ ] `ArtistApiController` delegates to `ArtistController.getArtistDetails`. Move that logic into a service.
+- [ ] `POST /api/music/upload` without a multipart body returns 500; it should be 400.
+- [ ] `Range: bytes=-N` (suffix range) returns 416 by design. Browsers rarely send it, but RFC 9110
+      allows serving the last N bytes; decide whether to support it.
+- [ ] Spring Boot ignores `ESSENTIA_URL` / `AI_SERVICE_URL` (only docker-compose sets them); either
+      wire them up or remove them from compose.
 
-### ✅ Step 4: Update wwwroot/css/site.css (COMPLETE DARK THEME)
-- Full dark theme with Spotify-inspired styling
-- Added: auth-tabs, user-badge, loading/error/success states
-- Added: song-grid, song-card, features-grid, spotify-auth styling
-- Added: login-gate gradient background, responsive breakpoints
-- Added: tab-button, upload-area, drag-and-drop states
+## Bugs found during the cleanup (pre-existing)
 
-### ✅ Step 5: Update wwwroot/js/site.js (COMPLETE SPA LOGIC)
-- `API_BASE = "http://127.0.0.1:8000"` - single configurable endpoint
-- `getAuthHeaders()` / `fetchWithAuth()` - auto-attaches `Authorization: Bearer <token>`
-- JWT stored in `localStorage` key `spotifake_token`
-- **Login**: calls `${API_BASE}/auth/login`, stores token
-- **Register**: calls `${API_BASE}/auth/register`, stores token
-- **Upload**: calls `${API_BASE}/songs/upload` with multipart form data
-- **Songs list**: calls `${API_BASE}/songs` with auth
-- **Spotify**: auth-url, authenticate-with-code, search, tracks, playlists, playlist tracks
-- **Recommendations**: calls `${API_BASE}/recommendations/hybrid` with seed song
-- **Classifier**: calls `${API_BASE}/classify-file` for genre prediction
-- **Health check**: calls `${API_BASE}/health`
-- **Auto-login recovery**: on page load, validates existing token via `${API_BASE}/auth/me`
-- **Logout**: clears localStorage, shows login gate
+- [ ] Covers stored as `uploads/covers/<name>.jpg` return 404 under both `/uploads/covers/...` and
+      `/covers/...`, although the files exist. Check `spring.web.resources.static-locations` and
+      the `SecurityConfig` `/uploads/**` matcher.
+- [ ] `Home/Index.html` inline handlers call `setModalOpen(...)` and `openAllMixesView(...)`, which
+      were never exposed on `window` (ReferenceError on click). Add them to
+      `static/js/modules/windowBindings.js` or remove the handlers.
+- [ ] `BackendAI/start_backend.py` defaults to port 8000, which clashes with Spring Boot; the
+      Dockerfile and `run_downloader_web.bat` use 5000.
 
-### ✅ Step 6: Update Views/Home/Index.cshtml (COMPLETE SPA HTML)
-- Login/Register tabs with full forms (username, password, email, role, display name)
-- User badge with display name, role, logout button
-- Home section with stats (songs count, features)
-- Upload section with drag-and-drop file selector
-- My Songs section with song grid and audio features
-- Spotify section with tabs: Search, Liked Songs, Playlists
-- Test Classifier section with file upload and results display
-- Recommendations section with seed song selector
+## Refactoring
 
-### ✅ Step 7: Build Verification
-- `dotnet build` succeeded (6.1s)
-- No compile errors
-- No missing namespaces or references
+- [ ] Split `SpotifakeRepository.java` (~2,400 lines) into `SongRepository`, `UserRepository`,
+      `PlaylistRepository`, `AdminRepository`, `PaymentRepository`, etc.
+- [ ] Replace the ~160 inline `on*="..."` handlers in `Home/Index.html` with `addEventListener`,
+      then shrink `windowBindings.js`.
+- [ ] Remove the unused `spring.datasource.*` properties (DataSource auto-config is excluded).
+- [ ] Decide whether `CoverArtData` (about 33 MB) should also move to `uploads/covers/`.
 
-## Modified Files
-1. `WebClientMvc/WebClientMVC/WebClientMVC/appsettings.json`
-2. `WebClientMvc/WebClientMVC/WebClientMVC/Program.cs`
-3. `WebClientMvc/WebClientMVC/WebClientMVC/Controllers/AuthController.cs`
-4. `WebClientMvc/WebClientMVC/WebClientMVC/Views/Home/Index.cshtml`
-5. `WebClientMvc/WebClientMVC/WebClientMVC/wwwroot/js/site.js`
-6. `WebClientMvc/WebClientMVC/WebClientMVC/wwwroot/css/site.css`
+## Tests
 
-## Files NOT Modified (preserved intentionally)
-- `WebClientMvc.csproj` - No DataAccess dependency added
-- `DataAccess/` - Not referenced by WebClientMvc (correctly isolated)
-- `HomeController.cs` - Minimal, serves views only
-- `DesktopClient/` - Not affected by migration
-- `BackendAI/` - Not affected by migration
-- All model files (JwtLoginRequest.cs, JwtLoginResponse.cs, ErrorViewModel.cs)
-
-## Architecture Compliance
-✅ WebClientMvc communicates EXCLUSIVELY with FastAPI via HTTP
-✅ No direct SQL Server connection from WebClientMvc
-✅ No duplicate business logic - all logic lives in FastAPI
-✅ JWT handled client-side via localStorage
-✅ All existing features preserved (login, register, upload, Spotify, recommendations, classifier)
+- [ ] Add tests for playlists, auth login/register, subscription checkout (Stripe mocked) and the
+      admin dashboard pages.
+- [ ] Add a browser smoke test (Playwright) for the web player.

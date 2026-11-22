@@ -12,9 +12,16 @@
   - Java source: `BackendSpringBoot/src/main/java/com/spotifake/` (`controller/`, `service/`, `repository/SpotifakeRepository.java`, `model/`, `dto/`, `config/`)
   - Config: `BackendSpringBoot/src/main/resources/application.properties` (SQLite DB at `../backendai.db`)
   - Thymeleaf views: `BackendSpringBoot/src/main/resources/templates/` (`Home/`, `Auth/`, `Artist/`, `AdminDashboard/`, `Shared/`)
-  - Frontend JS/CSS: `BackendSpringBoot/src/main/resources/static/js/site.js` (~4,761 lines — always `Grep` for the function/symbol first, then `Read` the full block), `css/site.css`, `css/dashboard.css`
+  - JSON endpoints all live under `/api/...` (one prefix per controller); non-`/api` paths are Thymeleaf pages. Route table and legacy mobile aliases: `docs/API.md`.
+  - Web player JS: `static/js/main.js` (ES module entry) + `static/js/modules/*.js` (`api`, `state`, `dom`, `utils`, `platform`, `history`, `auth`, `player`, `queue`, `lyrics`, `library`, `playlists`, `home`, `search`, `songDetail`, `artist`, `admin`, `checkout`). `Grep` for the symbol across `static/js/modules/` first.
+    - Shared mutable state is `state.<name>` from `state.js`; never reassign an imported binding.
+    - Functions used by inline `on*="..."` handlers must be exported and assigned in `modules/windowBindings.js` (the only place that writes `window.<fn>`).
+  - CSS: `static/css/site.css`, `static/css/dashboard.css`
+  - Tests: `BackendSpringBoot/src/test/java/com/spotifake/` (`IntegrationTestBase` uses a temp SQLite DB; never point tests at `backendai.db`).
 - **Audio Analysis Service (`EssentiaService/`, port `3000`)**: Node.js service.
-- **Python AI Service (`BackendAI/`)**: FastAPI + ChromaDB recommendation service.
+- **Python AI Service (`BackendAI/`, port `5000`)**: FastAPI + ChromaDB, downloader web UI, genre models.
+- **Mobile app (`spotifake_mobile/`)**: Flutter; API calls in `lib/services/api_service.dart`.
+- **Docs (`docs/`)**: `setup.md`, `architecture.md`, `database.md`, `API.md`; remaining work in `TODO.md`. Screenshots go in `docs/screenshots/` (git-ignored).
 - **Legacy / Secondary Folders (do not modify unless explicitly requested)**: `WebClient/`, `WebClientMvc/`, `DesktopClient/`, `DataAccess/`, `spotify-downloader/`.
 
 ## Build & Run Commands
