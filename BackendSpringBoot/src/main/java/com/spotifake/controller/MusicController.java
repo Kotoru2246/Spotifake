@@ -85,11 +85,14 @@ public class MusicController {
         response.setHeader("Accept-Ranges", "bytes");
 
         if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
-            String[] parts = rangeHeader.substring(6).split("-");
-            long start = Long.parseLong(parts[0]);
-            long end = parts.length > 1 && !parts[1].isEmpty() ? Long.parseLong(parts[1]) : length - 1;
-
-            if (end >= length) end = length - 1;
+            long[] range = parseSingleRange(rangeHeader.substring(6).trim(), length);
+            if (range == null) {
+                response.setStatus(HttpServletResponse.SC_REQUESTED_RANGE_NOT_SATISFIABLE);
+                response.setHeader("Content-Range", "bytes */" + length);
+                return;
+            }
+            long start = range[0];
+            long end = range[1];
             long contentLength = end - start + 1;
 
             response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
@@ -224,6 +227,26 @@ public class MusicController {
                 "success", true,
                 "message", "Report submitted successfully. Thank you for helping keep Spotifake safe."
         ));
+    }
+
+    /**
+     * Parses "start-end" or "start-" for a file of the given length.
+     * Returns {start, end} (end clamped to length-1), or null when the range is malformed,
+     * a multi-range, a suffix range ("-N"), or starts at/after the end of the file.
+     */
+    static long[] parseSingleRange(String spec, long length) {
+        if (spec.isEmpty() || spec.contains(",")) return null;
+        int dash = spec.indexOf('-');
+        if (dash <= 0) return null; // no dash, or suffix range "-N"
+        try {
+            long start = Long.parseLong(spec.substring(0, dash).trim());
+            String endPart = spec.substring(dash + 1).trim();
+            long end = endPart.isEmpty() ? length - 1 : Long.parseLong(endPart);
+            if (start < 0 || start >= length || end < start) return null;
+            return new long[] { start, Math.min(end, length - 1) };
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private String resolveAudioMimeType(String fileName) {

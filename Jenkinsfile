@@ -26,6 +26,19 @@ pipeline {
                 }
             }
         }
+        stage('Test') {
+            steps {
+                echo '=== Run JUnit tests (temp SQLite DB; a failing test fails the build) ==='
+                dir('BackendSpringBoot') {
+                    sh 'mvn test'
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: false, testResults: 'BackendSpringBoot/target/surefire-reports/*.xml'
+                }
+            }
+        }
         stage('Build Docker Image') {
             steps {
                 echo '=== Bước 3: Đóng gói Docker Container ==='
