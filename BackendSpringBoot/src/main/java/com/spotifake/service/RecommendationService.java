@@ -11,8 +11,19 @@ public class RecommendationService {
 
     private final SpotifakeRepository repository;
 
+    private static final int NUM_FEATURES = 6;
+    private static final double WEIGHT_CAP = 3.0;
+    private static final double UNANALYZED_VEC_SCORE = 0.15;
+
+    private Random random = new Random();
+
     public RecommendationService(SpotifakeRepository repository) {
         this.repository = repository;
+    }
+
+    /** Test hook: makes the jitter term deterministic. */
+    void setRandom(Random random) {
+        this.random = random;
     }
 
     private static class ScoredSong {
@@ -22,162 +33,273 @@ public class RecommendationService {
     }
 
     private static class Scored {
-        Song song;
-        double dist;
-        Scored(Song song, double dist) { this.song = song; this.dist = dist; }
+        final Song song;
+        final Double dist; // null when unanalyzed
+        final double meta;
+        Scored(Song song, Double dist, double meta) { this.song = song; this.dist = dist; this.meta = meta; }
     }
 
-    private static class CandScore {
-        int index;
-        double sim;
-        CandScore(int index, double sim) { this.index = index; this.sim = sim; }
+    /** A song counts as analyzed when at least one audio feature is non-zero. */
+    public static boolean isAnalyzed(Song s) {
+        return s.getTempo() != 0 || s.getEnergy() != 0 || s.getDanceability() != 0
+                || s.getValence() != 0 || s.getAcousticness() != 0 || s.getInstrumentalness() != 0;
     }
 
-    private double[] featureVector(Song s) {
-        double normalizedTempo = Math.min(1.0, Math.max(0.0, (s.getTempo() - 50.0) / 150.0));
+    private static double[] rawFeatures(Song s) {
         return new double[]{
-                normalizedTempo,
-                s.getEnergy(),
-                s.getDanceability(),
-                s.getValence(),
-                s.getAcousticness(),
-                s.getInstrumentalness()
+                s.getTempo(), s.getEnergy(), s.getDanceability(),
+                s.getValence(), s.getAcousticness(), s.getInstrumentalness()
         };
     }
 
-    private double dotProduct(double[] a, double[] b) {
-        double sum = 0;
-        for (int i = 0; i < a.length; i++) sum += a[i] * b[i];
-        return sum;
-    }
+    /** Per-feature mean/std over analyzed songs of a pool; maps songs to clamped z-vectors. */
+    private static class FeatureSpace {
+        final double[] mean = new double[NUM_FEATURES];
+        final double[] std = new double[NUM_FEATURES];
 
-    private double vectorNorm(double[] a) {
-        double sum = 0;
-        for (double v : a) sum += v * v;
-        return Math.sqrt(sum) > 1e-9 ? Math.sqrt(sum) : 1e-9;
-    }
-
-    private double cosineSimilarity(double[] a, double[] b) {
-        return dotProduct(a, b) / (vectorNorm(a) * vectorNorm(b));
-    }
-
-    private double euclideanDistance(double[] a, double[] b) {
-        double sum = 0;
-        for (int i = 0; i < a.length; i++) {
-            double diff = a[i] - b[i];
-            sum += diff * diff;
+        FeatureSpace(Collection<Song> pool) {
+            List<Song> analyzed = new ArrayList<>();
+            for (Song s : pool) if (isAnalyzed(s)) analyzed.add(s);
+            int n = analyzed.size();
+            if (n == 0) return;
+            for (Song s : analyzed) {
+                double[] r = rawFeatures(s);
+                for (int j = 0; j < NUM_FEATURES; j++) mean[j] += r[j] / n;
+            }
+            double[] var = new double[NUM_FEATURES];
+            for (Song s : analyzed) {
+                double[] r = rawFeatures(s);
+                for (int j = 0; j < NUM_FEATURES; j++) {
+                    double diff = r[j] - mean[j];
+                    var[j] += diff * diff / n;
+                }
+            }
+            for (int j = 0; j < NUM_FEATURES; j++) std[j] = Math.sqrt(var[j]);
         }
-        return Math.sqrt(sum);
+
+        double[] z(Song s) {
+            double[] r = rawFeatures(s);
+            double[] out = new double[NUM_FEATURES];
+            for (int j = 0; j < NUM_FEATURES; j++) {
+                out[j] = std[j] < 1e-6 ? 0 : Math.max(-3.0, Math.min(3.0, (r[j] - mean[j]) / std[j]));
+            }
+            return out;
+        }
+    }
+
+    /** Seed-driven weights: features the seeds agree on count more; mean 1, each at most 3. */
+    static double[] computeWeights(List<double[]> seedZ) {
+        double[] w = new double[NUM_FEATURES];
+        Arrays.fill(w, 1.0);
+        int n = seedZ.size();
+        if (n <= 1) return w;
+        for (int j = 0; j < NUM_FEATURES; j++) {
+            double m = 0;
+            for (double[] z : seedZ) m += z[j] / n;
+            double v = 0;
+            for (double[] z : seedZ) v += (z[j] - m) * (z[j] - m) / n;
+            w[j] = 1.0 / (v + 0.25);
+        }
+        for (int iter = 0; iter < 20; iter++) {
+            double sum = 0;
+            for (double x : w) sum += x;
+            double mean = sum / NUM_FEATURES;
+            boolean capped = false;
+            for (int j = 0; j < NUM_FEATURES; j++) {
+                w[j] /= mean;
+                if (w[j] > WEIGHT_CAP) { w[j] = WEIGHT_CAP; capped = true; }
+            }
+            if (!capped) break;
+        }
+        for (int j = 0; j < NUM_FEATURES; j++) w[j] = Math.min(w[j], WEIGHT_CAP);
+        return w;
+    }
+
+    private static double weightedDistance(double[] a, double[] b, double[] w) {
+        double sum = 0;
+        for (int j = 0; j < NUM_FEATURES; j++) {
+            double diff = a[j] - b[j];
+            sum += w[j] * diff * diff;
+        }
+        return Math.sqrt(sum / NUM_FEATURES);
+    }
+
+    private static Set<String> tokens(String csv) {
+        Set<String> out = new HashSet<>();
+        if (csv == null) return out;
+        for (String part : csv.split(",")) {
+            String t = part.trim().toLowerCase();
+            if (!t.isEmpty() && !t.equals("analyzing...") && !t.equals("unknown")) out.add(t);
+        }
+        return out;
+    }
+
+    private static boolean overlaps(Set<String> a, Set<String> b) {
+        for (String x : a) if (b.contains(x)) return true;
+        return false;
+    }
+
+    /** How alike each candidate sounds to the seeds, 0 to 1; unanalyzed candidates are left out. */
+    static Map<String, Double> soundSimilarity(List<Song> seeds, List<Song> candidates) {
+        Map<String, Double> out = new HashMap<>();
+        List<Song> analyzedSeeds = new ArrayList<>();
+        for (Song s : seeds) if (isAnalyzed(s)) analyzedSeeds.add(s);
+        if (analyzedSeeds.isEmpty()) return out;
+        List<Song> pool = new ArrayList<>(seeds);
+        pool.addAll(candidates);
+        FeatureSpace space = new FeatureSpace(pool);
+        List<double[]> seedZ = new ArrayList<>();
+        for (Song s : analyzedSeeds) seedZ.add(space.z(s));
+        double[] weights = computeWeights(seedZ);
+        double[] centroid = new double[NUM_FEATURES];
+        for (double[] z : seedZ) for (int j = 0; j < NUM_FEATURES; j++) centroid[j] += z[j] / seedZ.size();
+        for (Song c : candidates) {
+            if (isAnalyzed(c)) out.put(c.getId(), Math.exp(-weightedDistance(space.z(c), centroid, weights)));
+        }
+        return out;
     }
 
     public List<String> getSmartShuffle(List<Song> seedSongs, List<Song> candidateSongs, int nRecommendations) {
-        if (candidateSongs == null || candidateSongs.isEmpty()) {
+        return getSmartShuffle(seedSongs, candidateSongs, nRecommendations, Map.of());
+    }
+
+    /**
+     * Same rules as the daily mixes: only the first (current) seed's language, then genre, shared
+     * listening sittings, sound and artist, in that order of importance.
+     *
+     * @param together how many of the listener's sittings each song shared with a seed
+     */
+    public List<String> getSmartShuffle(List<Song> seedSongs, List<Song> candidateSongs, int nRecommendations,
+                                        Map<String, Integer> together) {
+        if (candidateSongs == null || candidateSongs.isEmpty() || seedSongs == null || seedSongs.isEmpty()) {
             return Collections.emptyList();
-        }
-        if (seedSongs == null || seedSongs.isEmpty()) {
-            List<String> fallback = new ArrayList<>();
-            for (int i = 0; i < Math.min(nRecommendations, candidateSongs.size()); i++) {
-                fallback.add(candidateSongs.get(i).getId());
-            }
-            return fallback;
         }
 
         Set<String> seedGenres = new HashSet<>();
         Set<String> seedArtists = new HashSet<>();
         Set<String> seedMoods = new HashSet<>();
+        List<Song> analyzedSeeds = new ArrayList<>();
         for (Song s : seedSongs) {
-            if (s.getGenre() != null && !s.getGenre().isBlank()) seedGenres.add(s.getGenre().toLowerCase().trim());
-            if (s.getArtist() != null && !s.getArtist().isBlank()) seedArtists.add(s.getArtist().toLowerCase().trim());
-            if (s.getMood() != null && !s.getMood().isBlank()) seedMoods.add(s.getMood().toLowerCase().trim());
+            seedGenres.addAll(tokens(s.getGenre()));
+            seedArtists.addAll(DailyMixService.people(s));
+            seedMoods.addAll(tokens(s.getMood()));
+            if (isAnalyzed(s)) analyzedSeeds.add(s);
         }
 
-        int numFeatures = 6;
-        int numSeeds = seedSongs.size();
-        List<double[]> playlistVectors = new ArrayList<>();
-        for (Song s : seedSongs) playlistVectors.add(featureVector(s));
-
-        double[] means = new double[numFeatures];
-        double[] variances = new double[numFeatures];
-
-        for (int j = 0; j < numFeatures; j++) {
-            for (int i = 0; i < numSeeds; i++) means[j] += playlistVectors.get(i)[j];
-            means[j] /= numSeeds;
-            for (int i = 0; i < numSeeds; i++) {
-                double diff = playlistVectors.get(i)[j] - means[j];
-                variances[j] += diff * diff;
-            }
-            variances[j] /= numSeeds;
+        boolean useVector = !analyzedSeeds.isEmpty();
+        FeatureSpace space = null;
+        double[] weights = null;
+        double[] centroid = null;
+        if (useVector) {
+            List<Song> pool = new ArrayList<>(seedSongs);
+            pool.addAll(candidateSongs);
+            space = new FeatureSpace(pool);
+            List<double[]> seedZ = new ArrayList<>();
+            for (Song s : analyzedSeeds) seedZ.add(space.z(s));
+            weights = computeWeights(seedZ);
+            centroid = new double[NUM_FEATURES];
+            for (double[] z : seedZ) for (int j = 0; j < NUM_FEATURES; j++) centroid[j] += z[j] / seedZ.size();
         }
 
-        double epsilon = 1e-5;
-        double[] rawWeights = new double[numFeatures];
-        double sumWeights = 0;
-        for (int j = 0; j < numFeatures; j++) {
-            rawWeights[j] = 1.0 / (variances[j] + epsilon);
-            sumWeights += rawWeights[j];
-        }
+        String language = seedSongs.get(0).getLanguage();
+        boolean seedsLive = seedSongs.stream().anyMatch(RecommendationService::isLiveOrBacking);
+        int mostTogether = together.values().stream().mapToInt(Integer::intValue).max().orElse(1);
 
-        double[] weights = new double[numFeatures];
-        for (int j = 0; j < numFeatures; j++) {
-            weights[j] = (rawWeights[j] / (sumWeights > 0 ? sumWeights : 1.0)) * numFeatures;
-        }
-
-        double[] vibe = new double[numFeatures];
-        for (int j = 0; j < numFeatures; j++) {
-            for (int i = 0; i < numSeeds; i++) {
-                vibe[j] += playlistVectors.get(i)[j] * weights[j];
-            }
-            vibe[j] /= numSeeds;
-        }
-
-        Random rand = new Random();
         List<ScoredSong> scored = new ArrayList<>();
-        for (Song candidate : candidateSongs) {
-            double[] v = featureVector(candidate);
-            double[] weightedV = new double[numFeatures];
-            for (int j = 0; j < numFeatures; j++) weightedV[j] = v[j] * weights[j];
-            double sim = cosineSimilarity(vibe, weightedV);
-            if (Double.isNaN(sim) || Double.isInfinite(sim)) {
-                sim = 0.0;
+        Map<String, Song> byId = new HashMap<>();
+        for (Song c : candidateSongs) {
+            if (language != null && !language.isBlank() && !language.equals(c.getLanguage())) continue;
+            if (!seedsLive && !together.containsKey(c.getId()) && isLiveOrBacking(c)) continue;
+            double score = 0;
+            if (overlaps(tokens(c.getGenre()), seedGenres)) score += 0.40;
+            score += 0.30 * together.getOrDefault(c.getId(), 0) / mostTogether;
+            if (useVector) {
+                score += 0.20 * (isAnalyzed(c)
+                        ? Math.exp(-weightedDistance(space.z(c), centroid, weights))
+                        : UNANALYZED_VEC_SCORE);
             }
-
-            if (candidate.getGenre() != null && seedGenres.contains(candidate.getGenre().toLowerCase().trim())) {
-                sim += 0.35;
-            }
-            if (candidate.getArtist() != null && seedArtists.contains(candidate.getArtist().toLowerCase().trim())) {
-                sim += 0.25;
-            }
-            if (candidate.getMood() != null && seedMoods.contains(candidate.getMood().toLowerCase().trim())) {
-                sim += 0.15;
-            }
-            sim += rand.nextDouble() * 0.05;
-
-            scored.add(new ScoredSong(candidate.getId(), sim));
+            if (!Collections.disjoint(DailyMixService.people(c), seedArtists)) score += 0.10;
+            if (overlaps(tokens(c.getMood()), seedMoods)) score += 0.02;
+            score += 0.03 * random.nextDouble();
+            scored.add(new ScoredSong(c.getId(), score));
+            byId.put(c.getId(), c);
         }
-
         scored.sort((a, b) -> Double.compare(b.sim, a.sim));
+
+        // No second version of a seed or of an earlier pick, and no single artist taking over.
+        int wanted = Math.max(nRecommendations, 0);
+        int perArtist = Math.max(2, wanted / 3);
+        Set<String> titles = new HashSet<>();
+        for (Song s : seedSongs) titles.add(DailyMixService.titleKey(s));
+        Map<String, Integer> artistCount = new HashMap<>();
+        Set<String> picked = new HashSet<>();
+        for (int cap : new int[]{perArtist, wanted}) {
+            for (ScoredSong sc : scored) {
+                if (picked.size() >= wanted) break;
+                Song c = byId.get(sc.id);
+                String artist = DailyMixService.artist(c);
+                if (picked.contains(sc.id) || artistCount.getOrDefault(artist, 0) >= cap
+                        || !titles.add(DailyMixService.titleKey(c))) continue;
+                artistCount.merge(artist, 1, Integer::sum);
+                picked.add(sc.id);
+            }
+        }
+        // Best match first, but not the same artist twice in a row while another is waiting.
+        List<String> remaining = new ArrayList<>();
+        for (ScoredSong sc : scored) if (picked.contains(sc.id)) remaining.add(sc.id);
         List<String> result = new ArrayList<>();
-        for (int i = 0; i < Math.min(nRecommendations, scored.size()); i++) {
-            result.add(scored.get(i).id);
+        String previous = DailyMixService.artist(seedSongs.get(0));
+        while (!remaining.isEmpty()) {
+            String last = previous;
+            String next = remaining.stream()
+                    .filter(id -> !DailyMixService.artist(byId.get(id)).equals(last))
+                    .findFirst().orElse(remaining.get(0));
+            remaining.remove(next);
+            result.add(next);
+            previous = DailyMixService.artist(byId.get(next));
         }
         return result;
     }
 
+    private static boolean isLiveOrBacking(Song s) {
+        return DailyMixService.LIVE_OR_BACKING
+                .matcher(s.getTitle() + " | " + Objects.toString(s.getAlbum(), "")).find();
+    }
+
     public List<Map<String, Object>> getHybridRecommendations(Song seedSong, List<Song> allSongs, int limit) {
         if (seedSong == null || allSongs == null) return Collections.emptyList();
-        double[] seedVec = featureVector(seedSong);
+        Set<String> seedGenres = tokens(seedSong.getGenre());
+        String seedArtist = seedSong.getArtist() == null ? null : seedSong.getArtist().toLowerCase().trim();
+        boolean seedAnalyzed = isAnalyzed(seedSong);
+        FeatureSpace space = null;
+        double[] seedZ = null;
+        double[] ones = new double[NUM_FEATURES];
+        Arrays.fill(ones, 1.0);
+        if (seedAnalyzed) {
+            List<Song> pool = new ArrayList<>(allSongs);
+            pool.add(seedSong);
+            space = new FeatureSpace(pool);
+            seedZ = space.z(seedSong);
+        }
 
         List<Scored> list = new ArrayList<>();
         for (Song s : allSongs) {
-            if (!s.getId().equals(seedSong.getId())) {
-                double dist = euclideanDistance(seedVec, featureVector(s));
-                list.add(new Scored(s, dist));
-            }
+            if (s.getId().equals(seedSong.getId())) continue;
+            double meta = 0;
+            if (overlaps(tokens(s.getGenre()), seedGenres)) meta += 0.6;
+            if (seedArtist != null && s.getArtist() != null && seedArtist.equals(s.getArtist().toLowerCase().trim())) meta += 0.4;
+            Double dist = (seedAnalyzed && isAnalyzed(s)) ? weightedDistance(seedZ, space.z(s), ones) : null;
+            list.add(new Scored(s, dist, meta));
         }
 
-        list.sort(Comparator.comparingDouble(a -> a.dist));
+        list.sort((a, b) -> {
+            if (a.dist != null && b.dist != null) return Double.compare(a.dist, b.dist);
+            if (a.dist != null) return -1;
+            if (b.dist != null) return 1;
+            return Double.compare(b.meta, a.meta);
+        });
         List<Map<String, Object>> result = new ArrayList<>();
-        for (int i = 0; i < Math.min(limit, list.size()); i++) {
+        for (int i = 0; i < Math.min(Math.max(limit, 0), list.size()); i++) {
             Scored item = list.get(i);
             Map<String, Object> map = new HashMap<>();
             map.put("id", item.song.getId());
@@ -186,7 +308,7 @@ public class RecommendationService {
             map.put("genre", item.song.getGenre());
             map.put("mood", item.song.getMood());
             map.put("source", "upload");
-            map.put("similarity_distance", Math.round(item.dist * 10000.0) / 10000.0);
+            map.put("similarity_distance", item.dist == null ? null : Math.round(item.dist * 10000.0) / 10000.0);
             result.add(map);
         }
         return result;
@@ -194,53 +316,22 @@ public class RecommendationService {
 
     public Map<String, Object> getKnnProjection(List<Song> songs, String seedId, int kNeighbors) {
         Map<String, Object> response = new HashMap<>();
-        if (songs == null || songs.size() < 5) {
-            List<Map<String, Object>> demoPoints = new ArrayList<>();
-            String[] genresList = {"Pop", "Rock", "Electronic", "Hip-Hop", "Indie", "Jazz"};
-
-            for (int i = 0; i < 3; i++) {
-                Map<String, Object> p = new HashMap<>();
-                p.put("id", "seed-" + (i + 1));
-                p.put("title", "Seed Track " + (i + 1));
-                p.put("artist", "Demo Artist");
-                p.put("genre", genresList[i % genresList.length]);
-                p.put("x", Math.round(((i - 1) * 1.2 + 0.1) * 1000.0) / 1000.0);
-                p.put("y", Math.round(((i - 1) * 0.5 - 0.2) * 1000.0) / 1000.0);
-                p.put("type", "seed");
-                p.put("energy", 0.75 + (i * 0.05));
-                p.put("valence", 0.65 - (i * 0.05));
-                demoPoints.add(p);
-            }
-
-            Set<Integer> neighborSet = new HashSet<>(Arrays.asList(0, 1, 2, 3, 4).subList(0, Math.min(kNeighbors, 5)));
-            for (int idx = 0; idx < 20; idx++) {
-                boolean isNeighbor = neighborSet.contains(idx);
-                double angle = (idx / 20.0) * Math.PI * 2;
-                double radius = isNeighbor ? 0.8 + idx * 0.2 : 2.5 + (idx % 5) * 0.8;
-                Map<String, Object> p = new HashMap<>();
-                p.put("id", "song-" + (idx + 1));
-                p.put("title", "Acoustic Track " + (idx + 1));
-                p.put("artist", "Artist " + ((idx % 5) + 1));
-                p.put("genre", genresList[idx % genresList.length]);
-                p.put("x", Math.round((Math.cos(angle) * radius) * 1000.0) / 1000.0);
-                p.put("y", Math.round((Math.sin(angle) * radius) * 1000.0) / 1000.0);
-                p.put("type", isNeighbor ? "neighbor" : "candidate");
-                p.put("energy", Math.round((0.2 + (idx % 7) * 0.1) * 100.0) / 100.0);
-                p.put("valence", Math.round((0.3 + (idx % 6) * 0.1) * 100.0) / 100.0);
-                demoPoints.add(p);
-            }
-
-            response.put("points", demoPoints);
-            response.put("vibe_x", 0.1);
-            response.put("vibe_y", -0.1);
-            response.put("k_neighbors", Math.min(kNeighbors, 5));
+        List<Song> analyzed = new ArrayList<>();
+        if (songs != null) for (Song s : songs) if (isAnalyzed(s)) analyzed.add(s);
+        if (analyzed.size() < 5) {
+            response.put("points", new ArrayList<>());
+            response.put("vibe_x", 0);
+            response.put("vibe_y", 0);
+            response.put("k_neighbors", 0);
             return response;
         }
+        songs = analyzed;
 
         int n = songs.size();
-        int d = 6;
+        int d = NUM_FEATURES;
+        FeatureSpace space = new FeatureSpace(songs);
         double[][] vectors = new double[n][d];
-        for (int i = 0; i < n; i++) vectors[i] = featureVector(songs.get(i));
+        for (int i = 0; i < n; i++) vectors[i] = space.z(songs.get(i));
 
         double[] mean = new double[d];
         for (int i = 0; i < n; i++) {
@@ -281,7 +372,7 @@ public class RecommendationService {
             }
         }
 
-        int seedIdx = 0;
+        int seedIdx = -1;
         if (seedId != null) {
             for (int i = 0; i < n; i++) {
                 if (songs.get(i).getId().equals(seedId)) {
@@ -291,17 +382,23 @@ public class RecommendationService {
             }
         }
 
-        double[] seedVec = vectors[seedIdx];
-        List<CandScore> scores = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            if (i != seedIdx) {
-                scores.add(new CandScore(i, cosineSimilarity(seedVec, vectors[i])));
-            }
-        }
-        scores.sort((a, b) -> Double.compare(b.sim, a.sim));
-        int kCount = Math.min(kNeighbors, scores.size());
         Set<Integer> neighborIndices = new HashSet<>();
-        for (int i = 0; i < kCount; i++) neighborIndices.add(scores.get(i).index);
+        if (seedIdx >= 0) {
+            List<double[]> dists = new ArrayList<>();
+            for (int i = 0; i < n; i++) {
+                if (i == seedIdx) continue;
+                double sum = 0;
+                for (int j = 0; j < d; j++) {
+                    double diff = vectors[seedIdx][j] - vectors[i][j];
+                    sum += diff * diff;
+                }
+                dists.add(new double[]{i, Math.sqrt(sum)});
+            }
+            dists.sort((a, b) -> Double.compare(a[1], b[1]));
+            int k = Math.min(Math.max(kNeighbors, 0), dists.size());
+            for (int i = 0; i < k; i++) neighborIndices.add((int) dists.get(i)[0]);
+        }
+        int kCount = neighborIndices.size();
 
         List<Map<String, Object>> points = new ArrayList<>();
         for (int i = 0; i < n; i++) {
@@ -324,8 +421,8 @@ public class RecommendationService {
         }
 
         response.put("points", points);
-        response.put("vibe_x", Math.round(pca2d[seedIdx][0] * 1000.0) / 1000.0);
-        response.put("vibe_y", Math.round(pca2d[seedIdx][1] * 1000.0) / 1000.0);
+        response.put("vibe_x", seedIdx >= 0 ? Math.round(pca2d[seedIdx][0] * 1000.0) / 1000.0 : 0);
+        response.put("vibe_y", seedIdx >= 0 ? Math.round(pca2d[seedIdx][1] * 1000.0) / 1000.0 : 0);
         response.put("k_neighbors", kCount);
         return response;
     }

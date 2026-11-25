@@ -1,5 +1,6 @@
 // Split from the former site.js (feature: artist). See docs/architecture.md.
 import { state } from './state.js';
+import { navSetRestore } from './nav.js';
 import { authenticatedFetch } from './api.js';
 import { openReportSongModal } from './checkout.js';
 import { showSection } from './library.js';
@@ -232,6 +233,7 @@ export async function openArtistDetailView(artistId) {
         return;
     }
     showSection('artist-view');
+    navSetRestore(() => openArtistDetailView(artistId));
     try {
         const res = await authenticatedFetch(`/api/artists?name=${encodeURIComponent(artistId)}&artistId=${encodeURIComponent(artistId)}`);
         if (!res.ok) throw new Error('Failed to fetch artist');
@@ -257,7 +259,7 @@ export async function openArtistDetailView(artistId) {
         document.getElementById('artistViewName').textContent = data.name;
         document.getElementById('artistViewListeners').textContent = (data.monthlyListeners || 688312).toLocaleString() + ' monthly listeners';
         
-        currentArtistContext = { name: data.name, songs: data.popularSongs || [] };
+        currentArtistContext = { id: data.id, type: 'Artist', name: data.name, songs: data.popularSongs || [] };
         state.currentViewedPlaylist = null;
         window.playArtistTrack = function(idx) {
             if (currentArtistContext && currentArtistContext.songs && currentArtistContext.songs.length) {

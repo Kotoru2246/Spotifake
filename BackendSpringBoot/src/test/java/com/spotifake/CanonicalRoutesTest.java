@@ -38,7 +38,7 @@ class CanonicalRoutesTest extends IntegrationTestBase {
         mvc.perform(post("/api/music/play").contentType(MediaType.APPLICATION_JSON).content("{\"songId\":\"" + SONG_ID + "\"}"))
            .andExpect(status().isOk());
         // was /api/smart-shuffle
-        mvc.perform(post("/api/recommendations/smart-shuffle").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mvc.perform(post("/api/recommendations/smart-shuffle").contentType(MediaType.APPLICATION_JSON).content("{\"seed_track_ids\":[\"" + SONG_ID + "\"]}"))
            .andExpect(status().isOk());
         // was /playlists/my/liked/toggle
         mvc.perform(post("/api/playlists/toggle-favorite").header("Authorization", bearer("user_test"))

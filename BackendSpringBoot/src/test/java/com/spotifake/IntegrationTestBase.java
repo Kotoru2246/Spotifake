@@ -52,7 +52,10 @@ public abstract class IntegrationTestBase {
     @DynamicPropertySource
     static void testProperties(DynamicPropertyRegistry registry) {
         registry.add("app.db.path", DB_FILE::toString);
+        // The actuator health check queries the DataSource; keep it off the real database too
+        registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + DB_FILE);
         registry.add("app.uploads.dir", UPLOADS_DIR::toString);
+        registry.add("spotifake.analysis.url", () -> "http://127.0.0.1:1"); // closed port: never reach a real analyzer
     }
 
     @Autowired protected MockMvc mvc;

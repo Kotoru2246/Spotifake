@@ -1,6 +1,6 @@
 // Split from the former site.js (feature: queue). See docs/architecture.md.
 import { state } from './state.js';
-import { API_BASE_URL } from './api.js';
+import { API_BASE_URL, authenticatedFetch } from './api.js';
 import { appShell, queueList } from './dom.js';
 import { loadTrack, updateTransportUI } from './player.js';
 import { escapeHtml, formatTime, normalizeBackendSong, showToast } from './utils.js';
@@ -9,12 +9,63 @@ export function getCurrentQueue() {
   return (state.activeQueue && state.activeQueue.length > 0) ? state.activeQueue : state.tracks;
 }
 
+/** Smart Shuffle works on playlists only: not the library, albums, artists, mixes or searched songs. */
+export function isPlaylistQueue() {
+  return !!state.playlistQueueTitle && state.currentQueueTitle === state.playlistQueueTitle;
+}
+
+/** The shuffle mode in effect: a saved "smart" acts as plain shuffle outside a playlist. */
+export function activeShuffleMode() {
+  return state.shuffleMode === 'smart' && !isPlaylistQueue() ? 'standard' : state.shuffleMode;
+}
+
+/** The song loaded in the player. currentTrackIndex is a position in the queue, not in the library. */
+export function getPlayingTrack() {
+  return getCurrentQueue()[state.currentTrackIndex];
+}
+
+// Songs already heard from the queue being played, whether or not shuffle was on at the time.
+// The history belongs to the queue's name, so it ends when a different queue starts.
+function playedKeys() {
+  const title = state.currentQueueTitle || 'Library';
+  if (state.playedQueueTitle !== title) {
+    state.playedQueueTitle = title;
+    state.playedKeys = new Set();
+  }
+  return state.playedKeys;
+}
+
+const playedKey = (track) => String(track?.id || track?.fileName || '');
+
+export function rememberPlayed(track) {
+  if (track) playedKeys().add(playedKey(track));
+}
+
+export function wasPlayed(track) {
+  return playedKeys().has(playedKey(track));
+}
+
+export function forgetPlayed() {
+  playedKeys().clear();
+}
+
+/** Shuffle with repeat off plays each song of the queue once. */
+export function skipsPlayed() {
+  return state.shuffleMode !== 'off' && state.loopMode === 'off';
+}
+
 export function buildQueueOrder() {
   const list = getCurrentQueue();
   if (!list || !list.length) {
     state.queueOrder = [];
     return;
   }
+
+  // Keep a Smart Shuffle order while it plays; reshuffling on every track would repeat the picks.
+  if (state.shuffleMode === 'smart' && state.smartOrderList === list && state.queueOrder.length === list.length) {
+    return;
+  }
+  state.smartOrderList = null;
 
   if (state.shuffleMode === 'off') {
     state.queueOrder = Array.from({ length: list.length }, (_, index) => index);
@@ -39,29 +90,19 @@ export function buildQueueOrder() {
     [normalIndices[index], normalIndices[swapIndex]] = [normalIndices[swapIndex], normalIndices[index]];
   }
 
-  // Shuffle smart indices
-  for (let index = smartIndices.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [smartIndices[index], smartIndices[swapIndex]] = [smartIndices[swapIndex], smartIndices[index]];
-  }
-
   if (state.shuffleMode === 'smart' && smartIndices.length > 0) {
-    const interleaved = [];
-    let sIdx = 0;
-    let nIdx = 0;
-
-    // Start with a recommendation right after current song
-    if (sIdx < smartIndices.length) {
-      interleaved.push(smartIndices[sIdx++]);
-    }
-
-    while (sIdx < smartIndices.length || nIdx < normalIndices.length) {
-      if (nIdx < normalIndices.length) interleaved.push(normalIndices[nIdx++]);
-      if (sIdx < smartIndices.length) interleaved.push(smartIndices[sIdx++]);
-      if (nIdx < normalIndices.length) interleaved.push(normalIndices[nIdx++]);
-    }
-
-    state.queueOrder = [state.currentTrackIndex, ...interleaved];
+    smartIndices.sort((x, y) => (list[x].smartRank ?? 0) - (list[y].smartRank ?? 0));
+    // Spread the picks evenly between the playlist's own songs, so none bunch up at the end.
+    const upcoming = [];
+    let used = 0;
+    smartIndices.forEach((pick, i) => {
+      const upTo = Math.round((i + 0.5) * normalIndices.length / smartIndices.length);
+      upcoming.push(...normalIndices.slice(used, upTo), pick);
+      used = upTo;
+    });
+    upcoming.push(...normalIndices.slice(used));
+    state.queueOrder = [state.currentTrackIndex, ...upcoming];
+    state.smartOrderList = list;
     return;
   }
 
@@ -88,7 +129,16 @@ export function renderQueue() {
   queueHeader.textContent = `Playing from: ${state.currentQueueTitle || 'Library'}`;
   queueList.appendChild(queueHeader);
 
-  state.queueOrder.forEach((trackIndex) => {
+  // Smart Shuffle lists only what comes next; the current song has its own card above.
+  const smartView = state.shuffleMode === 'smart' && state.smartOrderList === list;
+  const position = state.queueOrder.indexOf(state.currentTrackIndex);
+  // Played songs won't come up again with shuffle on and repeat off, so don't list them.
+  const pending = (index) => !skipsPlayed() || index === state.currentTrackIndex || !wasPlayed(list[index]);
+  const shown = smartView
+    ? state.queueOrder.slice(position + 1).filter(pending).slice(0, 50)
+    : state.queueOrder.filter(pending);
+
+  shown.forEach((trackIndex) => {
     const track = list[trackIndex];
     if (!track) return;
     const item = document.createElement('button');
@@ -99,14 +149,14 @@ export function renderQueue() {
     const thumbHtml = cover 
       ? `<div class="queue-thumb"><img src="${cover}" alt="art" onerror="this.onerror=null; this.parentElement.textContent='${escapeHtml(track.color || '🎵')}';"></div>`
       : `<div class="queue-thumb">${track.color || '🎵'}</div>`;
-    const recBadge = track.isSmartRecommendation 
-      ? `<span class="smart-rec-badge">✨ Recommended</span>` 
+    const recBadge = track.isSmartRecommendation
+      ? `<span class="smart-rec-badge">✨ Pick</span>`
       : '';
     item.innerHTML = `
       ${thumbHtml}
       <div class="queue-info">
-        <div class="queue-title" title="${escapeHtml(track.title || 'Unknown')}">${escapeHtml(track.title || 'Unknown')}${recBadge}</div>
-        <div class="queue-meta" title="${escapeHtml(track.artist || 'Unknown')}">${escapeHtml(track.artist || 'Unknown')}</div>
+        <div class="queue-title" title="${escapeHtml(track.title || 'Unknown')}">${escapeHtml(track.title || 'Unknown')}</div>
+        <div class="queue-meta" title="${escapeHtml(track.artist || 'Unknown')}">${recBadge}${escapeHtml(track.artist || 'Unknown')}</div>
       </div>
       <div class="queue-time">${track.duration ? formatTime(track.duration) : ''}</div>
     `;
@@ -167,25 +217,35 @@ export function updateActiveQueueItem() {
 
 export function removeSmartRecommendations() {
   if (state.activeQueue && state.activeQueue.length > 0) {
-    state.activeQueue = state.activeQueue.filter(t => !t.isNewlyInjected);
+    const prevQueue = state.activeQueue;
+    const playing = prevQueue[state.currentTrackIndex];
+    state.activeQueue = prevQueue.filter(t => !t.isNewlyInjected || t === playing);
+    if (state.currentQueueContext && state.currentQueueContext.queue === prevQueue) {
+      state.currentQueueContext.queue = state.activeQueue;
+    }
     state.activeQueue.forEach(t => {
       delete t.isSmartRecommendation;
       delete t.isNewlyInjected;
+      delete t.smartRank;
     });
+    if (playing) state.currentTrackIndex = state.activeQueue.indexOf(playing);
   }
+  state.smartOrderList = null;
   state.tracks.forEach(t => {
+    delete t.smartRank;
     delete t.isSmartRecommendation;
     delete t.isNewlyInjected;
   });
 }
 
 export async function toggleShuffle() {
-  if (state.shuffleMode === 'off') {
+  const mode = activeShuffleMode();
+  if (mode === 'off') {
     state.shuffleMode = 'standard';
     buildQueueOrder();
     updateTransportUI();
     renderQueue();
-  } else if (state.shuffleMode === 'standard') {
+  } else if (mode === 'standard' && isPlaylistQueue()) {
     state.shuffleMode = 'smart';
     updateTransportUI();
     await runSmartShuffle();
@@ -203,84 +263,155 @@ export async function toggleShuffle() {
   try { localStorage.setItem('spotifake.shuffleMode', state.shuffleMode); } catch (e) {}
 }
 
+// Picks already offered for this queue, so a repeat of the queue brings different ones.
+function seenPicks() {
+  const title = state.currentQueueTitle || 'Library';
+  if (state.smartSeenTitle !== title) {
+    state.smartSeenTitle = title;
+    state.smartSeen = new Set();
+  }
+  return state.smartSeen;
+}
+
+const trackId = (t) => String(t?.id || t?.Id || t?.songID || '');
+
+async function fetchPicks(seedIds, excludeIds, count) {
+  const response = await authenticatedFetch('/api/recommendations/smart-shuffle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seed_track_ids: seedIds, exclude_track_ids: excludeIds, n_recommendations: count })
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return (await response.json()).recommendations || [];
+}
+
+/** Gets a fresh set of picks: one for every three songs of the playlist. */
 export async function runSmartShuffle() {
   const list = getCurrentQueue();
-  if (!list || list.length === 0) return;
+  if (!list || list.length === 0 || !isPlaylistQueue()) return false;
+  const playing = list[state.currentTrackIndex];
+  const own = list.filter(t => !t.isNewlyInjected);
+  const count = Math.max(1, Math.floor(own.length / 3));
+
+  // The current song decides the language; a few of the playlist's other songs describe it too.
+  const seeds = [];
+  if (playing && !playing.isNewlyInjected) seeds.push(trackId(playing));
+  for (const t of [...own].sort(() => Math.random() - 0.5)) {
+    if (seeds.length >= 5) break;
+    if (trackId(t) && !seeds.includes(trackId(t))) seeds.push(trackId(t));
+  }
+
   try {
     showToast('info', 'Smart Shuffle', 'Fetching recommendations...');
-    
-    const currentTrack = list[state.currentTrackIndex];
-    const seedIds = [];
-    if (currentTrack && (currentTrack.id || currentTrack.Id)) {
-      seedIds.push(currentTrack.id || currentTrack.Id);
+    const seen = seenPicks();
+    const ownIds = own.map(trackId);
+    let picks = await fetchPicks(seeds, [...ownIds, ...seen], count);
+    if (!picks.length && seen.size) {
+      seen.clear(); // nothing new is left to suggest, so start over
+      picks = await fetchPicks(seeds, ownIds, count);
     }
-    for (const t of list) {
-      const id = t.id || t.Id || t.songID;
-      if (id && !seedIds.includes(id)) {
-        seedIds.push(id);
-        if (seedIds.length >= 5) break;
-      }
+    // The listener may have moved to another queue while this was loading.
+    if (getCurrentQueue() !== list || state.shuffleMode !== 'smart') return false;
+    if (!picks.length) {
+      showToast('info', 'Smart Shuffle Active', 'No matching recommendations found.');
+      return false;
     }
+    picks.forEach(r => seen.add(String(r.id)));
 
-    const payload = {
-      seed_track_ids: seedIds,
-      playlist_song_ids: seedIds,
-      n_recommendations: 8
-    };
-
-    const response = await fetch('/api/recommendations/smart-shuffle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const current = list[state.currentTrackIndex];
+    list.forEach(t => {
+      delete t.isSmartRecommendation;
+      delete t.smartRank;
     });
-    
-    if (response.ok) {
-      const data = await response.json();
-      const rawRecs = data.recommendations || [];
-      if (rawRecs.length > 0) {
-        if (!state.activeQueue || state.activeQueue.length === 0) {
-          state.activeQueue = [...state.tracks];
-        }
-
-        const currentTrackId = String(state.activeQueue[state.currentTrackIndex]?.id || '');
-        const existingIds = new Set(state.activeQueue.map(t => String(t.id || t.Id)));
-        
-        for (const r of rawRecs) {
-          const rid = String(r.id);
-          if (rid === currentTrackId) continue;
-          if (existingIds.has(rid)) {
-            const found = state.activeQueue.find(t => String(t.id || t.Id) === rid);
-            if (found) found.isSmartRecommendation = true;
-          } else {
-            const t = normalizeBackendSong(r);
-            t.isSmartRecommendation = true;
-            t.isNewlyInjected = true;
-            state.activeQueue.push(t);
-            existingIds.add(rid);
-          }
-        }
-
-        const recIdSet = new Set(rawRecs.map(r => String(r.id)));
-        state.activeQueue.forEach(t => {
-          if (recIdSet.has(String(t.id || t.Id)) && String(t.id || t.Id) !== currentTrackId) {
-            t.isSmartRecommendation = true;
-          }
-        });
-
-        buildQueueOrder();
-        renderQueue();
-
-        const totalSmartCount = state.activeQueue.filter(t => t.isSmartRecommendation).length;
-        showToast('success', 'Smart Shuffle Active', `Smart shuffle active with ${totalSmartCount} AI recommendations.`);
-      } else {
-        showToast('info', 'Smart Shuffle Active', 'Smart shuffle active.');
-      }
-    } else {
-      showToast('error', 'Smart Shuffle Failed', 'Failed to fetch recommendations.');
+    const added = picks.map((r, i) => Object.assign(normalizeBackendSong(r),
+      { isSmartRecommendation: true, isNewlyInjected: true, smartRank: i }));
+    const queue = [...own, ...added];
+    // A pick from the previous round that is still playing stays until it finishes.
+    if (current && !queue.includes(current)) queue.push(current);
+    if (state.currentQueueContext && state.currentQueueContext.queue === state.activeQueue) {
+      state.currentQueueContext.queue = queue;
     }
-  } catch(err) {
+    state.activeQueue = queue;
+
+    state.currentTrackIndex = Math.max(0, queue.indexOf(current));
+    state.smartOrderList = null;
+    buildQueueOrder();
+    renderQueue();
+    showToast('success', 'Smart Shuffle Active', `Smart shuffle active with ${picks.length} AI recommendations.`);
+    return true;
+  } catch (err) {
     console.error('Smart shuffle error:', err);
     showToast('error', 'Smart Shuffle Error', 'Could not connect to recommendation service.');
+    return false;
+  }
+}
+
+/** Plays one chosen song and queues songs related to it (not the whole library) behind it. */
+export async function playSongWithRelated(track) {
+  const queue = [track];
+  queue.forEach(clearPickMarks);
+  state.activeQueue = queue;
+  state.currentQueueTitle = `Songs like ${track.title}`;
+  state.currentViewedPlaylist = null;
+  state.smartOrderList = null;
+  forgetPlayed();
+  buildQueueOrder();
+  loadTrack(0, true); // play now, the related songs arrive a moment later
+  renderQueue();
+
+  try {
+    const picks = await fetchPicks([trackId(track)], [], 30);
+    if (state.activeQueue !== queue) return; // something else was started meanwhile
+    const library = new Map(state.tracks.map(t => [trackId(t), t]));
+    picks.forEach(pick => {
+      const related = library.get(String(pick.id)) || normalizeBackendSong(pick);
+      clearPickMarks(related);
+      queue.push(related);
+    });
+    buildQueueOrder();
+    renderQueue();
+  } catch (err) {
+    console.error('Related songs error:', err);
+    showToast('error', 'Queue', 'Could not load related songs.');
+  }
+}
+
+function clearPickMarks(track) {
+  delete track.isSmartRecommendation;
+  delete track.isNewlyInjected;
+  delete track.smartRank;
+}
+
+let startingRound = false;
+
+/** Called when a repeating queue reaches its end: new picks, then play the queue again. */
+export async function startNewSmartRound() {
+  if (startingRound) return;
+  startingRound = true;
+  try {
+    await runSmartShuffle();
+    const list = getCurrentQueue();
+    const finished = list[state.currentTrackIndex];
+    const choices = list.map((t, i) => i).filter(i =>
+      !list[i].isNewlyInjected && !list[i].isSmartRecommendation && list[i] !== finished);
+    const start = choices.length ? choices[Math.floor(Math.random() * choices.length)] : state.currentTrackIndex;
+    // A pick left over from the last round is dropped now that it has finished.
+    let index = start;
+    if (finished && finished.isNewlyInjected && !finished.isSmartRecommendation) {
+      const first = list[start];
+      const trimmed = list.filter(t => t !== finished);
+      if (state.currentQueueContext && state.currentQueueContext.queue === list) {
+        state.currentQueueContext.queue = trimmed;
+      }
+      state.activeQueue = trimmed;
+      index = trimmed.indexOf(first);
+    }
+    state.currentTrackIndex = index;
+    state.smartOrderList = null;
+    buildQueueOrder();
+    loadTrack(index, true);
+  } finally {
+    startingRound = false;
   }
 }
 

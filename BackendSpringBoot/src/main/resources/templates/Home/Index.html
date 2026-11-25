@@ -24,6 +24,14 @@
         </svg>
     </div>
     <div class="top-bar-center">
+        <div class="history-nav">
+            <button type="button" class="history-nav-btn" id="navBackBtn" title="Go back" aria-label="Go back" disabled>
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M11.03.47a.75.75 0 0 1 0 1.06L4.56 8l6.47 6.47a.75.75 0 1 1-1.06 1.06L2.44 8 9.97.47a.75.75 0 0 1 1.06 0z"/></svg>
+            </button>
+            <button type="button" class="history-nav-btn" id="navForwardBtn" title="Go forward" aria-label="Go forward" disabled>
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M4.97.47a.75.75 0 0 0 0 1.06L11.44 8l-6.47 6.47a.75.75 0 1 0 1.06 1.06L13.56 8 6.03.47a.75.75 0 0 0-1.06 0z"/></svg>
+            </button>
+        </div>
         <button class="nav-btn" onclick="showSection('home')" title="Home">
             <svg role="img" height="24" width="24" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33zm-2-1.732a3 3 0 0 1 3 0l7.5 4.33A2 2 0 0 1 22 7.577V21a1 1 0 0 1-1 1h-6.5a1 1 0 0 1-1-1v-5h-3v5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.577a2 2 0 0 1 .999-1.732l7.5-4.33z"></path>
@@ -145,22 +153,27 @@
                 <button type="button" class="auth-close-btn" id="cancelCreatePlaylistButton" title="Close">✕</button>
             </div>
 
-            <div class="form-group" style="margin-top: 16px;">
+            <div class="form-group create-playlist-name-group">
                 <label for="createPlaylistName">Playlist Name *</label>
                 <input type="text" id="createPlaylistName" placeholder="e.g. Chill Vibes" required>
             </div>
 
             <div class="form-group">
-                <label for="createPlaylistImageUrl">Cover Image URL (Optional)</label>
-                <input type="text" id="createPlaylistImageUrl" placeholder="e.g. https://example.com/cover.jpg">
+                <label>Cover</label>
+                <div class="cover-picker">
+                    <input type="file" id="createPlaylistCoverInput" accept="image/*" hidden>
+                    <div class="cover-picker-preview" id="createPlaylistCoverPreview"></div>
+                    <div class="cover-picker-side">
+                        <div class="cover-picker-buttons">
+                            <button type="button" class="secondary-action" id="createPlaylistCoverPickBtn">Choose image</button>
+                            <button type="button" class="secondary-action cover-picker-remove" id="createPlaylistCoverRemoveBtn" hidden>Remove</button>
+                        </div>
+                        <p class="cover-picker-hint">Optional · JPG, PNG, GIF or WebP, max 5 MB</p>
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="createPlaylistSongs">Initial Songs (Optional - Select multiple)</label>
-                <select id="createPlaylistSongs" multiple style="height: 120px;"></select>
-            </div>
-
-            <button type="button" class="primary-action full-width" id="submitCreatePlaylistButton">Create Playlist</button>
+            <button type="button" class="primary-action full-width create-playlist-submit" id="submitCreatePlaylistButton">Create Playlist</button>
         </div>
     </div>
 </div>
@@ -252,16 +265,11 @@
             </div>
             
             <div style="display: flex; gap: 16px; margin-top: 16px;">
-                <div style="width: 180px; height: 180px; background: #282828; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; color: #fff; position: relative;" onclick="document.getElementById('editPlaylistImageUrl').focus()">
-                    <svg role="img" height="48" width="48" viewBox="0 0 24 24" fill="currentColor"><path d="M17.318 1.975a3.329 3.329 0 114.707 4.707L8.451 20.256c-.49.49-1.082.867-1.735 1.103L2.34 22.94a1 1 0 01-1.28-1.28l1.581-4.376a4.509 4.509 0 011.103-1.735L17.318 1.975zm3.293 1.414a1.329 1.329 0 00-1.88 0L17 5.118l3.882 3.882 1.729-1.729a1.329 1.329 0 000-1.88zM15.586 6.53L4.143 17.973a2.509 2.509 0 00-.614.964l-1.036 2.869 2.87-1.036a2.509 2.509 0 00.963-.614L17.768 8.711 15.586 6.53z"></path></svg>
-                    <span style="margin-top: 8px;">Choose photo URL</span>
-                </div>
+                <label for="editPlaylistCoverInput" id="editPlaylistCoverPreview" class="edit-cover-box" title="Choose photo"></label>
+                <input type="file" id="editPlaylistCoverInput" accept="image/*" hidden>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
                     <div class="form-group" style="margin: 0;">
                         <input type="text" id="editPlaylistName" placeholder="Playlist Name" style="width: 100%; padding: 12px; background: #333; border: 1px solid transparent; color: #fff; border-radius: 4px; font-size: 16px;">
-                    </div>
-                    <div class="form-group" style="margin: 0;">
-                        <input type="text" id="editPlaylistImageUrl" placeholder="Image URL (Optional)" style="width: 100%; padding: 12px; background: #333; border: 1px solid transparent; color: #fff; border-radius: 4px; font-size: 14px;">
                     </div>
                     <div class="form-group" style="margin: 0; flex: 1;">
                         <textarea id="editPlaylistDescription" placeholder="Add an optional description" style="width: 100%; height: 100%; min-height: 80px; padding: 12px; background: #333; border: 1px solid transparent; color: #fff; border-radius: 4px; resize: none; font-size: 14px; font-family: inherit;"></textarea>
@@ -547,7 +555,7 @@
                             <canvas id="waveformCanvas" width="800" height="90"></canvas>
                             <div class="waveform-progress" id="waveformProgress"></div>
                             <div class="comment-input-popover" id="commentPopover" style="display: none;">
-                                <input type="text" id="commentInput" placeholder="Add a comment..." onkeypress="handleCommentSubmit(event)">
+                                <input type="text" id="commentInput" placeholder="Add a comment..." maxlength="500" onkeypress="handleCommentSubmit(event)">
                             </div>
                         </div>
 
@@ -627,6 +635,7 @@
             <div class="playlist-hero">
                 <div class="playlist-cover-shadow">
                     <img id="pvCoverArt" src="" alt="Playlist Cover">
+                    <div id="pvCoverMosaic" class="pl-cover-host" hidden></div>
                 </div>
                 <div class="playlist-hero-info">
                     <span id="pvTypeLabel" class="eyebrow">Playlist</span>

@@ -333,6 +333,19 @@ public class SpotifakeRepository {
                 );
             """);
 
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS UserPlayContexts (
+                  UserID TEXT NOT NULL,
+                  ContextType TEXT NOT NULL,
+                  ContextID TEXT NOT NULL,
+                  PlayCount INTEGER NOT NULL DEFAULT 0,
+                  FirstPlayedAt TEXT NOT NULL,
+                  LastPlayedAt INTEGER NOT NULL,
+                  PRIMARY KEY (UserID, ContextType, ContextID)
+                );
+            """);
+            stmt.execute("CREATE INDEX IF NOT EXISTS IX_UserPlayContexts_User_Last ON UserPlayContexts(UserID, LastPlayedAt DESC)");
+
             // Safe columns
             addColumnSafe(conn, "Users", "Nationality TEXT DEFAULT ''");
             addColumnSafe(conn, "Users", "Gender TEXT DEFAULT ''");
@@ -353,6 +366,9 @@ public class SpotifakeRepository {
             addColumnSafe(conn, "ArtistProfiles", "Nationality TEXT DEFAULT ''");
             addColumnSafe(conn, "ArtistProfiles", "IsDeleted INTEGER DEFAULT 0");
             addColumnSafe(conn, "Users", "IsArtist INTEGER NOT NULL DEFAULT 0");
+            addColumnSafe(conn, "Playlists", "CoverArtData BLOB");
+            // Song IDs are strings; the integer ItemID can't hold them.
+            addColumnSafe(conn, "ContentReports", "SongID TEXT DEFAULT ''");
             try (Statement s = conn.createStatement()) {
                 s.execute("UPDATE Users SET IsArtist = 1 WHERE LOWER(Role) = 'artist' OR UserID IN (SELECT UserID FROM ArtistProfiles WHERE Status = 'Approved')");
             } catch (SQLException ignored) {}
@@ -586,12 +602,20 @@ public class SpotifakeRepository {
         if (songId == null || songId.trim().isEmpty()) return null;
         String raw = songId.trim();
         String unhyphenated = raw.replace("-", "");
-        String sql = "SELECT * FROM Songs WHERE SongID = ? OR REPLACE(SongID, '-', '') = ? LIMIT 1";
-        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, raw);
-            ps.setString(2, unhyphenated);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return mapSong(rs, true);
+        // Exact match uses the primary key index; REPLACE() has to read every row, so it is only a fallback.
+        String[] queries = {
+                "SELECT * FROM Songs WHERE SongID IN (?, ?) LIMIT 1",
+                "SELECT * FROM Songs WHERE REPLACE(SongID, '-', '') IN (?, ?) LIMIT 1"
+        };
+        try (Connection conn = getConnection()) {
+            for (String sql : queries) {
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setString(1, raw);
+                    ps.setString(2, unhyphenated);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) return mapSong(rs, true);
+                    }
+                }
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return null;
@@ -633,15 +657,24 @@ public class SpotifakeRepository {
 
     public List<Song> getSongsByIds(List<String> ids) {
         if (ids == null || ids.isEmpty()) return Collections.emptyList();
-        List<Song> result = new ArrayList<>();
         String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
-        String sql = "SELECT * FROM Songs WHERE SongID IN (" + placeholders + ")";
+        String sql = SONG_METADATA_SELECT + " WHERE SongID IN (" + placeholders + ")";
+        Map<String, Song> byId = new HashMap<>();
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             for (int i = 0; i < ids.size(); i++) ps.setString(i + 1, ids.get(i));
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) result.add(mapSong(rs));
+                while (rs.next()) {
+                    Song s = mapSong(rs, false);
+                    byId.put(s.getId(), s);
+                }
             }
         } catch (SQLException e) { e.printStackTrace(); }
+        List<Song> result = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String id : ids) {
+            Song s = byId.get(id);
+            if (s != null && seen.add(id)) result.add(s);
+        }
         return result;
     }
 
@@ -716,6 +749,123 @@ public class SpotifakeRepository {
         } catch (SQLException e) { e.printStackTrace(); }
     }
 
+    /** Like updateSong but reports failure: returns rows updated, or -1 on SQL error. */
+    public int updateSongChecked(String songId, Map<String, Object> fields) {
+        if (fields.isEmpty()) return 0;
+        StringBuilder sb = new StringBuilder("UPDATE Songs SET ");
+        List<Object> values = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            sb.append(entry.getKey()).append(" = ?, ");
+            values.add(entry.getValue());
+        }
+        sb.delete(sb.length() - 2, sb.length());
+        sb.append(" WHERE SongID = ?");
+        values.add(songId);
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sb.toString())) {
+            for (int i = 0; i < values.size(); i++) ps.setObject(i + 1, values.get(i));
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    private static final String BLANK_OR_PLACEHOLDER =
+            " IS NULL OR TRIM(%1$s)='' OR LOWER(TRIM(%1$s))='analyzing...'";
+
+    /** Sets Genre/Mood only where currently blank or the "analyzing..." placeholder. Null args are skipped. */
+    public boolean setGenreMoodIfBlank(String songId, String genre, String mood) {
+        try (Connection conn = getConnection()) {
+            if (genre != null) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE Songs SET Genre = ? WHERE SongID = ? AND (Genre" + String.format(BLANK_OR_PLACEHOLDER, "Genre") + ")")) {
+                    ps.setString(1, genre);
+                    ps.setString(2, songId);
+                    ps.executeUpdate();
+                }
+            }
+            if (mood != null) {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE Songs SET Mood = ? WHERE SongID = ? AND (Mood" + String.format(BLANK_OR_PLACEHOLDER, "Mood") + ")")) {
+                    ps.setString(1, mood);
+                    ps.setString(2, songId);
+                    ps.executeUpdate();
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private static final String UNANALYZED_WHERE =" WHERE IsDeleted = 0 AND COALESCE(Tempo,0)=0 AND COALESCE(Energy,0)=0"
+            + " AND COALESCE(Danceability,0)=0 AND COALESCE(Valence,0)=0 AND COALESCE(Acousticness,0)=0"
+            + " AND COALESCE(Instrumentalness,0)=0";
+
+    public List<Song> getUnanalyzedSongs(int limit, String afterId) {
+        List<Song> list = new ArrayList<>();
+        String sql = SONG_METADATA_SELECT + UNANALYZED_WHERE + " AND SongID > ? ORDER BY SongID LIMIT ?";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, afterId == null ? "" : afterId);
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) list.add(mapSong(rs, false));
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
+    }
+
+    public int countUnanalyzedSongs() {
+        String sql = "SELECT COUNT(*) FROM Songs" + UNANALYZED_WHERE;
+        try (Connection conn = getConnection(); Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sql)) {
+            return rs.next() ? rs.getInt(1) : 0;
+        } catch (SQLException e) { e.printStackTrace(); return 0; }
+    }
+
+    public Comment insertComment(String userId, String songId, long timestampMs, String content) {
+        Comment c = new Comment();
+        c.setId(UUID.randomUUID().toString());
+        c.setUserId(userId);
+        c.setSongId(songId);
+        c.setTimestampMs(timestampMs);
+        c.setContent(content);
+        c.setCreatedAt(Instant.now().toString());
+        String sql = "INSERT INTO Comments (CommentID, UserID, SongID, TimestampMS, Content, CreatedAt) VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, c.getId());
+            ps.setString(2, c.getUserId());
+            ps.setString(3, c.getSongId());
+            ps.setLong(4, c.getTimestampMs());
+            ps.setString(5, c.getContent());
+            ps.setString(6, c.getCreatedAt());
+            ps.executeUpdate();
+            return c;
+        } catch (SQLException e) { e.printStackTrace(); return null; }
+    }
+
+    /** Comments on a song in timeline order. */
+    public List<Comment> getCommentsForSong(String songId) {
+        List<Comment> list = new ArrayList<>();
+        String sql = "SELECT * FROM Comments WHERE SongID = ? ORDER BY TimestampMS, CreatedAt";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, songId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Comment c = new Comment();
+                    c.setId(rs.getString("CommentID"));
+                    c.setUserId(rs.getString("UserID"));
+                    c.setSongId(rs.getString("SongID"));
+                    c.setTimestampMs(rs.getLong("TimestampMS"));
+                    c.setContent(rs.getString("Content"));
+                    c.setCreatedAt(rs.getString("CreatedAt"));
+                    list.add(c);
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
+    }
+
     public void deleteSong(String songId) {
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement("DELETE FROM Songs WHERE SongID = ?")) {
             ps.setString(1, songId);
@@ -733,6 +883,7 @@ public class SpotifakeRepository {
 
             // Find song to link correctly in StreamLogs
             Song s = getSongById(songIdOrFileName);
+            if (s == null) s = getSongByFilePathOrTitle(songIdOrFileName); // the player sends file paths
             String songId = (s != null) ? s.getId() : songIdOrFileName;
             int dur = (s != null && s.getDurationMs() > 0) ? (int) (s.getDurationMs() / 1000) : 180;
 
@@ -759,6 +910,85 @@ public class SpotifakeRepository {
         return recordSongPlay(songIdOrFileName, "guest", "Web Player", "127.0.0.1");
     }
 
+    /** A user's play log, oldest first; the song key is a song ID or, in old rows, a file path. */
+    public List<com.spotifake.service.DailyMixService.Play> getPlays(String userId) {
+        List<com.spotifake.service.DailyMixService.Play> plays = new ArrayList<>();
+        String sql = "SELECT SongID, Timestamp FROM StreamLogs WHERE UserID = ? ORDER BY Timestamp DESC LIMIT 2000";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    try {
+                        plays.add(new com.spotifake.service.DailyMixService.Play(
+                                rs.getString("SongID"), Instant.parse(rs.getString("Timestamp"))));
+                    } catch (RuntimeException ignored) {
+                        // seeded or legacy rows without a parseable time
+                    }
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        Collections.reverse(plays);
+        return plays;
+    }
+
+    // ==========================================
+    // USER PLAY CONTEXTS (home shortcuts)
+    // ==========================================
+    public void upsertUserPlayContext(String userId, String type, String contextId, long nowMs) {
+        String sql = "INSERT INTO UserPlayContexts (UserID, ContextType, ContextID, PlayCount, FirstPlayedAt, LastPlayedAt) VALUES (?, ?, ?, 1, ?, ?) "
+                + "ON CONFLICT(UserID, ContextType, ContextID) DO UPDATE SET PlayCount = PlayCount + 1, LastPlayedAt = excluded.LastPlayedAt";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            ps.setString(2, type);
+            ps.setString(3, contextId);
+            ps.setString(4, Instant.now().toString());
+            ps.setLong(5, nowMs);
+            ps.executeUpdate();
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    public List<Map<String, Object>> getUserPlayContexts(String userId, int max) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT ContextType, ContextID, PlayCount, LastPlayedAt FROM UserPlayContexts WHERE UserID = ? ORDER BY LastPlayedAt DESC LIMIT ?";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            ps.setInt(2, max);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("type", rs.getString("ContextType"));
+                    m.put("id", rs.getString("ContextID"));
+                    m.put("playCount", rs.getInt("PlayCount"));
+                    m.put("lastPlayedAt", rs.getLong("LastPlayedAt"));
+                    list.add(m);
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return list;
+    }
+
+    public Song findFirstSongByArtistName(String name) {
+        if (name == null || name.trim().isEmpty()) return null;
+        String sql = "SELECT * FROM Songs WHERE IsDeleted = 0 AND (LOWER(TRIM(ArtistName)) = LOWER(TRIM(?)) OR LOWER(ArtistName) LIKE LOWER(?) || '/%' ESCAPE '\\') ORDER BY PlayCount DESC LIMIT 1";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, name);
+            ps.setString(2, name.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_"));
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return mapSong(rs, false);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return null;
+    }
+
+    public void setPlaylistVisibility(String playlistId, boolean isPublic) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("UPDATE Playlists SET IsPublic = ? WHERE PlaylistID = ?")) {
+            ps.setInt(1, isPublic ? 1 : 0);
+            ps.setString(2, playlistId);
+            ps.executeUpdate();
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
     // ==========================================
     // ALBUM METHODS
     // ==========================================
@@ -782,7 +1012,7 @@ public class SpotifakeRepository {
 
     public List<Map<String, Object>> searchPlaylists(String query) {
         List<Map<String, Object>> list = new ArrayList<>();
-        String sql = "SELECT p.*, u.DisplayName AS OwnerName FROM Playlists p LEFT JOIN Users u ON p.OwnerUserID = u.UserID WHERE p.IsPublic = 1 AND LOWER(p.Title) LIKE ? LIMIT 10";
+        String sql = "SELECT p.PlaylistID, p.OwnerUserID, p.Title, p.ImageUrl, p.Description, p.IsPublic, u.DisplayName AS OwnerName FROM Playlists p LEFT JOIN Users u ON p.OwnerUserID = u.UserID WHERE p.IsPublic = 1 AND LOWER(p.Title) LIKE ? LIMIT 10";
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, "%" + query.toLowerCase() + "%");
             try (ResultSet rs = ps.executeQuery()) {
@@ -1267,7 +1497,7 @@ public class SpotifakeRepository {
         result.add(likedPlaylist);
 
         // Real playlists
-        String plSql = "SELECT * FROM Playlists WHERE OwnerUserID = ? ORDER BY Title ASC";
+        String plSql = "SELECT PlaylistID, OwnerUserID, Title, ImageUrl, Description, IsPublic FROM Playlists WHERE OwnerUserID = ? ORDER BY Title ASC";
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(plSql)) {
             ps.setString(1, user.getId());
             try (ResultSet rs = ps.executeQuery()) {
@@ -1334,7 +1564,7 @@ public class SpotifakeRepository {
             return null;
         }
 
-        String sql = "SELECT * FROM Playlists WHERE PlaylistID = ?";
+        String sql = "SELECT PlaylistID, OwnerUserID, Title, ImageUrl, Description, IsPublic FROM Playlists WHERE PlaylistID = ?";
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, playlistId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -1378,6 +1608,102 @@ public class SpotifakeRepository {
         } catch (SQLException e) { e.printStackTrace(); return null; }
     }
 
+    /** Light playlist metadata (no tracks): ownerUserId, isPublic, name, imageUrl; null if missing. */
+    public Map<String, Object> getPlaylistMeta(String playlistId) {
+        String sql = "SELECT OwnerUserID, IsPublic, Title, ImageUrl FROM Playlists WHERE PlaylistID = ?";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, playlistId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("ownerUserId", rs.getString("OwnerUserID"));
+                    m.put("isPublic", rs.getInt("IsPublic") == 1);
+                    m.put("name", rs.getString("Title"));
+                    m.put("imageUrl", rs.getString("ImageUrl"));
+                    return m;
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return null;
+    }
+
+    /** First tracks of a playlist (id, coverArtUrl, albumId only) in the same order as getPlaylistDetails, for cover mosaics. */
+    public List<Map<String, Object>> getPlaylistCoverTracks(String playlistId, int limit) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        String sql = """
+            SELECT s.SongID, s.CoverArtUrl, s.AlbumID FROM PlaylistTracks pt
+            JOIN Songs s ON pt.SongID = s.SongID
+            WHERE pt.PlaylistID = ?
+            ORDER BY pt.AddedAt ASC
+            LIMIT ?
+        """;
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, playlistId);
+            ps.setInt(2, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", rs.getString("SongID"));
+                    String c = rs.getString("CoverArtUrl");
+                    m.put("coverArtUrl", c != null ? c : "");
+                    String a = rs.getString("AlbumID");
+                    m.put("albumId", a != null ? a : "");
+                    out.add(m);
+                }
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return out;
+    }
+
+    public String getPlaylistOwnerId(String playlistId) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT OwnerUserID FROM Playlists WHERE PlaylistID = ?")) {
+            ps.setString(1, playlistId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getString(1);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return null;
+    }
+
+    public boolean updatePlaylistDetails(String playlistId, String name, String imageUrl) {
+        boolean keepCover = imageUrl != null && imageUrl.startsWith("/api/playlists/" + playlistId + "/cover");
+        StringBuilder sql = new StringBuilder("UPDATE Playlists SET Title = ?");
+        if (imageUrl != null) {
+            sql.append(", ImageUrl = ?");
+            if (!keepCover) sql.append(", CoverArtData = NULL");
+        }
+        sql.append(" WHERE PlaylistID = ?");
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            int i = 1;
+            ps.setString(i++, name);
+            if (imageUrl != null) ps.setString(i++, imageUrl);
+            ps.setString(i, playlistId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) { e.printStackTrace(); return false; }
+    }
+
+    public byte[] getPlaylistCoverData(String playlistId) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT CoverArtData FROM Playlists WHERE PlaylistID = ?")) {
+            ps.setString(1, playlistId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getBytes(1);
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+        return null;
+    }
+
+    public void setPlaylistCover(String playlistId, byte[] data, String imageUrl) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement("UPDATE Playlists SET CoverArtData = ?, ImageUrl = ? WHERE PlaylistID = ?")) {
+            if (data == null) ps.setNull(1, java.sql.Types.BLOB); else ps.setBytes(1, data);
+            ps.setString(2, imageUrl != null ? imageUrl : "");
+            ps.setString(3, playlistId);
+            ps.executeUpdate();
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
     public void deletePlaylist(String playlistId) {
         try (Connection conn = getConnection()) {
             try (PreparedStatement ps1 = conn.prepareStatement("DELETE FROM PlaylistTracks WHERE PlaylistID = ?")) {
@@ -1387,6 +1713,10 @@ public class SpotifakeRepository {
             try (PreparedStatement ps2 = conn.prepareStatement("DELETE FROM Playlists WHERE PlaylistID = ?")) {
                 ps2.setString(1, playlistId);
                 ps2.executeUpdate();
+            }
+            try (PreparedStatement ps3 = conn.prepareStatement("DELETE FROM UserPlayContexts WHERE ContextType = 'playlist' AND ContextID = ?")) {
+                ps3.setString(1, playlistId);
+                ps3.executeUpdate();
             }
         } catch (SQLException e) { e.printStackTrace(); }
     }
@@ -1838,6 +2168,22 @@ public class SpotifakeRepository {
             e.printStackTrace();
         }
         return getTransactionById(id);
+    }
+
+    public Transaction getTransactionByAuthCode(String authCode) {
+        if (authCode == null || authCode.isEmpty()) return null;
+        String sql = "SELECT * FROM Transactions WHERE AuthCode = ? LIMIT 1";
+        try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, authCode);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapTransaction(rs);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public Transaction getTransactionById(String transactionId) {
@@ -2368,7 +2714,7 @@ public class SpotifakeRepository {
             if (statusFilter != null && !statusFilter.equalsIgnoreCase("all")) ps.setString(1, statusFilter);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    list.add(new ContentReport(
+                    ContentReport report = new ContentReport(
                         rs.getInt("ReportID"),
                         rs.getString("ItemType"),
                         rs.getInt("ItemID"),
@@ -2380,15 +2726,17 @@ public class SpotifakeRepository {
                         rs.getString("CreatedAt"),
                         rs.getString("ResolvedBy"),
                         rs.getString("ResolutionNotes")
-                    ));
+                    );
+                    report.setSongId(rs.getString("SongID"));
+                    list.add(report);
                 }
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return list;
     }
 
-    public void createContentReport(String itemType, int itemId, String itemTitle, String reason, String description, String reportedBy) {
-        String sql = "INSERT INTO ContentReports (ItemType, ItemID, ItemTitle, Reason, Description, Status, ReportedBy, CreatedAt, ResolvedBy, ResolutionNotes) VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?, '', '')";
+    public void createContentReport(String itemType, int itemId, String songId, String itemTitle, String reason, String description, String reportedBy) {
+        String sql = "INSERT INTO ContentReports (ItemType, ItemID, ItemTitle, Reason, Description, Status, ReportedBy, CreatedAt, ResolvedBy, ResolutionNotes, SongID) VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?, '', '', ?)";
         try (Connection conn = getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, itemType);
             ps.setInt(2, itemId);
@@ -2397,6 +2745,7 @@ public class SpotifakeRepository {
             ps.setString(5, description != null ? description : "");
             ps.setString(6, reportedBy != null ? reportedBy : "anonymous");
             ps.setString(7, Instant.now().toString());
+            ps.setString(8, songId != null ? songId : "");
             ps.executeUpdate();
         } catch (SQLException e) { e.printStackTrace(); }
     }

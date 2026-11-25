@@ -1,0 +1,274 @@
+{
+ "clap-lr-10": {
+  "Cused": {
+   "Arctic Monkeys": 0.001,
+   "Avicii": 0.01,
+   "Charlie Puth": 0.01,
+   "Daniel Caesar": 0.01,
+   "Drake": 0.01,
+   "Eddie Benjamin": 0.01,
+   "Foo Fighters": 0.1,
+   "H.E.R.": 0.001,
+   "J. Cole": 0.001,
+   "Jamie Paige": 0.1,
+   "Joji": 0.01,
+   "Kendrick Lamar": 0.001,
+   "Ng\u1ecdt": 0.001,
+   "PARTYNEXTDOOR": 0.01,
+   "Porter Robinson": 0.01,
+   "Red Hot Chili Peppers": 0.001,
+   "SZA": 0.001,
+   "Sam Smith": 0.01,
+   "Shawn Mendes": 0.001,
+   "Taylor Swift": 0.1,
+   "The Weeknd": 0.001,
+   "Th\u1eafng": 0.01,
+   "Th\u1ecbnh Suy": 0.1,
+   "Travis Scott": 0.001
+  },
+  "artists_per_class": {
+   "electronic": [
+    "Avicii",
+    "Jamie Paige",
+    "Porter Robinson"
+   ],
+   "hip-hop": [
+    "Drake",
+    "J. Cole",
+    "Kendrick Lamar",
+    "Travis Scott"
+   ],
+   "pop": [
+    "Charlie Puth",
+    "Sam Smith",
+    "Shawn Mendes",
+    "Taylor Swift",
+    "The Weeknd",
+    "Th\u1eafng",
+    "Th\u1ecbnh Suy"
+   ],
+   "rock": [
+    "Arctic Monkeys",
+    "Foo Fighters",
+    "Ng\u1ecdt",
+    "Red Hot Chili Peppers"
+   ],
+   "soul-rnb": [
+    "Daniel Caesar",
+    "Eddie Benjamin",
+    "H.E.R.",
+    "Joji",
+    "PARTYNEXTDOOR",
+    "SZA"
+   ]
+  }
+ },
+ "clap-lr-11": {
+  "Cused": {
+   "Ado": 0.1,
+   "Arctic Monkeys": 0.01,
+   "Avicii": 0.01,
+   "Charlie Puth": 0.01,
+   "DECO*27": 0.001,
+   "Daniel Caesar": 0.01,
+   "Drake": 0.1,
+   "Eddie Benjamin": 0.01,
+   "Foo Fighters": 0.01,
+   "H.E.R.": 0.1,
+   "J. Cole": 0.001,
+   "Jamie Paige": 0.001,
+   "Joji": 0.1,
+   "Kendrick Lamar": 0.01,
+   "Ng\u1ecdt": 0.01,
+   "PARTYNEXTDOOR": 0.001,
+   "Porter Robinson": 0.01,
+   "Red Hot Chili Peppers": 1,
+   "SZA": 0.01,
+   "Sam Smith": 0.01,
+   "Shawn Mendes": 0.01,
+   "Taylor Swift": 0.01,
+   "The Weeknd": 0.1,
+   "Th\u1eafng": 0.01,
+   "Th\u1ecbnh Suy": 0.01,
+   "Travis Scott": 0.01,
+   "YOASOBI": 0.1
+  },
+  "artists_per_class": {
+   "electronic": [
+    "Avicii",
+    "Jamie Paige",
+    "Porter Robinson"
+   ],
+   "hip-hop": [
+    "Drake",
+    "J. Cole",
+    "Kendrick Lamar",
+    "Travis Scott"
+   ],
+   "pop": [
+    "Charlie Puth",
+    "Sam Smith",
+    "Shawn Mendes",
+    "Taylor Swift",
+    "The Weeknd",
+    "Th\u1eafng",
+    "Th\u1ecbnh Suy"
+   ],
+   "rock": [
+    "Arctic Monkeys",
+    "Foo Fighters",
+    "Ng\u1ecdt",
+    "Red Hot Chili Peppers"
+   ],
+   "soul-rnb": [
+    "Daniel Caesar",
+    "Eddie Benjamin",
+    "H.E.R.",
+    "Joji",
+    "PARTYNEXTDOOR",
+    "SZA"
+   ],
+   "j-pop": [
+    "Ado",
+    "DECO*27",
+    "YOASOBI"
+   ]
+  }
+ },
+ "panns-lr-10": {
+  "Cused": {
+   "Arctic Monkeys": 0.001,
+   "Avicii": 0.001,
+   "Charlie Puth": 0.001,
+   "Daniel Caesar": 0.001,
+   "Drake": 0.001,
+   "Eddie Benjamin": 0.001,
+   "Foo Fighters": 0.001,
+   "H.E.R.": 0.001,
+   "J. Cole": 0.001,
+   "Jamie Paige": 0.001,
+   "Joji": 0.001,
+   "Kendrick Lamar": 0.001,
+   "Ng\u1ecdt": 0.001,
+   "PARTYNEXTDOOR": 0.001,
+   "Porter Robinson": 0.001,
+   "Red Hot Chili Peppers": 0.001,
+   "SZA": 0.001,
+   "Sam Smith": 0.001,
+   "Shawn Mendes": 0.001,
+   "Taylor Swift": 0.001,
+   "The Weeknd": 0.001,
+   "Th\u1eafng": 0.001,
+   "Th\u1ecbnh Suy": 0.001,
+   "Travis Scott": 0.001
+  },
+  "artists_per_class": {
+   "electronic": [
+    "Avicii",
+    "Jamie Paige",
+    "Porter Robinson"
+   ],
+   "hip-hop": [
+    "Drake",
+    "J. Cole",
+    "Kendrick Lamar",
+    "Travis Scott"
+   ],
+   "pop": [
+    "Charlie Puth",
+    "Sam Smith",
+    "Shawn Mendes",
+    "Taylor Swift",
+    "The Weeknd",
+    "Th\u1eafng",
+    "Th\u1ecbnh Suy"
+   ],
+   "rock": [
+    "Arctic Monkeys",
+    "Foo Fighters",
+    "Ng\u1ecdt",
+    "Red Hot Chili Peppers"
+   ],
+   "soul-rnb": [
+    "Daniel Caesar",
+    "Eddie Benjamin",
+    "H.E.R.",
+    "Joji",
+    "PARTYNEXTDOOR",
+    "SZA"
+   ]
+  }
+ },
+ "panns-lr-11": {
+  "Cused": {
+   "Ado": 0.001,
+   "Arctic Monkeys": 0.001,
+   "Avicii": 0.001,
+   "Charlie Puth": 0.001,
+   "DECO*27": 0.001,
+   "Daniel Caesar": 0.001,
+   "Drake": 0.001,
+   "Eddie Benjamin": 0.001,
+   "Foo Fighters": 0.001,
+   "H.E.R.": 0.001,
+   "J. Cole": 0.001,
+   "Jamie Paige": 0.001,
+   "Joji": 0.001,
+   "Kendrick Lamar": 0.001,
+   "Ng\u1ecdt": 0.001,
+   "PARTYNEXTDOOR": 0.001,
+   "Porter Robinson": 0.001,
+   "Red Hot Chili Peppers": 0.001,
+   "SZA": 0.001,
+   "Sam Smith": 0.001,
+   "Shawn Mendes": 0.001,
+   "Taylor Swift": 0.001,
+   "The Weeknd": 0.001,
+   "Th\u1eafng": 0.001,
+   "Th\u1ecbnh Suy": 0.001,
+   "Travis Scott": 0.001,
+   "YOASOBI": 0.001
+  },
+  "artists_per_class": {
+   "electronic": [
+    "Avicii",
+    "Jamie Paige",
+    "Porter Robinson"
+   ],
+   "hip-hop": [
+    "Drake",
+    "J. Cole",
+    "Kendrick Lamar",
+    "Travis Scott"
+   ],
+   "pop": [
+    "Charlie Puth",
+    "Sam Smith",
+    "Shawn Mendes",
+    "Taylor Swift",
+    "The Weeknd",
+    "Th\u1eafng",
+    "Th\u1ecbnh Suy"
+   ],
+   "rock": [
+    "Arctic Monkeys",
+    "Foo Fighters",
+    "Ng\u1ecdt",
+    "Red Hot Chili Peppers"
+   ],
+   "soul-rnb": [
+    "Daniel Caesar",
+    "Eddie Benjamin",
+    "H.E.R.",
+    "Joji",
+    "PARTYNEXTDOOR",
+    "SZA"
+   ],
+   "j-pop": [
+    "Ado",
+    "DECO*27",
+    "YOASOBI"
+   ]
+  }
+ }
+}

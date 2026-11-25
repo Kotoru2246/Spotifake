@@ -132,6 +132,10 @@ GET /genres
 }
 ```
 
+## Limitations
+
+Audio feature extraction is not implemented with essentia.js 0.1.3 (it has no `extractorProfile`), so `/classify` returns HTTP 500 with the error and `/batch-classify` sets a per-entry `error`. Spring uses BackendAI `POST /internal/analyze` instead. The response field is `genre_scores` (top 5); `genre` is `null` (confidence 0) when no rule matches.
+
 ## Supported Genres
 
 The service classifies music into these 18 genres:

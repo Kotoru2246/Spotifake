@@ -6,7 +6,29 @@ Single SQLite file `backendai.db` at the repo root (`APP_DB_PATH`), opened by
 
 Tables: `Users`, `ArtistProfiles`, `ArtistRequests`, `Albums`, `Songs`, `Playlists`, `PlaylistTracks`,
 `UserFavorites`, `Comments`, `StreamLogs`, `Transactions`, `AdminAuditLogs`, `UserActivityLogs`,
-`PlatformSettings`, `Advertisements`, `ContentReports`, `PlatformAnnouncements`, `UserNotifications`.
+`PlatformSettings`, `Advertisements`, `ContentReports`, `PlatformAnnouncements`, `UserNotifications`,
+`UserPlayContexts`.
+
+### UserPlayContexts
+
+Per-user counts of playlists/albums/artists played from (feeds `GET /api/me/shortcuts`).
+
+```sql
+CREATE TABLE IF NOT EXISTS UserPlayContexts (
+  UserID TEXT NOT NULL,
+  ContextType TEXT NOT NULL,          -- 'playlist' | 'album' | 'artist'
+  ContextID TEXT NOT NULL,            -- canonical id, see below
+  PlayCount INTEGER NOT NULL DEFAULT 0,
+  FirstPlayedAt TEXT NOT NULL,        -- ISO-8601
+  LastPlayedAt INTEGER NOT NULL,      -- epoch milliseconds
+  PRIMARY KEY (UserID, ContextType, ContextID)
+);
+CREATE INDEX IF NOT EXISTS IX_UserPlayContexts_User_Last ON UserPlayContexts(UserID, LastPlayedAt DESC);
+```
+
+Canonical `ContextID`: playlist = `PlaylistID`; album = `AlbumID`, or `title:<lowercased trimmed title>` when
+only songs carry the album name; artist = `ArtistID`, or `name:<lowercased name>` when there is no profile.
+Rows for a playlist are removed when it is deleted.
 
 > If `APP_DB_PATH` points at a missing file, the repository silently falls back to `./backendai.db`
 > or `../backendai.db`. The tests create their temp DB first and assert which file is open.

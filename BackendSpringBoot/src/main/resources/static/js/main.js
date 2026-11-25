@@ -15,6 +15,8 @@ import { initArtist1 } from './modules/artist.js';
 import { initQueue1 } from './modules/queue.js';
 
 // Run the former site.js top-level statements in their original order.
+import { initNav } from './modules/nav.js';
+initNav();
 initState1();
 initApi1();
 initState2();

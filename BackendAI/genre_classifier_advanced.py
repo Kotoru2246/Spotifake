@@ -1,4 +1,5 @@
 import os
+import logging
 import joblib
 import pandas as pd
 import numpy as np
@@ -18,7 +19,9 @@ class GenreClassifierV4:
 
     def _load_model(self):
         if not os.path.exists(MODEL_PATH):
-            print(f"Warning: Model not found at {MODEL_PATH}. Cannot classify.")
+            logging.error(
+                "Genre model not found at %s. Run BackendAI/FMA_Model_Competition.py "
+                "to train it (it writes ml_models/genre_best_model.joblib).", MODEL_PATH)
             return
             
         data = joblib.load(MODEL_PATH)
@@ -33,7 +36,7 @@ class GenreClassifierV4:
         Returns the primary genre and confidence scores.
         """
         if not self.model:
-            return "unknown", {"error": "Model not loaded"}
+            return None, {"error": "model_missing", "model_path": MODEL_PATH}
 
         # 1. Extract raw features from audio at 3 different points
         percentages = [0.25, 0.50, 0.75]
@@ -57,7 +60,7 @@ class GenreClassifierV4:
             all_probas.append(probas)
             
         if not all_probas:
-            return "unknown", {"error": "Failed to extract features from any segment"}
+            return None, {"error": "Failed to extract features from any segment"}
             
         # Average the probabilities across all 3 segments
         print(f"  [DEBUG] Averaging probabilities across {len(all_probas)} segments...")
@@ -103,6 +106,6 @@ if __name__ == "__main__":
     print(f"Extracting features and classifying: {test_file} ...\n")
     primary_genre, details = classify_genre(test_file)
     
-    print(f"== PREDICTED GENRE: {primary_genre.upper()} ==\n")
+    print(f"== PREDICTED GENRE: {(primary_genre or 'NONE').upper()} ==\n")
     print("Full Confidence Scores:")
     print(json.dumps(details.get('genre_scores', details), indent=2))

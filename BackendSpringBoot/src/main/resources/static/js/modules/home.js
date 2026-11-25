@@ -1,12 +1,14 @@
 // Split from the former site.js (feature: home). See docs/architecture.md.
 import { state } from './state.js';
-import { API_BASE_URL, authenticatedFetch } from './api.js';
+import { API_BASE_URL, authenticatedFetch, authTokenKey } from './api.js';
 import { SpotifakeHistory } from './history.js';
 import { showSection } from './library.js';
 import { loadTrack } from './player.js';
+import { playlistCoverHtml } from './playlistCover.js';
 import { openPlaylistDetailView, playPlaylistContext } from './playlists.js';
 import { buildQueueOrder, renderQueue } from './queue.js';
 import { escapeHtml, showToast } from './utils.js';
+import { fetchShortcuts } from './shortcuts.js';
 
 export async function playQuickCardContainer(item) {
   if (!item) return;
@@ -31,7 +33,7 @@ export async function playQuickCardContainer(item) {
         if (res.ok) {
           const data = await res.json();
           if (data && data.songs && data.songs.length > 0) {
-            playPlaylistContext(data, 0);
+            playPlaylistContext({ ...data, type: 'Album' }, 0);
             return;
           }
         }
@@ -75,9 +77,9 @@ export async function playQuickCardContainer(item) {
     }
     showToast('info', 'Artist', `No playable songs found for "${item.title}".`);
   } else if (item.type === 'Playlist') {
-    const pl = (state.userPlaylists || []).find(p =>
-      (item.playlistId && p.id === item.playlistId) ||
-      (p.name && p.name.toLowerCase() === item.title.toLowerCase())
+    const pl = (state.userPlaylists || []).find(p => item.playlistId
+      ? p.id === item.playlistId
+      : (p.name && p.name.toLowerCase() === item.title.toLowerCase())
     );
     if (pl && pl.songs && pl.songs.length > 0) {
       playPlaylistContext(pl, 0);
@@ -135,9 +137,9 @@ export async function openQuickCardDetail(item) {
       playQuickCardContainer(item);
     }
   } else if (item.type === 'Playlist') {
-    const pl = (state.userPlaylists || []).find(p =>
-      (item.playlistId && p.id === item.playlistId) ||
-      (p.name && p.name.toLowerCase() === item.title.toLowerCase())
+    const pl = (state.userPlaylists || []).find(p => item.playlistId
+      ? p.id === item.playlistId
+      : (p.name && p.name.toLowerCase() === item.title.toLowerCase())
     );
     if (pl) {
       openPlaylistDetailView(pl);
@@ -246,9 +248,12 @@ export function getCatalogBackfillCandidates() {
   return candidates;
 }
 
-export function populateHomeGrid() {
+let homeGridSeq = 0;
+
+export async function populateHomeGrid() {
   const grid = document.getElementById('homeQuickGrid');
   if (!grid) return;
+  const seq = ++homeGridSeq;
 
   // Tile 1: Liked Songs
   const likedPlaylist = (state.userPlaylists || []).find(p => (p.name || '').toLowerCase() === 'liked songs');
@@ -260,6 +265,27 @@ export function populateHomeGrid() {
   const seenKeys = new Set();
   seenKeys.add('playlist:liked songs');
 
+  if (state.authToken) {
+    // Signed in: server-side shortcuts (most played / recent containers)
+    const shortcuts = await fetchShortcuts(7);
+    if (seq !== homeGridSeq) return;
+    if (shortcuts === null) return; // fetch failed: keep the current tiles
+    const cap =(s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+    for (const s of shortcuts) {
+      if (recentItems.length >= 7) break;
+      recentItems.push({
+        type: cap(s.type),
+        id: s.openId,
+        playlistId: s.playlistId,
+        albumId: s.albumId,
+        artistId: s.type === 'artist' ? (s.artistId || s.openId) : s.artistId,
+        title: s.title,
+        subtitle: s.subtitle,
+        coverUrl: s.coverUrl,
+        coverMosaic: s.coverMosaic
+      });
+    }
+  } else {
   // 1. Containers from history (Albums, Playlists, Artists)
   const historyContainers = typeof SpotifakeHistory !== 'undefined' ? SpotifakeHistory.getRecentContainers(7) : [];
   for (const c of historyContainers) {
@@ -285,72 +311,9 @@ export function populateHomeGrid() {
       }
     }
   }
-
-  // 3. Backfill with user playlists (excluding Liked Songs)
-  if (recentItems.length < 7 && state.userPlaylists && state.userPlaylists.length) {
-    for (const pl of state.userPlaylists) {
-      if (recentItems.length >= 7) break;
-      if ((pl.name || '').toLowerCase() === 'liked songs') continue;
-      const key = `playlist:${(pl.name || '').toLowerCase()}`;
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key);
-        let cover = pl.imageUrl || '';
-        if (!cover && pl.songs && pl.songs[0]) {
-          cover = pl.songs[0].coverUrl || (pl.songs[0].id ? `${API_BASE_URL}/api/music/cover/${pl.songs[0].id}` : '');
-        }
-        recentItems.push({
-          type: 'Playlist',
-          id: pl.id,
-          playlistId: pl.id,
-          title: pl.name,
-          subtitle: `${pl.songs ? pl.songs.length : 0} songs • Playlist`,
-          coverUrl: cover
-        });
-      }
-    }
   }
 
-  // 4. Backfill with library Albums
-  if (recentItems.length < 7 && state.tracks && state.tracks.length) {
-    for (const t of state.tracks) {
-      if (recentItems.length >= 7) break;
-      if (!t.album || t.album.toLowerCase() === 'single' || t.album.toLowerCase() === 'unknown album') continue;
-      const key = `album:${t.album.toLowerCase()}`;
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key);
-        recentItems.push({
-          type: 'Album',
-          id: t.albumId || ('album-' + t.album),
-          albumId: t.albumId,
-          title: t.album,
-          artist: t.artist,
-          subtitle: `${t.artist || 'Album'} • Album`,
-          coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/api/music/cover/${t.id}` : '')
-        });
-      }
-    }
-  }
-
-  // 5. Backfill with standalone songs only if still fewer than 7
-  if (recentItems.length < 7 && state.tracks && state.tracks.length) {
-    for (const t of state.tracks) {
-      if (recentItems.length >= 7) break;
-      const key = `song:${(t.title || '').toLowerCase()}`;
-      if (!seenKeys.has(key)) {
-        seenKeys.add(key);
-        recentItems.push({
-          type: 'Song',
-          id: t.id,
-          title: t.title,
-          artist: t.artist,
-          subtitle: t.artist,
-          coverUrl: t.coverUrl || (t.id ? `${API_BASE_URL}/api/music/cover/${t.id}` : ''),
-          fileName: t.fileName || t.id
-        });
-      }
-    }
-  }
-
+  if (seq !== homeGridSeq) return;
   grid.innerHTML = '';
 
   // Render Tile 1: Liked Songs
@@ -434,12 +397,26 @@ export function populateHomeGrid() {
     playDiv.title = `Play ${item.title || ''}`;
     playDiv.textContent = '▶';
 
-    card.appendChild(imgEl);
+    const livePlaylist = item.type === 'Playlist'
+      ? (state.userPlaylists || []).find(p => p.id === (item.id || item.playlistId) || p.id === item.playlistId)
+      : null;
+    if (livePlaylist || (item.type === 'Playlist' && Array.isArray(item.coverMosaic))) {
+      const coverBox = document.createElement('div');
+      coverBox.className = 'quick-card-cover';
+      coverBox.innerHTML = playlistCoverHtml(livePlaylist || {
+        name: item.title,
+        imageUrl: item.coverUrl,
+        songs: item.coverMosaic.map(u => ({ coverArtUrl: u }))
+      });
+      card.appendChild(coverBox);
+    } else {
+      card.appendChild(imgEl);
+    }
     card.appendChild(infoDiv);
     card.appendChild(playDiv);
 
     const playAction = () => {
-      if (item.type === 'Album' || item.type === 'Playlist') {
+      if (item.type === 'Album' || item.type === 'Playlist' || item.type === 'Artist') {
         playQuickCardContainer(item);
       } else {
         // Song
@@ -463,18 +440,8 @@ export function populateHomeGrid() {
 
     card.addEventListener('click', (e) => {
       if (e.target.closest('.quick-card-play')) return;
-      if (item.type === 'Album') {
-        if (item.albumId && typeof window.openAlbumDetailView === 'function') {
-          window.openAlbumDetailView(item.albumId);
-        } else {
-          playAction();
-        }
-      } else if (item.type === 'Playlist') {
-        if (item.id && typeof window.openPlaylistById === 'function') {
-          window.openPlaylistById(item.id);
-        } else {
-          playAction();
-        }
+      if (item.type === 'Album' || item.type === 'Artist' || item.type === 'Playlist') {
+        openQuickCardDetail(item);
       } else {
         playAction();
       }
@@ -490,6 +457,7 @@ export function populateHomeGrid() {
 }
 
 export function initHome1() {
+window.addEventListener('spotifake:shortcutsChanged', () => { populateHomeGrid(); });
 window.addEventListener('spotifake:playRecorded', () => {
     if (typeof initAllHomeSections === 'function') {
       initAllHomeSections();
@@ -508,7 +476,6 @@ export function createMixCoverSvg(title, subtitle, color1, color2) {
 export function generateMadeForYouMixes() {
   const catalog = Array.isArray(state.tracks) && state.tracks.length > 0 ? state.tracks : [];
   const history = typeof SpotifakeHistory !== 'undefined' ? SpotifakeHistory.getHistory() : [];
-  const topArtists = typeof SpotifakeHistory !== 'undefined' ? SpotifakeHistory.getTopArtists(10) : [];
   const topGenres = typeof SpotifakeHistory !== 'undefined' ? SpotifakeHistory.getTopGenres(10) : [];
 
   // Helper: deduplicate tracks by ID/fileName/title
@@ -524,14 +491,6 @@ export function generateMadeForYouMixes() {
       }
     });
     return out;
-  };
-
-  // Helper: check if track matches an artist (case-insensitive substring)
-  const matchesArtist = (track, artistName) => {
-    if (!track || !artistName) return false;
-    const a = (track.artist || '').toLowerCase();
-    const target = artistName.toLowerCase().trim();
-    return a === target || a.includes(target) || target.includes(a);
   };
 
   // Helper: extract distinct artists for mix description
@@ -563,165 +522,6 @@ export function generateMadeForYouMixes() {
       }
     }
     return fallbackSvg;
-  };
-
-  // Find catalog artist frequency
-  const catalogArtistCounts = {};
-  catalog.forEach(t => {
-    if (t.artist && t.artist !== 'Unknown Artist') {
-      const base = t.artist.split(/[\/,]/)[0].trim();
-      catalogArtistCounts[base] = (catalogArtistCounts[base] || 0) + 1;
-    }
-  });
-  const sortedCatalogArtists = Object.keys(catalogArtistCounts).sort((a, b) => catalogArtistCounts[b] - catalogArtistCounts[a]);
-
-  // === 1. Daily Mix 1: Top Artist Mix ===
-  let artist1 = (topArtists.length > 0 && topArtists[0].artist && topArtists[0].artist !== 'Unknown Artist')
-    ? topArtists[0].artist
-    : (sortedCatalogArtists[0] || 'Ngọt');
-
-  let mix1Songs = catalog.filter(t => matchesArtist(t, artist1));
-  if (mix1Songs.length < 8) {
-    const artist1Genres = new Set(mix1Songs.map(t => (t.genre || '').toLowerCase()).filter(Boolean));
-    const compatible = catalog.filter(t => !matchesArtist(t, artist1) && (
-      artist1Genres.has((t.genre || '').toLowerCase()) ||
-      /rock|indie|alternative/i.test(t.genre || '') ||
-      /ngọt/i.test(t.artist || '')
-    ));
-    mix1Songs = dedupe([...mix1Songs, ...compatible]);
-  }
-  if (mix1Songs.length < 5) {
-    mix1Songs = dedupe([...mix1Songs, ...catalog.slice(0, 10)]);
-  }
-  const mix1FallbackSvg = createMixCoverSvg('DAILY MIX 1', artist1, '#00b4db', '#0083b0');
-  const mix1Cover = resolveMixCover(mix1Songs, mix1FallbackSvg);
-
-  const mix1 = {
-    id: 'mix-daily-1',
-    name: 'Daily Mix 1',
-    title: 'Daily Mix 1',
-    desc: describeArtists(mix1Songs, artist1, 'Indie rock and favorites'),
-    description: describeArtists(mix1Songs, artist1, 'Indie rock and favorites'),
-    type: 'Playlist',
-    isMix: true,
-    coverUrl: mix1Cover,
-    imageUrl: mix1Cover,
-    fallbackSvg: mix1FallbackSvg,
-    songs: mix1Songs
-  };
-
-  // === 2. Daily Mix 2: Second Artist Mix ===
-  let artist2 = null;
-  for (const ta of topArtists) {
-    if (ta.artist && ta.artist !== 'Unknown Artist' && !matchesArtist({ artist: ta.artist }, artist1)) {
-      artist2 = ta.artist;
-      break;
-    }
-  }
-  if (!artist2) {
-    artist2 = sortedCatalogArtists.find(a => !matchesArtist({ artist: a }, artist1)) || 'Sam Smith';
-  }
-
-  let mix2Songs = catalog.filter(t => matchesArtist(t, artist2));
-  const mix2Collabs = catalog.filter(t => {
-    const a = (t.artist || '').toLowerCase();
-    return (a.includes('sam smith') || a.includes('disclosure') || a.includes('calvin harris') || a.includes('normani') || a.includes('kim petras') || a.includes('naughty boy')) && !mix2Songs.some(m => m.id === t.id);
-  });
-  mix2Songs = dedupe([...mix2Songs, ...mix2Collabs]);
-  if (mix2Songs.length < 8) {
-    const artist2Genres = new Set(mix2Songs.map(t => (t.genre || '').toLowerCase()).filter(Boolean));
-    const compatible = catalog.filter(t => (
-      artist2Genres.has((t.genre || '').toLowerCase()) ||
-      /pop|soul|r&b|dance/i.test(t.genre || '')
-    ));
-    mix2Songs = dedupe([...mix2Songs, ...compatible]);
-  }
-  if (mix2Songs.length < 5) {
-    mix2Songs = dedupe([...mix2Songs, ...catalog.slice(10, 20)]);
-  }
-  const mix2FallbackSvg = createMixCoverSvg('DAILY MIX 2', artist2, '#ec008c', '#fc6767');
-  const mix2Cover = resolveMixCover(mix2Songs, mix2FallbackSvg);
-
-  const mix2 = {
-    id: 'mix-daily-2',
-    name: 'Daily Mix 2',
-    title: 'Daily Mix 2',
-    desc: describeArtists(mix2Songs, artist2, 'Pop hits and soulful favorites'),
-    description: describeArtists(mix2Songs, artist2, 'Pop hits and soulful favorites'),
-    type: 'Playlist',
-    isMix: true,
-    coverUrl: mix2Cover,
-    imageUrl: mix2Cover,
-    fallbackSvg: mix2FallbackSvg,
-    songs: mix2Songs
-  };
-
-  // === 3. Daily Mix 3 (Energy / Upbeat) ===
-  let mix3Songs = catalog.filter(t => {
-    const titleLower = (t.title || '').toLowerCase();
-    if (titleLower.includes('acoustic') || titleLower.includes('hoa nở không màu')) return false;
-
-    const hasHighEnergy = (typeof t.energy === 'number' && t.energy >= 0.45);
-    const hasHighDance = (typeof t.danceability === 'number' && t.danceability >= 0.5);
-    const hasDanceGenre = /dance|pop|edm|electronic|house|phonk|club|disco/i.test(t.genre || '');
-    const hasUpbeatArtist = /martin garrix|disclosure|calvin harris|rusino/i.test(t.artist || '');
-    const hasUpbeatTitle = /burn out|unholy|desire|latch|diamonds|how do you sleep|dancing with a stranger|looping the rooms|test song/i.test(titleLower);
-    return hasHighEnergy || hasHighDance || hasDanceGenre || hasUpbeatArtist || hasUpbeatTitle;
-  });
-  mix3Songs.sort((a, b) => ((b.energy || 0) + (b.danceability || 0)) - ((a.energy || 0) + (a.danceability || 0)));
-  mix3Songs = dedupe(mix3Songs);
-  if (mix3Songs.length < 5) {
-    mix3Songs = dedupe([...mix3Songs, ...catalog.filter(t => !/acoustic|ballad/i.test(t.genre || '')).slice(0, 10)]);
-  }
-  const mix3FallbackSvg = createMixCoverSvg('DAILY MIX 3', 'ENERGY', '#f12711', '#f5af19');
-  const mix3Cover = resolveMixCover(mix3Songs, mix3FallbackSvg);
-
-  const mix3 = {
-    id: 'mix-daily-3',
-    name: 'Daily Mix 3',
-    title: 'Daily Mix 3',
-    desc: 'Upbeat energy hits to keep you going',
-    description: 'Upbeat energy hits to keep you going',
-    type: 'Playlist',
-    isMix: true,
-    coverUrl: mix3Cover,
-    imageUrl: mix3Cover,
-    fallbackSvg: mix3FallbackSvg,
-    songs: mix3Songs
-  };
-
-  // === 4. Daily Mix 4 (Chill / Acoustic) ===
-  let mix4Songs = catalog.filter(t => {
-    const titleLower = (t.title || '').toLowerCase();
-    if (/burn out|looping the rooms/i.test(titleLower)) return false;
-
-    const hasHighAcoustic = (typeof t.acousticness === 'number' && t.acousticness >= 0.35);
-    const isChillAcoustic = (typeof t.energy === 'number' && t.energy > 0 && t.energy <= 0.45);
-    const isChillGenre = /acoustic|chill|lofi|ballad|ambient|folk/i.test(t.genre || '');
-    const isChillTitle = /stay with me|cho tôi đi theo|em dạo này|latch \(acoustic\)|lay me down|hoa nở không màu|constant companion|không làm gì|cho|single|cá lớn/i.test(titleLower);
-    const isChillMood = /chill|calm|sad|relaxed|peaceful/i.test(t.mood || '');
-    return hasHighAcoustic || isChillAcoustic || isChillGenre || isChillTitle || isChillMood;
-  });
-  mix4Songs = dedupe(mix4Songs);
-  if (mix4Songs.length < 5) {
-    const backfill = catalog.filter(t => /ngọt|hoài lâm/i.test(t.artist || '') || /ballad|acoustic/i.test(t.genre || ''));
-    mix4Songs = dedupe([...mix4Songs, ...backfill]);
-  }
-  const mix4FallbackSvg = createMixCoverSvg('DAILY MIX 4', 'CHILL', '#134e5e', '#71b280');
-  const mix4Cover = resolveMixCover(mix4Songs, mix4FallbackSvg);
-
-  const mix4 = {
-    id: 'mix-daily-4',
-    name: 'Daily Mix 4',
-    title: 'Daily Mix 4',
-    desc: 'Relaxing acoustic and chill tunes',
-    description: 'Relaxing acoustic and chill tunes',
-    type: 'Playlist',
-    isMix: true,
-    coverUrl: mix4Cover,
-    imageUrl: mix4Cover,
-    fallbackSvg: mix4FallbackSvg,
-    songs: mix4Songs
   };
 
   // === 5. Discover Weekly / On Repeat ===
@@ -801,13 +601,65 @@ export function generateMadeForYouMixes() {
     };
   }
 
-  return [mix1, mix2, mix3, mix4, mix5];
+  return [...buildDailyMixCards(catalog), mix5];
+}
+
+// Daily mixes are built by the server (same on every device); this only turns them into cards.
+const MIX_COLORS = [['#00b4db', '#0083b0'], ['#ec008c', '#fc6767'], ['#f12711', '#f5af19'], ['#134e5e', '#71b280']];
+let dailyMixes = [];
+let dailyMixKey = '';
+let dailyMixFetchedAt = 0;
+
+function buildDailyMixCards(catalog) {
+  const byId = new Map(catalog.map(t => [String(t.id), t]));
+  return dailyMixes.map((mix, i) => {
+    const songs = mix.songIds.map(id => byId.get(String(id))).filter(Boolean);
+    const [from, to] = MIX_COLORS[i % MIX_COLORS.length];
+    const fallbackSvg = createMixCoverSvg(mix.title, mix.anchor, from, to);
+    const first = songs.find(s => s.artist && s.artist.startsWith(mix.anchor)) || songs[0];
+    const cover = (first && first.coverUrl) || fallbackSvg;
+    return {
+      id: mix.id,
+      name: mix.title,
+      title: mix.title,
+      desc: mix.description,
+      description: mix.description,
+      type: 'Playlist',
+      isMix: true,
+      coverUrl: cover,
+      imageUrl: cover,
+      fallbackSvg,
+      songs
+    };
+  }).filter(mix => mix.songs.length > 0);
+}
+
+// Re-fetches when the account or day changes, otherwise at most every 10 minutes.
+async function refreshDailyMixes() {
+  const key = `${localStorage.getItem(authTokenKey) || 'guest'}|${new Date().toDateString()}`;
+  if (key === dailyMixKey && Date.now() - dailyMixFetchedAt < 600000) return;
+  dailyMixKey = key;
+  dailyMixFetchedAt = Date.now();
+  try {
+    const response = await authenticatedFetch('/api/recommendations/daily-mixes');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const mixes = data.mixes || [];
+    if (JSON.stringify(mixes) !== JSON.stringify(dailyMixes)) {
+      dailyMixes = mixes;
+      populateMadeForYou();
+    }
+  } catch (err) {
+    console.warn('Daily mixes unavailable:', err);
+    dailyMixFetchedAt = 0;
+  }
 }
 
 export function populateMadeForYou() {
   const carousel = document.getElementById('homeMadeForYouCarousel');
   if (!carousel) return;
 
+  refreshDailyMixes();
   state.currentMadeForYouMixes = generateMadeForYouMixes();
   if (!state.currentMadeForYouMixes || !state.currentMadeForYouMixes.length) {
     carousel.innerHTML = '<div style="color: var(--muted); padding: 16px;">No recommendations available yet.</div>';
@@ -929,7 +781,7 @@ export function renderCardCarousel(container, items) {
     card.title = `${item.title} - ${item.subtitle}`;
     card.innerHTML = `
       <div class="home-card-img-wrap">
-        <img src="${escapeHtml(item.coverUrl)}" alt="${escapeHtml(item.title)}" onerror="this.src='https://ui-avatars.com/api/?name=Music&background=282828&color=fff&size=180'" loading="lazy">
+        ${item.coverHtml ? item.coverHtml : `<img src="${escapeHtml(item.coverUrl)}" alt="${escapeHtml(item.title)}" onerror="this.src='https://ui-avatars.com/api/?name=Music&background=282828&color=fff&size=180'" loading="lazy">`}
         <button class="home-card-play-btn" title="Play ${escapeHtml(item.title)}">
           <svg role="img" height="24" width="24" viewBox="0 0 24 24" fill="currentColor">
             <path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
@@ -1127,6 +979,7 @@ export function populateHomeFeaturedPlaylists() {
         title: pl.name,
         subtitle: `${pl.songs ? pl.songs.length : 0} songs • Playlist`,
         coverUrl: pl.imageUrl || (pl.songs && pl.songs[0] ? (pl.songs[0].coverUrl || '') : '') || `https://ui-avatars.com/api/?name=${encodeURIComponent(pl.name)}&background=1e3264&color=fff&size=180`,
+        coverHtml: playlistCoverHtml(pl, { iconSize: 48 }),
         type: 'Playlist',
         id: pl.id,
         playAction: () => {

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Form, Request
 from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Form, status
 from fastapi.responses import FileResponse
@@ -8,6 +8,32 @@ from uuid import UUID
 import os
 import tempfile
 import threading
+import shutil
+from pathlib import Path
+
+
+def _ensure_ffmpeg_on_path() -> None:
+    """Make ffmpeg reachable for audio_features (subprocess) and librosa/audioread (m4a/mp3 decode).
+
+    Order: FFMPEG_PATH env (file or folder), ffmpeg already on PATH, spotdl's ~/.spotdl/ffmpeg.exe, C:\\ffmpeg\\bin.
+    """
+    if shutil.which("ffmpeg"):
+        return
+    candidates = []
+    if os.environ.get("FFMPEG_PATH"):
+        candidates.append(Path(os.environ["FFMPEG_PATH"]))
+    candidates += [Path.home() / ".spotdl", Path(r"C:\ffmpeg\bin")]
+    for c in candidates:
+        folder = c.parent if c.is_file() else c
+        if (folder / "ffmpeg.exe").exists() or (folder / "ffmpeg").exists():
+            os.environ["PATH"] = str(folder) + os.pathsep + os.environ.get("PATH", "")
+            print(f"[startup] ffmpeg added to PATH from {folder}")
+            return
+    print("[startup] WARNING: ffmpeg not found; m4a/mp3 analysis will fail. Set FFMPEG_PATH.")
+
+
+_ensure_ffmpeg_on_path()
+
 import numpy as np
 import jwt
 import bcrypt
@@ -21,7 +47,7 @@ from .models import Song, SongCreate, SongRead, User, UserCreate, UserRead, Arti
 from .upload_handler import save_upload_file
 from .audio_features import categorize_genre_and_mood, extract_audio_features
 from .genre_classifier_advanced import GenreClassifierV4
-from .cnn_spectrogram_classifier import CnnSpectrogramClassifier
+from .cnn_spectrogram_classifier import CnnSpectrogramClassifier, format_genre_label
 from .language_detector import detect_language
 from .recommendation_engine import recommendation_service
 from .essentia_client import classify_with_features
@@ -35,6 +61,25 @@ try:
 except Exception as e:
     print(f"Warning: CNN Classifier disabled: {e}")
     cnn_classifier = None
+# Main genre model (PANNs embeddings + LogReg, see genre_eval/RESULTS.md); the CNN stays as the fallback.
+try:
+    from .embedding_genre_classifier import EmbeddingGenreClassifier
+    embedding_classifier = EmbeddingGenreClassifier()
+except Exception as e:
+    print(f"Warning: embedding genre classifier disabled, using CNN: {e}")
+    embedding_classifier = None
+
+
+def _embedding_genre(path: str):
+    """(genre_label, all_probs) from the embedding model, or (None, {}) if it is unavailable or fails."""
+    if not embedding_classifier:
+        return None, {}
+    try:
+        pred = embedding_classifier.predict(path)
+        return pred.get("genre") or None, pred.get("all_probs") or {}
+    except Exception as e:
+        print(f"[genre] embedding classifier failed for {path}: {e}")
+        return None, {}
 
 app = FastAPI(title="Music Player AI Bridge")
 
@@ -432,6 +477,7 @@ def search_spotify(query: str, search_type: str = "track", limit: int = 50, curr
 def _extract_and_update(song_id: UUID, training_genre: str = ""):
     """Background task: extract audio features and update the song record."""
     tmp_path = None
+    owns_tmp = False
     try:
         print(f"[bg] Starting feature extraction for song {song_id}")
         with Session(engine) as bg_session:
@@ -444,6 +490,7 @@ def _extract_and_update(song_id: UUID, training_genre: str = ""):
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
                     tmp.write(song.file_data)
                     tmp_path = tmp.name
+                owns_tmp = True
             elif song.file_path and os.path.exists(song.file_path):
                 tmp_path = song.file_path
             else:
@@ -453,20 +500,23 @@ def _extract_and_update(song_id: UUID, training_genre: str = ""):
         # 1. Base features
         features = extract_audio_features(tmp_path)
         
-        # 2. Extract AI Genre
-        if cnn_classifier:
-            pred = cnn_classifier.predict(tmp_path)
-            primary_genre = pred['genre']
-            all_scores = pred['all_probs']
-        else:
-            primary_genre, details = genre_classifier.classify_genre(tmp_path)
-            all_scores = details.get('all_scores', {})
-            
-        genre = primary_genre
-        if all_scores:
-            high_conf_genres = [g for g, score in all_scores.items() if score > 0.2]
-            if high_conf_genres:
-                genre = ", ".join(high_conf_genres)
+        # 2. Extract AI Genre (embedding model first; it already returns the stored label format)
+        genre, _ = _embedding_genre(tmp_path)
+        primary_genre = genre.split(", ")[0] if genre else None
+        if not genre:
+            if cnn_classifier:
+                pred = cnn_classifier.predict(tmp_path)
+                primary_genre = pred['genre']
+                all_scores = pred['all_probs']
+            else:
+                primary_genre, details = genre_classifier.classify_genre(tmp_path)
+                all_scores = details.get('all_scores', {})
+
+            genre = primary_genre
+            if all_scores:
+                high_conf_genres = [g for g, score in all_scores.items() if score > 0.2]
+                if high_conf_genres:
+                    genre = ", ".join(high_conf_genres)
         
         # 3. Extract Mood using the AI Genre as context
         from .audio_features import categorize_genre_and_mood_rule_based
@@ -501,7 +551,7 @@ def _extract_and_update(song_id: UUID, training_genre: str = ""):
                     df_new.to_csv(csv_path, index=False)
                 print(f"[bg] Added {len(all_features)} rows to custom training dataset.")
         
-        if os.path.exists(tmp_path):
+        if owns_tmp and tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
 
         with Session(engine) as bg_session:
@@ -518,19 +568,170 @@ def _extract_and_update(song_id: UUID, training_genre: str = ""):
                 song.duration_ms     = features.get("duration_ms", song.duration_ms)
                 
                 # Only auto-tag if genre wasn't provided or was analyzing
-                if not song.genre or song.genre == "analyzing...":
+                # (skip when no classifier produced a genre, never save "unknown")
+                if genre and (not song.genre or song.genre == "analyzing..."):
                     song.genre = genre
                     song.tags = f"{genre},{mood},{language}"
-                
-                song.mood = mood
+                elif not genre:
+                    if (song.genre or "").strip().lower() == "analyzing...":
+                        song.genre = ""
+                    if (song.tags or "").strip().lower() == "analyzing...":
+                        song.tags = ""
+
+                song.mood = mood or ""
                 song.language = language
                 bg_session.add(song)
                 bg_session.commit()
                 print(f"[bg] Song {song_id} updated in DB.")
     except Exception as e:
         print(f"[bg] Feature extraction failed for song {song_id}: {e}")
-        if tmp_path and os.path.exists(tmp_path):
+        if owns_tmp and tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
+
+
+# ============================================================
+# Internal analysis endpoint (called by the Spring backend)
+# ============================================================
+
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+
+def _decode_to_wav(path: str) -> str:
+    """Decode any ffmpeg-readable audio (m4a/mp3/...) to a temp mono 22.05 kHz WAV.
+
+    librosa 1.x no longer decodes compressed formats via audioread, so the CNN needs a WAV.
+    Caller deletes the returned file.
+    """
+    import subprocess
+    fd, wav = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    res = subprocess.run(
+        ["ffmpeg", "-y", "-v", "error", "-i", path, "-ac", "1", "-ar", "22050", "-f", "wav", wav],
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=120,
+    )
+    if res.returncode != 0 or os.path.getsize(wav) == 0:
+        os.remove(wav)
+        raise RuntimeError(f"ffmpeg decode failed: {res.stderr.decode(errors='replace')[-300:]}")
+    return wav
+
+
+def _analyze_file(path: str) -> dict:
+    """Blocking: extract features + genre/mood. Does not touch the DB."""
+    # The embedding model decodes the original file itself (48 kHz, as in training).
+    emb_genre, _ = _embedding_genre(path)
+    wav = None
+    if os.path.splitext(path)[1].lower() not in (".wav", ".flac", ".ogg"):
+        wav = _decode_to_wav(path)
+    try:
+        return _analyze_decoded(wav or path, emb_genre)
+    finally:
+        if wav and os.path.exists(wav):
+            os.remove(wav)
+
+
+def _analyze_decoded(path: str, emb_genre: str = None) -> dict:
+    features = extract_audio_features(path)
+    genre = None
+    model = "none"
+    all_scores = {}
+    if emb_genre:
+        genre = emb_genre
+        model = "panns-lr"
+    elif cnn_classifier:
+        pred = cnn_classifier.predict(path)
+        genre = pred.get('genre') or None
+        all_scores = pred.get('all_probs') or {}
+        model = "cnn" if genre else "none"
+    else:
+        genre, details = genre_classifier.classify_genre(path)
+        all_scores = (details or {}).get('all_scores', {})
+        model = "v4" if genre else "none"
+    if genre and all_scores:
+        # Top-1, plus the runner-up only when it is clearly present (prob >= 0.35).
+        genre = format_genre_label(all_scores) or genre
+
+    from .audio_features import categorize_genre_and_mood_rule_based
+    primary = genre.split(", ")[0] if genre else None
+    _, mood = categorize_genre_and_mood_rule_based(features, override_genre=primary)
+
+    import math
+
+    def _f(k):
+        try:
+            v = float(features.get(k, 0.0) or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+        return v if math.isfinite(v) else 0.0
+
+    def _i(k):
+        v = features.get(k)
+        if v is None:
+            return None
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            return None
+        return int(fv) if math.isfinite(fv) else None
+
+    return {
+        "features": {
+            "tempo": _f("tempo"), "energy": _f("energy"),
+            "danceability": _f("danceability"), "valence": _f("valence"),
+            "acousticness": _f("acousticness"),
+            "instrumentalness": _f("instrumentalness"),
+            "key": _i("key"), "mode": _i("mode"),
+        },
+        "genre": genre,
+        "mood": mood or None,
+        "model": model,
+    }
+
+
+@app.post("/internal/analyze")
+async def internal_analyze(request: Request, file: UploadFile = File(None)):
+    """Analyze an uploaded audio file. Internal use only; no DB writes."""
+    import hmac
+    from fastapi.responses import JSONResponse
+    from starlette.concurrency import run_in_threadpool
+
+    token = os.getenv("INTERNAL_API_TOKEN", "")
+    if token:
+        supplied = request.headers.get("X-Internal-Token", "")
+        if not hmac.compare_digest(supplied.encode(), token.encode()):
+            return JSONResponse({"error": "invalid internal token"}, status_code=401)
+    else:
+        host = request.client.host if request.client else ""
+        if host not in _LOOPBACK_HOSTS:
+            return JSONResponse({"error": "loopback only"}, status_code=403)
+
+    if file is None:
+        return JSONResponse({"error": "missing file"}, status_code=400)
+    max_bytes = 100 * 1024 * 1024
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        return JSONResponse({"error": "file too large (max 100 MB)"}, status_code=413)
+    if not data:
+        return JSONResponse({"error": "empty file"}, status_code=400)
+
+    ext = os.path.splitext(file.filename or "")[1] or ".mp3"
+    tmp_path = None
+    try:
+        def _write_tmp():
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                tmp.write(data)
+                return tmp.name
+        tmp_path = await run_in_threadpool(_write_tmp)
+        try:
+            result = await run_in_threadpool(_analyze_file, tmp_path)
+        except Exception as e:
+            return JSONResponse({"error": f"analysis failed: {e}"}, status_code=500)
+        return result
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
 # ============================================================
 # Album Management Endpoints
@@ -683,16 +884,17 @@ async def upload_song(
 
 
 @app.post("/songs/test_upload")
-async def test_upload(
+def test_upload(
     file: UploadFile = File(...),
     current_user=Depends(get_current_user)
 ):
     """
     Test upload: analyze the song synchronously and return results without saving to DB.
+    Plain def so FastAPI runs it in the threadpool (heavy analysis must not block the loop).
     """
     tmp_path = None
     try:
-        file_data = await file.read()
+        file_data = file.file.read()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp:
             tmp.write(file_data)
             tmp_path = tmp.name

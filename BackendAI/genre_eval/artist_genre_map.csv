@@ -1,0 +1,30 @@
+artist,acceptable_labels_10,acceptable_labels_11,notes
+The Weeknd,pop|soul-rnb,pop|soul-rnb,synth-pop / alt-R&B
+DECO*27,exclude,j-pop,Vocaloid/J-pop electropop; no Japanese class in 10-class taxonomy
+Shawn Mendes,pop,pop,pop / pop-rock singer-songwriter
+Joji,soul-rnb|pop|hip-hop,soul-rnb|pop|hip-hop,lo-fi alt-R&B / bedroom pop
+Avicii,electronic,electronic,EDM (some folk-house tracks)
+Porter Robinson,electronic,electronic,electronic / future bass / synth-pop
+Charlie Puth,pop,pop,pop / pop-R&B
+Ngọt,rock,rock,Vietnamese indie rock / pop-rock
+Jamie Paige,electronic|pop|rock,electronic|pop|rock,English-language Vocaloid/UTAU-adjacent electropop & pop-punk; Western production so NOT j-pop
+Thắng,pop|folk,pop|folk,Vietnamese indie pop / acoustic (uncertain)
+Thịnh Suy,pop|soul-rnb,pop|soul-rnb,Vietnamese ballad pop / R&B (uncertain)
+Sam Smith,pop|soul-rnb,pop|soul-rnb,pop / soul
+Eddie Benjamin,soul-rnb|pop,soul-rnb|pop,funk-pop / R&B (uncertain)
+Ado,exclude,j-pop,J-pop / J-rock vocalist
+YOASOBI,exclude,j-pop,J-pop duo
+Red Hot Chili Peppers,rock,rock,funk rock / alt rock
+Arctic Monkeys,rock,rock,indie rock
+Foo Fighters,rock,rock,alt rock / post-grunge
+Drake,hip-hop|soul-rnb|pop,hip-hop|soul-rnb|pop,rap / R&B
+J. Cole,hip-hop,hip-hop,rap
+Kendrick Lamar,hip-hop,hip-hop,rap
+Travis Scott,hip-hop,hip-hop,trap
+Dreamville,hip-hop,hip-hop,J. Cole label compilations (rap)
+Huncho Jack,hip-hop,hip-hop,Travis Scott + Quavo (trap)
+Taylor Swift,pop|country|folk,pop|country|folk,pop / country / folk eras
+SZA,soul-rnb|pop|hip-hop,soul-rnb|pop|hip-hop,alt R&B
+H.E.R.,soul-rnb,soul-rnb,R&B
+Daniel Caesar,soul-rnb,soul-rnb,R&B / soul
+PARTYNEXTDOOR,soul-rnb|hip-hop,soul-rnb|hip-hop,R&B

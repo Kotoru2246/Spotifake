@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1148" viewBox="0 0 1600 1148"><defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#374151"/></marker></defs><rect width="100%" height="100%" fill="#ffffff"/><rect x="140" y="40" width="1000" height="100" rx="10" fill="#f2edfb" stroke="#7346c8" stroke-width="2"/>
+<circle cx="85" cy="90.0" r="30" fill="#7346c8"/>
+<text x="85" y="97.0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+<text x="164" y="80.0" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#1f2937" text-anchor="start">Full deployment inputs &amp; Checkout Spotifake</text>
+<text x="164" y="112.0" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="start">Ghi tệp cấu hình và kiểm thử, lấy commit đã ghim, áp dụng full/deployment.patch</text>
+<line x1="640.0" y1="140" x2="640.0" y2="174" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="140" y="174" width="1000" height="100" rx="10" fill="#f2edfb" stroke="#7346c8" stroke-width="2"/>
+<circle cx="85" cy="224.0" r="30" fill="#7346c8"/>
+<text x="85" y="231.0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+<text x="164" y="214.0" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#1f2937" text-anchor="start">Reserve RAM for CI</text>
+<text x="164" y="246.0" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="start">Dừng stack nghiệp vụ, chuẩn bị image scanner, bật SonarQube</text>
+<line x1="640.0" y1="274" x2="640.0" y2="308" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="140" y="308" width="1000" height="100" rx="10" fill="#f2edfb" stroke="#7346c8" stroke-width="2"/>
+<circle cx="85" cy="358.0" r="30" fill="#7346c8"/>
+<text x="85" y="365.0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+<text x="164" y="348.0" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#1f2937" text-anchor="start">Build + SonarQube + Quality Gate</text>
+<text x="164" y="380.0" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="start">Biên dịch .NET, 11 kiểm thử, gửi OpenCover, chờ gate tối đa 600 s, publish artifacts/web</text>
+<line x1="640.0" y1="408" x2="640.0" y2="442" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="140" y="442" width="1000" height="100" rx="10" fill="#e8f1fd" stroke="#2f6fd1" stroke-width="2"/>
+<circle cx="85" cy="492.0" r="30" fill="#2f6fd1"/>
+<text x="85" y="499.0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">4</text>
+<text x="164" y="482.0" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#1f2937" text-anchor="start">Docker image &amp; Package Python backend</text>
+<text x="164" y="514.0" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="start">Tạo image Web, dừng SonarQube, tạo image FastAPI, 4 kiểm thử KNN, tải image SQL Server</text>
+<line x1="640.0" y1="542" x2="640.0" y2="576" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="140" y="576" width="1000" height="100" rx="10" fill="#e8f1fd" stroke="#2f6fd1" stroke-width="2"/>
+<circle cx="85" cy="626.0" r="30" fill="#2f6fd1"/>
+<text x="85" y="633.0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">4b</text>
+<text x="164" y="616.0" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#1f2937" text-anchor="start">Smoke test candidate images (từ build #9)</text>
+<text x="164" y="648.0" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="start">Stack thử với image mới, khôi phục backup vào CiSmokeRestored, kiểm tra Web, FastAPI và thư viện</text>
+<line x1="640.0" y1="676" x2="640.0" y2="710" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="140" y="710" width="1000" height="100" rx="10" fill="#e8f1fd" stroke="#2f6fd1" stroke-width="2"/>
+<circle cx="85" cy="760.0" r="30" fill="#2f6fd1"/>
+<text x="85" y="767.0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">5</text>
+<text x="164" y="750.0" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#1f2937" text-anchor="start">Deploy SQL, Python và MVC</text>
+<text x="164" y="782.0" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="start">compose config, build monitoring, SQL → khởi tạo schema → quyền volume → backend → Web</text>
+<line x1="640.0" y1="810" x2="640.0" y2="844" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="140" y="844" width="1000" height="100" rx="10" fill="#e9f7ef" stroke="#23935a" stroke-width="2"/>
+<circle cx="85" cy="894.0" r="30" fill="#23935a"/>
+<text x="85" y="901.0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff" text-anchor="middle">6</text>
+<text x="164" y="884.0" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#1f2937" text-anchor="start">Kiểm thử nghiệp vụ, cảnh báo và restart</text>
+<text x="164" y="916.0" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="start">7 kiểm thử HTTP, dừng/bật backend để xác minh cảnh báo, restart SQL và ứng dụng, 6 kiểm thử HTTP</text>
+<rect x="140" y="988" width="1000" height="90" rx="10" fill="#eef0f3" stroke="#6b7280" stroke-width="2"/>
+<text x="640.0" y="1028.0" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="600" fill="#1f2937" text-anchor="middle">post</text>
+<text x="640.0" y="1054.0" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="middle">Lưu báo cáo kiểm thử (JUnit XML, TRX, OpenCover) và hiện vật để đối chiếu</text>
+<line x1="640.0" y1="944" x2="640.0" y2="988" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)"/>
+<rect x="1230" y="308" width="330" height="120" rx="10" fill="#fdecec" stroke="#c43c3c" stroke-width="2"/>
+<text x="1395.0" y="352.2" font-family="Segoe UI, Arial, sans-serif" font-size="21" font-weight="600" fill="#1f2937" text-anchor="middle">Build FAILED</text>
+<text x="1395.0" y="379.5" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="middle">Quality Gate không đạt</text>
+<text x="1395.0" y="401.6" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="normal" fill="#4b5563" text-anchor="middle">hoặc kiểm thử lỗi</text>
+<line x1="1140" y1="358.0" x2="1230" y2="358.0" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)"/>
+<polyline points="1140,894.0 1395,894.0 1395,428" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#ah)" stroke-dasharray="7 5"/>
+<text x="1410" y="636.0" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="normal" fill="#4b5563" text-anchor="start">kiểm thử</text>
+<text x="1410" y="656.8" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="normal" fill="#4b5563" text-anchor="start">sau triển khai lỗi</text></svg>

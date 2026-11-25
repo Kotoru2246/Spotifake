@@ -19,6 +19,12 @@ class StreamingTest extends IntegrationTestBase {
     }
 
     @Test
+    void audioMayBeCachedByTheBrowser() throws Exception {
+        mvc.perform(get(URL).header("Range", "bytes=0-99"))
+           .andExpect(header().string("Cache-Control", "private, max-age=3600"));
+    }
+
+    @Test
     void boundedRangeReturnsPartialContent() throws Exception {
         mvc.perform(get(URL).header("Range", "bytes=0-99"))
            .andExpect(status().isPartialContent())

@@ -1,5 +1,6 @@
 // Split from the former site.js (feature: library). See docs/architecture.md.
 import { state } from './state.js';
+import { navRecord } from './nav.js';
 import { loadAdminDashboard } from './admin.js';
 import { API_BASE_URL, authenticatedFetch } from './api.js';
 import { aiUploadForm, btnUploadSubmit, setAuthPanelOpen, uploadAiStatus } from './auth.js';
@@ -53,6 +54,7 @@ export function showSection(sectionId) {
   if (sectionId === 'admin' && String(state.currentAuthRole || '').toLowerCase() !== 'admin') {
     sectionId = 'home';
   }
+  if (sectionId !== 'admin') navRecord(sectionId);
 
   sections.forEach((section) => {
     const isActive = section.id === sectionId;

@@ -24,7 +24,18 @@
 - **Docs (`docs/`)**: `setup.md`, `architecture.md`, `database.md`, `API.md`; remaining work in `TODO.md`. Screenshots go in `docs/screenshots/` (git-ignored).
 - **Legacy / Secondary Folders (do not modify unless explicitly requested)**: `WebClient/`, `WebClientMvc/`, `DesktopClient/`, `DataAccess/`, `spotify-downloader/`.
 
+## Multi-Agent Workflow
+Subagents live in `.claude/agents/` (model / effort): `planner` (opus/medium, read-only), `implementer` (sonnet/low), `reviewer` (opus/medium, read-only), `debugger` (sonnet/high), `tester` (haiku/medium), `auditor` (haiku/high, read-only), `ui-tester` (haiku/medium, Playwright on `localhost:8000`).
+- The main session orchestrates. **After every agent finishes, summarize its result and wait for the user's OK before starting the next agent.**
+- At the start of a workflow, call `mcp__agent-monitor__plan_agents` with the numbered steps (title = the Agent call's `description`, `agent` = type, `after` = steps it waits for) so the Agents pane shows them under "Planned".
+- **Feature:** planner → user → implementer (one step at a time) → user → reviewer → user → tester → user.
+- **Bug:** debugger → user → tester → user (reviewer optional).
+- **Audit:** auditor → user picks items → Feature or Bug workflow.
+- **UI check:** ensure backend is up (`restart_backend.bat`) → ui-tester → user → debugger for broken items.
+- Cheap non-Claude work (summaries, explanations, log digests) can go to Gemini Flash via the `agent-monitor` mod: `/gemini <prompt>` or the `ask_gemini` tool (read-only).
+
 ## Build & Run Commands
-- **Maven (`run_mvn.cmd` sets `JAVA_HOME` & `M2_HOME`)**: `cd BackendSpringBoot && call run_mvn.cmd package -DskipTests` (or `call run_mvn.cmd test`).
-- **Restart Spring Boot backend**: `restart_backend.bat` (runs `BackendSpringBoot\start_springboot.cmd` -> `java -jar target\spotifake-backend-2.0.0.jar`). Rebuild the jar with `run_mvn.cmd package -DskipTests` before restarting if you edited Java, Thymeleaf templates, or static JS/CSS.
+- **Maven (`BackendSpringBoot\run_mvn.cmd` sets `JAVA_HOME` & `M2_HOME`)**: `cmd /c "cd /d BackendSpringBoot && call .\run_mvn.cmd package -DskipTests"` (or `... call .\run_mvn.cmd test`). Use `.\` — Claude Code's shell doesn't run scripts from the current folder by name. Run it from the PowerShell tool; from the Bash tool write `cmd //c` (Git Bash rewrites `/c` and cmd silently does nothing). Stop the running backend first: it locks `target\spotifake-backend-2.0.0.jar` and repackage fails with "Unable to rename".
+- From Claude Code, start the backend with `Start-Process cmd -ArgumentList '/c','set "NoDefaultCurrentDirectoryInExePath=" && restart_backend.bat'` so its window can run `start_springboot.cmd`.
+- **Restart Spring Boot backend**: `restart_backend.bat` (runs `BackendSpringBoot\start_springboot.cmd` -> `java -jar target\spotifake-backend-2.0.0.jar`). Rebuild the jar with `run_mvn.cmd package -DskipTests` before restarting if you edited Java or Thymeleaf templates. Static JS/CSS is served from `src/main/resources/static/` first, so those edits only need a browser refresh (`application.properties` changes only need a restart).
 - **Start Essentia + Spring Boot together**: `start-services.bat`.

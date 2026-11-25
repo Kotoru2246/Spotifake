@@ -25,6 +25,7 @@ public class DownloaderService {
 
     public static final int MAX_QUERY_LENGTH = 500;
     static final int MAX_JOBS = 100;
+    static final int ARTIST_TIMEOUT_FACTOR = 12;
     static final Duration FINISHED_JOB_TTL = Duration.ofHours(24);
     private static final Set<String> ALLOWED_HOSTS = Set.of(
             "open.spotify.com", "music.youtube.com", "youtube.com", "www.youtube.com", "m.youtube.com");
@@ -147,17 +148,33 @@ public class DownloaderService {
 
     static List<String> buildSpotdlCommand(String python, String query) {
         // Options first, then the operation, then "--" so the query is never parsed as an option.
-        return List.of(
-                python, "-u", "-m", "spotdl",
+        List<String> cmd = new ArrayList<>(List.of(
+                // spotdl, with full artist discographies (BackendAI/spotdl_runner.py).
+                python, "-u", "-m", "BackendAI.spotdl_runner",
                 "--audio", "youtube-music", "youtube",
-                "--sponsor-block",
                 "--generate-lrc",
                 "--format", "m4a",
-                "--output", "music/{title} - {artist}.{output-ext}",
-                "--overwrite", "force",
-                "download",
-                "--",
-                query);
+                // Album is part of the name so two releases of a song don't overwrite one file.
+                "--output", "music/{title} - {artist} - {album}.{output-ext}",
+                "--overwrite", "force"));
+        // SponsorBlock cutting needs ffprobe; without it spotdl fails the whole track.
+        if (isOnPath("ffprobe")) cmd.add("--sponsor-block");
+        cmd.addAll(List.of("download", "--", query));
+        return cmd;
+    }
+
+    /** A whole discography can be hundreds of songs, so artist links get much longer. */
+    Duration timeoutFor(String query) {
+        return query.contains("/artist/") ? timeout.multipliedBy(ARTIST_TIMEOUT_FACTOR) : timeout;
+    }
+
+    private static boolean isOnPath(String program) {
+        for (String dir : Objects.toString(System.getenv("PATH"), "").split(File.pathSeparator)) {
+            if (!dir.isBlank() && (new File(dir, program).isFile() || new File(dir, program + ".exe").isFile())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void runDownloadJob(Map<String, Object> job, String query) {
@@ -196,9 +213,12 @@ public class DownloaderService {
     /** Runs a step, streaming its output into the job; marks the job FAILED on non-zero exit or timeout. */
     private int runProcess(Map<String, Object> job, List<String> command, File dir, String step)
             throws IOException, InterruptedException {
+        Duration limit = timeoutFor(String.valueOf(job.get("query")));
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(dir);
         pb.redirectErrorStream(true);
+        // Piped output defaults to cp1252 on Windows, where the analyzer's emoji prints fail.
+        pb.environment().put("PYTHONIOENCODING", "utf-8");
         Process p = pb.start();
 
         AtomicBoolean timedOut = new AtomicBoolean(false);
@@ -208,7 +228,7 @@ public class DownloaderService {
                 p.descendants().forEach(ProcessHandle::destroyForcibly);
                 p.destroyForcibly();
             }
-        }, timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }, limit.toMillis(), TimeUnit.MILLISECONDS);
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
@@ -224,7 +244,7 @@ public class DownloaderService {
         if (timedOut.get()) {
             job.put("status", "FAILED");
             job.put("exit_code", exit);
-            job.put("progress", "Error: " + step + " timed out after " + timeout.toMinutes() + " minutes and was stopped");
+            job.put("progress", "Error: " + step + " timed out after " + limit.toMinutes() + " minutes and was stopped");
         } else if (exit != 0) {
             job.put("status", "FAILED");
             job.put("exit_code", exit);

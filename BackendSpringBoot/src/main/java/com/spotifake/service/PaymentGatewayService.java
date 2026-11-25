@@ -183,6 +183,17 @@ public class PaymentGatewayService {
         };
     }
 
+    /** Returns the canonical plan name (Individual/Duo/Family) or null if the plan is unknown. */
+    public String normalizePlan(String planType) {
+        if (planType == null) return null;
+        return switch (planType.trim().toLowerCase(Locale.ROOT)) {
+            case "individual" -> "Individual";
+            case "duo" -> "Duo";
+            case "family" -> "Family";
+            default -> null;
+        };
+    }
+
     private String generateAuthCode() {
         String chars = "0123456789ABCDEF";
         StringBuilder sb = new StringBuilder("AUTH-");
@@ -209,6 +220,12 @@ public class PaymentGatewayService {
         }
 
         Stripe.apiKey = stripeApiKey.trim();
+
+        String canonicalPlan = normalizePlan(planType);
+        if (canonicalPlan == null) {
+            throw new IllegalArgumentException("Unknown plan: " + planType);
+        }
+        planType = canonicalPlan;
 
         double price = getPlanPrice(planType);
         long amountInCents = Math.round(price * 100);

@@ -2,6 +2,7 @@ package com.spotifake.controller;
 
 import com.spotifake.model.*;
 import com.spotifake.repository.SpotifakeRepository;
+import com.spotifake.service.SongService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -17,14 +18,43 @@ import java.util.*;
 public class ArtistController {
 
     private final SpotifakeRepository repository;
+    private final SongService songService;
 
-    public ArtistController(SpotifakeRepository repository) {
+    private final com.spotifake.service.AudioAnalysisService audioAnalysisService;
+
+    public ArtistController(SpotifakeRepository repository, SongService songService,
+                            com.spotifake.service.AudioAnalysisService audioAnalysisService) {
+        this.audioAnalysisService = audioAnalysisService;
         this.repository = repository;
+        this.songService = songService;
     }
 
     private User getEffectiveArtistUser(User authUser) {
         if (authUser != null) return authUser;
         return repository.getUserByUsername("artist_test");
+    }
+
+    private static boolean isAdmin(User u) {
+        return u != null && "ADMIN".equalsIgnoreCase(u.getRole());
+    }
+
+    /** True if the caller is an admin or the album belongs to the caller's artist id. */
+    private boolean canManageAlbum(User authUser, String albumId) {
+        if (authUser == null) return false;
+        Album album = repository.getAlbumById(albumId);
+        if (album == null || !album.getId().equals(albumId)) return false;
+        if (isAdmin(authUser)) return true;
+        ArtistProfile profile = repository.getArtistProfileByUserId(authUser.getId());
+        String artistId = profile != null ? profile.getArtistId() : authUser.getId();
+        return artistId != null && artistId.equals(album.getArtistId());
+    }
+
+    /** True if the caller is an admin or uploaded the song (same rule as the songs list page). */
+    private boolean canManageSong(User authUser, String songId) {
+        if (authUser == null) return false;
+        Song song = repository.getSongById(songId);
+        if (song == null || !song.getId().equals(songId)) return false;
+        return isAdmin(authUser) || authUser.getId().equals(song.getUserId());
     }
 
     @GetMapping({"/manager", "/dashboard"})
@@ -79,8 +109,23 @@ public class ArtistController {
     }
 
     @PostMapping({"/manager/albums/{id}/delete", "/albums/{id}/delete"})
-    public String deleteAlbum(@PathVariable String id) {
+    public String deleteAlbum(@AuthenticationPrincipal User authUser, @PathVariable String id) {
+        if (!canManageAlbum(authUser, id)) return "redirect:/artist/manager/albums?error=forbidden";
         repository.deleteAlbum(id);
+        return "redirect:/artist/manager/albums";
+    }
+
+    @PostMapping({"/manager/albums/{id}/update", "/albums/{id}/update"})
+    public String updateAlbum(@AuthenticationPrincipal User authUser,
+                              @PathVariable String id,
+                              @RequestParam(required = false) String title,
+                              @RequestParam(required = false) String description,
+                              @RequestParam(required = false) String coverArtUrl) {
+        if (!canManageAlbum(authUser, id)) return "redirect:/artist/manager/albums?error=forbidden";
+        repository.updateAlbum(id,
+                (title != null && !title.isBlank()) ? title : null,
+                description,
+                (coverArtUrl != null && !coverArtUrl.isBlank()) ? coverArtUrl : null);
         return "redirect:/artist/manager/albums";
     }
 
@@ -99,14 +144,44 @@ public class ArtistController {
         return "Artist/Songs";
     }
 
+    @PostMapping({"/manager/songs/upload", "/songs/upload"})
+    public String uploadSong(@AuthenticationPrincipal User authUser,
+                             @RequestParam("audioFile") MultipartFile audioFile,
+                             @RequestParam(value = "albumId", required = false) String albumId) {
+        User user = getEffectiveArtistUser(authUser);
+        if (audioFile == null || audioFile.isEmpty()) return "redirect:/artist/manager/songs?error=nofile";
+        ArtistProfile profile = repository.getArtistProfileByUserId(user.getId());
+        String artistName = profile != null && profile.getStageName() != null ? profile.getStageName() : user.getUsername();
+        try {
+            Song song = songService.uploadSong(audioFile, null, null, artistName, null, null, user.getId());
+            if (song != null) audioAnalysisService.analyzeAsync(song.getId());
+            if (song != null && albumId != null && !albumId.isBlank() && canManageAlbum(authUser, albumId)) {
+                Album album = repository.getAlbumById(albumId);
+                Map<String, Object> fields = new HashMap<>();
+                fields.put("AlbumID", album.getId());
+                fields.put("Album", album.getTitle());
+                repository.updateSong(song.getId(), fields);
+            }
+        } catch (Exception e) {
+            return "redirect:/artist/manager/songs?error=upload";
+        }
+        return "redirect:/artist/manager/songs";
+    }
+
     @PostMapping({"/manager/songs/{id}/edit", "/songs/{id}/edit"})
-    public String editSong(@PathVariable String id,
+    public String editSong(@AuthenticationPrincipal User authUser,
+                           @PathVariable String id,
                            @RequestParam(required = false) String title,
                            @RequestParam(required = false) String mood,
                            @RequestParam(required = false) String language,
                            @RequestParam(required = false) String tags,
-                           @RequestParam(required = false) String lyrics) {
+                           @RequestParam(required = false) String lyrics,
+                           @RequestParam(value = "customGenre", required = false) String genre,
+                           @RequestParam(required = false) String credits) {
+        if (!canManageSong(authUser, id)) return "redirect:/artist/manager/songs?error=forbidden";
         Map<String, Object> fields = new HashMap<>();
+        if (genre != null) fields.put("Genre", genre);
+        if (credits != null) fields.put("Credits", credits);
         if (title != null) fields.put("Title", title);
         if (mood != null) fields.put("Mood", mood);
         if (language != null) fields.put("Language", language);
@@ -117,7 +192,8 @@ public class ArtistController {
     }
 
     @PostMapping({"/manager/songs/{id}/delete", "/songs/{id}/delete"})
-    public String deleteSong(@PathVariable String id) {
+    public String deleteSong(@AuthenticationPrincipal User authUser, @PathVariable String id) {
+        if (!canManageSong(authUser, id)) return "redirect:/artist/manager/songs?error=forbidden";
         repository.deleteSong(id);
         return "redirect:/artist/manager/songs";
     }
@@ -152,6 +228,7 @@ public class ArtistController {
 
     @GetMapping("/register")
     public String registerPage(@AuthenticationPrincipal User user, Model model) {
+        if (user == null) return "redirect:/Auth/Login?returnUrl=/artist/register";
         model.addAttribute("user", user);
         return "Artist/Register";
     }
@@ -163,7 +240,8 @@ public class ArtistController {
                                           @RequestParam(value = "cv", required = false) MultipartFile cv,
                                           @RequestParam(value = "demo", required = false) MultipartFile demo,
                                           Model model) throws IOException {
-        User user = authUser != null ? authUser : repository.getUserByUsername("user_test");
+        if (authUser == null) return "redirect:/Auth/Login?returnUrl=/artist/register";
+        User user = authUser;
         String cvName = cv != null ? cv.getOriginalFilename() : "resume.pdf";
         byte[] cvData = cv != null ? cv.getBytes() : null;
         String demoName = demo != null ? demo.getOriginalFilename() : "demo.mp3";

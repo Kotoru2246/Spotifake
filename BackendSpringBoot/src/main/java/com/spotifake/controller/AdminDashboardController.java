@@ -21,9 +21,12 @@ import java.util.stream.Collectors;
 public class AdminDashboardController {
 
     private final SpotifakeRepository repository;
+    private final com.spotifake.service.SongRedownloadService redownloadService;
 
-    public AdminDashboardController(SpotifakeRepository repository) {
+    public AdminDashboardController(SpotifakeRepository repository,
+                                    com.spotifake.service.SongRedownloadService redownloadService) {
         this.repository = repository;
+        this.redownloadService = redownloadService;
     }
 
     private String getAdminUsername(User user) {
@@ -543,12 +546,28 @@ public class AdminDashboardController {
         long resolvedCount = allReports.stream().filter(r -> "Resolved".equalsIgnoreCase(r.getStatus())).count();
 
         model.addAttribute("reports", filtered);
+        model.addAttribute("redownloads", redownloadService.statuses());
         model.addAttribute("selectedStatus", status);
         model.addAttribute("pendingCount", pendingCount);
         model.addAttribute("resolvedCount", resolvedCount);
         model.addAttribute("stats", repository.getAdminOverviewStats());
         model.addAttribute("activeTab", "reports");
         return "AdminDashboard/Reports";
+    }
+
+    /** Admin has confirmed the audio is wrong: replace the file, optionally from a chosen YouTube video. */
+    @PostMapping("/reports/{id}/redownload")
+    public String redownloadReportedSong(@PathVariable int id,
+                                         @RequestParam(required = false, defaultValue = "") String youtubeUrl,
+                                         @AuthenticationPrincipal User adminUser,
+                                         org.springframework.web.servlet.mvc.support.RedirectAttributes redirect) {
+        ContentReport report = repository.getAllContentReports("Pending").stream()
+                .filter(r -> r.getId() == id).findFirst().orElse(null);
+        String error = report == null
+                ? "That report is not pending"
+                : redownloadService.start(id, report.getSongId(), youtubeUrl, getAdminUsername(adminUser));
+        if (error != null) redirect.addFlashAttribute("redownloadError", error);
+        return "redirect:/admin/dashboard/reports";
     }
 
     @PostMapping("/reports/{id}/resolve")

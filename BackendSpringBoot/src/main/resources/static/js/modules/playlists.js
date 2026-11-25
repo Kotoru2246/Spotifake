@@ -1,14 +1,17 @@
 // Split from the former site.js (feature: playlists). See docs/architecture.md.
 import { state } from './state.js';
+import { navSetRestore } from './nav.js';
 import { API_BASE_URL, authenticatedFetch } from './api.js';
 import { setAuthPanelOpen } from './auth.js';
-import { addSongModalTrackLabel, addSongPlaylistSelect, addSongToPlaylistButton, addSongToPlaylistModal, cancelAddSongModalButton, cancelCreatePlaylistButton, confirmAddSongModalButton, createPlaylistButton, createPlaylistImageUrl, createPlaylistModal, createPlaylistName, createPlaylistSongs, playlistGrid, playlistSelect, playlistSongSelect, playlistSongsList, playlistStatus, submitCreatePlaylistButton, userPlaylistList } from './dom.js';
+import { addSongModalTrackLabel, addSongPlaylistSelect, addSongToPlaylistButton, addSongToPlaylistModal, cancelAddSongModalButton, cancelCreatePlaylistButton, confirmAddSongModalButton, createPlaylistButton, createPlaylistCoverInput, createPlaylistCoverPickBtn, createPlaylistCoverPreview, createPlaylistCoverRemoveBtn, createPlaylistModal, createPlaylistName, playlistGrid, playlistSelect, playlistSongSelect, playlistSongsList, playlistStatus, submitCreatePlaylistButton, userPlaylistList } from './dom.js';
+import { playlistCoverHtml } from './playlistCover.js';
 import { SpotifakeHistory } from './history.js';
-import { populateHomeGrid } from './home.js';
+import { populateHomeFeaturedPlaylists, populateHomeGrid } from './home.js';
 import { showSection } from './library.js';
 import { loadTrack } from './player.js';
-import { buildQueueOrder, renderQueue } from './queue.js';
+import { buildQueueOrder, forgetPlayed, getPlayingTrack, renderQueue, runSmartShuffle } from './queue.js';
 import { updateLikeButtonState } from './songDetail.js';
+import { contextFromPlaylist } from './shortcuts.js';
 import { escapeHtml, formatTime, normalizeBackendSong, setModalOpen, showToast } from './utils.js';
 
 export function canManagePlaylists() {
@@ -37,16 +40,46 @@ export function renderPlaylistSongOptions() {
   });
 }
 
-export function renderCreatePlaylistSongsOptions() {
-  if (!createPlaylistSongs) return;
+const MAX_COVER_BYTES = 5 * 1024 * 1024;
+let createCoverFile = null;
+let editCoverFile = null;
+const coverPreviewUrls = new WeakMap();
 
-  createPlaylistSongs.innerHTML = '';
-  state.tracks.forEach((track) => {
-    const option = document.createElement('option');
-    option.value = track.id || track.fileName || track.title;
-    option.textContent = `${track.title} - ${track.artist}`;
-    createPlaylistSongs.appendChild(option);
-  });
+// Wires a hidden file input: validates, previews into previewEl, reports the file (or null) via onChange.
+function bindCoverPicker(input, previewEl, onChange) {
+  if (!input) return;
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    const oldUrl = coverPreviewUrls.get(input);
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('error', 'Cover', 'Please choose an image file.');
+      input.value = '';
+      return;
+    }
+    if (file.size > MAX_COVER_BYTES) {
+      showToast('error', 'Cover', 'Image is too large (max 5 MB).');
+      input.value = '';
+      return;
+    }
+    if (oldUrl) URL.revokeObjectURL(oldUrl);
+    const url = URL.createObjectURL(file);
+    coverPreviewUrls.set(input, url);
+    if (previewEl) previewEl.innerHTML = `<img class="pl-cover" src="${url}" alt="">`;
+    if (onChange) onChange(file);
+  };
+}
+
+function resetCreateCover() {
+  createCoverFile = null;
+  if (createPlaylistCoverInput) {
+    const oldUrl = coverPreviewUrls.get(createPlaylistCoverInput);
+    if (oldUrl) URL.revokeObjectURL(oldUrl);
+    coverPreviewUrls.delete(createPlaylistCoverInput);
+    createPlaylistCoverInput.value = '';
+  }
+  if (createPlaylistCoverPreview) createPlaylistCoverPreview.innerHTML = playlistCoverHtml(null, { iconSize: 32 });
+  if (createPlaylistCoverRemoveBtn) createPlaylistCoverRemoveBtn.hidden = true;
 }
 
 export function openCreatePlaylistModal() {
@@ -56,14 +89,8 @@ export function openCreatePlaylistModal() {
     return;
   }
 
-  renderCreatePlaylistSongsOptions();
   if (createPlaylistName) createPlaylistName.value = '';
-  if (createPlaylistImageUrl) createPlaylistImageUrl.value = '';
-  if (createPlaylistSongs) {
-    Array.from(createPlaylistSongs.options).forEach((option) => {
-      option.selected = false;
-    });
-  }
+  resetCreateCover();
   setModalOpen(createPlaylistModal, true);
 }
 
@@ -186,14 +213,9 @@ export function renderSidebarPlaylists() {
   if (state.userPlaylists && state.userPlaylists.length) {
     const otherPlaylists = state.userPlaylists.filter(p => (p.name || '').toLowerCase() !== 'liked songs');
     container.innerHTML = otherPlaylists.map((playlist) => {
-      const coverImg = playlist.imageUrl || (playlist.songs && playlist.songs[0] && playlist.songs[0].coverUrl);
       return `
         <div class="sidebar-playlist-tile" onclick="openPlaylistById('${escapeHtml(playlist.id)}')" title="${escapeHtml(playlist.name)} (${playlist.songs ? playlist.songs.length : 0} songs)">
-          ${coverImg ? `<img src="${escapeHtml(coverImg)}" alt="${escapeHtml(playlist.name)}">` : `
-            <div class="tile-fallback">
-              <svg role="img" height="22" width="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-            </div>
-          `}
+          ${playlistCoverHtml(playlist)}
         </div>
       `;
     }).join('');
@@ -254,9 +276,16 @@ export function playPlaylistContext(playlist, startIndex = 0) {
   }
   state.activeQueue = playlistTracks;
   state.currentQueueTitle = playlist.name || 'Playlist';
+  state.currentQueueContext = contextFromPlaylist(playlist, playlistTracks);
+  // Albums, artists and generated mixes are played through here too, but are not playlists.
+  const generated = /^(mix-|this-is-|radio-|album-|alb-|artist-)/.test(String(playlist.id || ''));
+  const isPlaylist = playlist.id && !generated && playlist.type !== 'Album' && playlist.type !== 'Artist';
+  state.playlistQueueTitle = isPlaylist ? state.currentQueueTitle : null;
+  forgetPlayed();
   buildQueueOrder();
   loadTrack(startIndex, true);
   renderQueue();
+  if (state.shuffleMode === 'smart') runSmartShuffle(); // picks for the new queue
 }
 
 export function openPlaylistDetailView(playlist) {
@@ -265,6 +294,7 @@ export function openPlaylistDetailView(playlist) {
   state.selectedPlaylistId = playlist.id;
 
   showSection('playlist-view');
+  navSetRestore(() => openPlaylistDetailView(playlist));
   document.getElementById('pvTitle').textContent = playlist.name;
   
   const typeLabel = document.getElementById('pvTypeLabel');
@@ -297,7 +327,15 @@ export function openPlaylistDetailView(playlist) {
   }
 
   const pvCoverArt = document.getElementById('pvCoverArt');
-  if (pvCoverArt) {
+  const pvCoverMosaic = document.getElementById('pvCoverMosaic');
+  const isUserPlaylist = playlist.type !== 'Album' && !playlist.isMix && !(playlist.id && String(playlist.id).startsWith('mix-'));
+  const useMosaic = Boolean(pvCoverMosaic) && isUserPlaylist && playlist.name !== 'Liked Songs' && !playlist.imageUrl && !playlist.coverUrl;
+  if (pvCoverMosaic) {
+    pvCoverMosaic.hidden = !useMosaic;
+    pvCoverMosaic.innerHTML = useMosaic ? playlistCoverHtml(playlist, { iconSize: 64 }) : '';
+  }
+  if (pvCoverArt) pvCoverArt.hidden = useMosaic;
+  if (pvCoverArt && !useMosaic) {
     if (playlist.name === 'Liked Songs') {
       pvCoverArt.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23450af5"/><stop offset="50%" stop-color="%238e9efc"/><stop offset="100%" stop-color="%23c4efd9"/></linearGradient></defs><rect width="300" height="300" fill="url(%23g)"/><path d="M150 210 l-55 -55 a38 38 0 0 1 54 -54 l1 1 l1 -1 a38 38 0 0 1 54 54 z" fill="white"/></svg>';
     } else {
@@ -533,14 +571,26 @@ export function openEditPlaylistModal(playlistId) {
     const playlist = state.userPlaylists.find(p => p.id === playlistId);
     if (!playlist) return;
     document.getElementById('editPlaylistName').value = playlist.name;
-    document.getElementById('editPlaylistImageUrl').value = playlist.imageUrl || '';
     document.getElementById('editPlaylistDescription').value = ''; // We don't track descriptions right now
-    
+
+    const editInput = document.getElementById('editPlaylistCoverInput');
+    const editPreview = document.getElementById('editPlaylistCoverPreview');
+    editCoverFile = null;
+    if (editInput) {
+        const prevUrl = coverPreviewUrls.get(editInput);
+        if (prevUrl) {
+            URL.revokeObjectURL(prevUrl);
+            coverPreviewUrls.delete(editInput);
+        }
+        editInput.value = '';
+    }
+    if (editPreview) editPreview.innerHTML = playlistCoverHtml(playlist, { iconSize: 48 });
+    bindCoverPicker(editInput, editPreview, (file) => { editCoverFile = file; });
+
     const saveBtn = document.getElementById('saveEditPlaylistButton');
     saveBtn.onclick = async function() {
         const newName = document.getElementById('editPlaylistName').value.trim();
-        const newImage = document.getElementById('editPlaylistImageUrl').value.trim();
-        
+
         if (!newName) {
             showToast('error', 'Error', 'Playlist name cannot be empty');
             return;
@@ -550,10 +600,22 @@ export function openEditPlaylistModal(playlistId) {
             const res = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName, imageUrl: newImage })
+                body: JSON.stringify({ name: newName })
             });
-            
+
             if (res.ok) {
+                if (editCoverFile) {
+                    const fd = new FormData();
+                    fd.append('cover', editCoverFile);
+                    const coverRes = await authenticatedFetch(`/api/playlists/${encodeURIComponent(playlistId)}/cover`, { method: 'POST', body: fd });
+                    if (!coverRes.ok) {
+                        const payload = await coverRes.json().catch(() => ({}));
+                        showToast('error', 'Cover', payload.error || 'Failed to upload cover');
+                        await loadUserPlaylists();
+                        return;
+                    }
+                    editCoverFile = null;
+                }
                 showToast('success', 'Saved', 'Playlist details updated');
                 setModalOpen(document.getElementById('editPlaylistModal'), false);
                 await loadUserPlaylists();
@@ -658,9 +720,10 @@ export function refreshCurrentPlaylistView() {
 
 export function renderUserPlaylists() {
   renderSidebarPlaylists();
+  populateHomeFeaturedPlaylists();
   refreshCurrentPlaylistView();
-  if (state.currentInspectedTrack) {
-    updateLikeButtonState(state.currentInspectedTrack);
+  if (getPlayingTrack()) {
+    updateLikeButtonState(getPlayingTrack());
   }
   if (!userPlaylistList) return;
 
@@ -680,15 +743,12 @@ export function renderUserPlaylists() {
 
   userPlaylistList.innerHTML = state.userPlaylists.map((playlist) => {
     const isSelected = playlist.id === state.selectedPlaylistId;
-    const coverImg = playlist.imageUrl || (playlist.songs && playlist.songs[0] && playlist.songs[0].coverUrl) || '';
     const songCount = playlist.songs ? playlist.songs.length : 0;
     
     return `
       <article class="playlist-manage-item ${isSelected ? 'active' : ''}" data-select-playlist="${escapeHtml(playlist.id)}" style="display: flex; align-items: center; gap: 14px; padding: 10px 12px; border-radius: 8px; background: ${isSelected ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.03)'}; cursor: pointer; transition: background 0.2s, transform 0.2s; border-left: ${isSelected ? '4px solid #1db954' : '4px solid transparent'}; margin-bottom: 8px;">
         <div style="width: 48px; height: 48px; min-width: 48px; border-radius: 4px; overflow: hidden; background: #282828; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-          ${coverImg ? `<img src="${escapeHtml(coverImg)}" alt="${escapeHtml(playlist.name)}" style="width: 100%; height: 100%; object-fit: cover;">` : `
-            <svg role="img" height="22" width="22" viewBox="0 0 24 24" fill="#b3b3b3"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-          `}
+          ${playlistCoverHtml(playlist)}
         </div>
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 600; font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(playlist.name)}</div>
@@ -735,30 +795,34 @@ export async function loadUserPlaylists() {
 
 export async function createPlaylist() {
   const name = String(createPlaylistName?.value || '').trim();
-  const imageUrl = String(createPlaylistImageUrl?.value || '').trim();
-  const songFileNames = createPlaylistSongs
-    ? Array.from(createPlaylistSongs.selectedOptions).map((option) => option.value).filter(Boolean)
-    : [];
   if (!name) {
     if (playlistStatus) playlistStatus.textContent = 'Enter a playlist name first.';
+    showToast('error', 'Playlist', 'Enter a playlist name first.');
     return;
   }
 
-  const response = await authenticatedFetch('/api/playlists', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, imageUrl, songFileNames }),
-  });
+  const fd = new FormData();
+  fd.append('name', name);
+  if (createCoverFile) fd.append('cover', createCoverFile);
+
+  const beforeIds = new Set((state.userPlaylists || []).map((p) => p.id));
+  const response = await authenticatedFetch('/api/playlists', { method: 'POST', body: fd });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.detail || 'Unable to create playlist.');
+    const message = (payload && (payload.error || payload.detail)) || 'Unable to create playlist.';
+    showToast('error', 'Playlist', message);
+    return;
   }
 
-  state.userPlaylists = payload;
-  setModalOpen(createPlaylistModal, false);
-  state.selectedPlaylistId = state.userPlaylists[state.userPlaylists.length - 1]?.id || state.selectedPlaylistId;
+  state.userPlaylists = Array.isArray(payload) ? payload : [];
+  const created = state.userPlaylists.find((p) => !beforeIds.has(p.id));
+  if (created) state.selectedPlaylistId = created.id;
   renderUserPlaylists();
+  populateHomeGrid();
   if (playlistStatus) playlistStatus.textContent = 'Playlist created.';
+  showToast('success', 'Playlist', 'Playlist created.');
+  setModalOpen(createPlaylistModal, false);
+  resetCreateCover();
 }
 
 export async function deletePlaylist(playlistId) {
@@ -892,10 +956,14 @@ if (createPlaylistButton) {
 
 if (submitCreatePlaylistButton) {
     submitCreatePlaylistButton.addEventListener('click', async () => {
+      if (submitCreatePlaylistButton.disabled) return;
+      submitCreatePlaylistButton.disabled = true;
       try {
         await createPlaylist();
       } catch (error) {
         if (playlistStatus) playlistStatus.textContent = error.message;
+      } finally {
+        submitCreatePlaylistButton.disabled = false;
       }
     });
   }
@@ -904,6 +972,19 @@ if (cancelCreatePlaylistButton) {
     cancelCreatePlaylistButton.addEventListener('click', () => {
       setModalOpen(createPlaylistModal, false);
     });
+  }
+
+if (createPlaylistCoverInput) {
+    bindCoverPicker(createPlaylistCoverInput, createPlaylistCoverPreview, (file) => {
+      createCoverFile = file;
+      if (createPlaylistCoverRemoveBtn) createPlaylistCoverRemoveBtn.hidden = !file;
+    });
+  }
+if (createPlaylistCoverPickBtn) {
+    createPlaylistCoverPickBtn.addEventListener('click', () => createPlaylistCoverInput && createPlaylistCoverInput.click());
+  }
+if (createPlaylistCoverRemoveBtn) {
+    createPlaylistCoverRemoveBtn.addEventListener('click', resetCreateCover);
   }
 
 if (cancelAddSongModalButton) {
@@ -1065,7 +1146,7 @@ if (playlistGrid) {
 }
 
 export function openAddToPlaylistModal() {
-  const track = state.currentInspectedTrack || state.tracks[state.currentTrackIndex];
+  const track = getPlayingTrack();
   if (track) {
     openAddSongToPlaylistModal(track.fileName || track.title);
   } else {

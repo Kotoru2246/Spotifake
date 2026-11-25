@@ -32,7 +32,8 @@ public class SongService {
                 originalFilename.substring(originalFilename.lastIndexOf(".")) : ".mp3";
         String diskFileName = songId + ext;
 
-        File targetFile = new File(uploadDir, diskFileName);
+        // Absolute: Tomcat resolves a relative transferTo target against its own temp folder
+        File targetFile = new File(uploadDir, diskFileName).getAbsoluteFile();
         file.transferTo(targetFile);
 
         byte[] coverBytes = null;
@@ -63,7 +64,8 @@ public class SongService {
 
         if (parsedTitle == null || parsedTitle.isEmpty()) parsedTitle = originalFilename != null ? originalFilename.replace(ext, "") : "Untitled";
         if (parsedArtist == null || parsedArtist.isEmpty()) parsedArtist = "Unknown Artist";
-        if (parsedGenre == null || parsedGenre.isEmpty()) parsedGenre = "Pop";
+        if (parsedGenre == null || parsedGenre.isEmpty()) parsedGenre = "";
+        else parsedGenre = parsedGenre.trim();
 
         Song song = new Song();
         song.setId(songId);
@@ -80,14 +82,7 @@ public class SongService {
         song.setStorageUrl("/api/music/stream/" + songId);
         song.setUploadedAt(Instant.now().toString());
 
-        // Default synthetic acoustic features
-        song.setTempo(120.0);
-        song.setEnergy(0.7);
-        song.setDanceability(0.65);
-        song.setValence(0.6);
-        song.setAcousticness(0.2);
-        song.setInstrumentalness(0.05);
-
+        // Acoustic features stay 0.0 (= needs classification); AudioAnalysisService fills them in.
         return repository.insertSong(song);
     }
 
@@ -112,8 +107,9 @@ public class SongService {
         if (songIdOrFileName == null || songIdOrFileName.isBlank()) {
             return null;
         }
-        Song s = repository.getSongByFilePathOrTitle(songIdOrFileName);
-        if (s == null) s = repository.getSongById(songIdOrFileName);
+        // The player sends the song ID, so try that before the slow match-anything search.
+        Song s = repository.getSongById(songIdOrFileName);
+        if (s == null) s = repository.getSongByFilePathOrTitle(songIdOrFileName);
 
         if (s != null) {
             if (s.getFilePath() != null && !s.getFilePath().isEmpty()) {

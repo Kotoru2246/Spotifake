@@ -9,8 +9,9 @@ import { SpotifakeHistory } from './history.js';
 import { renderBrowseGrid, renderLibraryGrid, showSection } from './library.js';
 import { renderLyrics, syncLyricsTime } from './lyrics.js';
 import { renderPlaylistSongOptions, renderUserPlaylists } from './playlists.js';
-import { buildQueueOrder, getCurrentQueue, getQueuePosition, renderQueue, updateActiveQueueItem } from './queue.js';
+import { activeShuffleMode, buildQueueOrder, forgetPlayed, getCurrentQueue, getPlayingTrack, getQueuePosition, rememberPlayed, renderQueue, skipsPlayed, startNewSmartRound, updateActiveQueueItem, wasPlayed } from './queue.js';
 import { escapeHtml, formatTime, showToast } from './utils.js';
+import { currentPlayContext } from './shortcuts.js';
 
 export function setNowPlayingMeta(track) {
   if (!track) return;
@@ -144,20 +145,24 @@ export function setNowPlayingMeta(track) {
   if (valAcousticness) valAcousticness.textContent = (track.acousticness || 0).toFixed(2);
 }
 
-export async function reportTrackListen(track) {
+// Per-loaded-track listen tracker (a play counts after 5 seconds of actual listening).
+const listenTracker = { acc: 0, lastTime: 0, recorded: false, ctx: null };
+
+export async function reportTrackListen(track, ctx) {
   if (!track?.fileName) return;
-  if (state.lastReportedListenFileName === track.fileName) return;
 
   const response = await authenticatedFetch('/api/music/play', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ fileName: track.fileName }),
+    body: JSON.stringify({ fileName: track.fileName, ...(ctx || {}) }),
   });
 
   if (response.ok) {
-    state.lastReportedListenFileName = track.fileName;
+    if (ctx && state.authToken) {
+      window.dispatchEvent(new CustomEvent('spotifake:shortcutsChanged'));
+    }
     if (String(state.currentAuthRole || '').toLowerCase() === 'admin') {
       await loadAdminDashboard();
     }
@@ -172,8 +177,8 @@ export function updateTransportUI() {
   }
 
   if (shuffleButton) {
-    const isSmart = state.shuffleMode === 'smart';
-    const isStd = state.shuffleMode === 'standard';
+    const isSmart = activeShuffleMode() === 'smart';
+    const isStd = activeShuffleMode() === 'standard';
     shuffleButton.classList.toggle('active', isStd || isSmart);
     if (isSmart) {
       shuffleButton.style.color = '#ff4b4b'; // Smart Shuffle uses red/accent color
@@ -307,12 +312,14 @@ export function loadTrack(index, autoplay = false) {
   if (state.shuffleMode !== 'off') {
     buildQueueOrder();
   }
-  state.lastReportedListenFileName = '';
   state.currentTrackPlayRecorded = false;
   const track = list[state.currentTrackIndex];
-  if (autoplay && track && typeof SpotifakeHistory !== 'undefined') {
-    SpotifakeHistory.recordPlay(track, { playlistName: state.currentQueueTitle });
-  }
+  if (autoplay) rememberPlayed(track);
+  listenTracker.acc = 0;
+  listenTracker.lastTime = 0;
+  listenTracker.recorded = false;
+  listenTracker.ctx = currentPlayContext(track);
+  listenTracker.track = track;
   if (audioPlayer && track.src) {
     audioPlayer.src = track.src;
     audioPlayer.loop = state.loopMode === 'track';
@@ -370,6 +377,7 @@ export function setLoopMode(mode) {
   }
   try { localStorage.setItem('spotifake.loopMode', mode); } catch (e) {}
   updateTransportUI();
+  renderQueue();
 }
 
 export function cycleLoop() {
@@ -432,7 +440,25 @@ export function nextTrack(isAutoAdvance) {
   }
 
   let nextIndex;
-  if (state.shuffleMode !== 'off') {
+  if (state.shuffleMode === 'smart' && state.loopMode === 'playlist' && state.smartOrderList === list
+      && getQueuePosition(state.currentTrackIndex) === state.queueOrder.length - 1) {
+    startNewSmartRound();
+    return;
+  }
+  if (skipsPlayed()) {
+    const position = Math.max(0, getQueuePosition(state.currentTrackIndex));
+    const order = [...state.queueOrder.slice(position + 1), ...state.queueOrder.slice(0, position)];
+    nextIndex = order.find(i => list[i] && !wasPlayed(list[i]));
+    if (nextIndex === undefined) {
+      forgetPlayed(); // the next press of Next starts the queue over
+      if (audioPlayer) audioPlayer.pause();
+      state.isPlaying = false;
+      updateTransportUI();
+      updateActiveQueueItem();
+      showToast('info', 'Shuffle', 'You have played every song in this queue.');
+      return;
+    }
+  } else if (state.shuffleMode !== 'off') {
     const queuePosition = getQueuePosition(state.currentTrackIndex);
     if (queuePosition >= 0 && queuePosition < state.queueOrder.length - 1) {
       nextIndex = state.queueOrder[queuePosition + 1];
@@ -614,12 +640,29 @@ if (audioPlayer) {
       state.isPlaying = true;
       updateTransportUI();
       updateActiveQueueItem();
-      const list = getCurrentQueue();
-      const currentTrack = list && list[state.currentTrackIndex] ? list[state.currentTrackIndex] : state.tracks[state.currentTrackIndex];
-      if (currentTrack && typeof SpotifakeHistory !== 'undefined') {
-        SpotifakeHistory.recordPlay(currentTrack, { playlistName: state.currentQueueTitle });
+      listenTracker.lastTime = audioPlayer.currentTime || 0;
+    });
+    const resyncListen = () => { listenTracker.lastTime = audioPlayer.currentTime || 0; };
+    audioPlayer.addEventListener('seeking', resyncListen);
+    audioPlayer.addEventListener('seeked', resyncListen);
+    audioPlayer.addEventListener('timeupdate', () => {
+      const now = audioPlayer.currentTime || 0;
+      const delta = now - listenTracker.lastTime;
+      listenTracker.lastTime = now;
+      if (listenTracker.recorded || audioPlayer.paused || audioPlayer.seeking) return;
+      if (delta > 0) listenTracker.acc += Math.min(delta, 1.0);
+      const dur = audioPlayer.duration;
+      const threshold = Number.isFinite(dur) && dur > 0 ? Math.min(5, dur * 0.5) : 5;
+      if (listenTracker.acc >= threshold) {
+        listenTracker.recorded = true;
+        const t = listenTracker.track;
+        if (t) {
+          if (typeof SpotifakeHistory !== 'undefined') {
+            SpotifakeHistory.recordPlay(t, { playlistName: state.currentQueueTitle });
+          }
+          reportTrackListen(t, listenTracker.ctx).catch(() => { });
+        }
       }
-      reportTrackListen(currentTrack || state.tracks[state.currentTrackIndex]).catch(() => { });
     });
     audioPlayer.addEventListener('pause', () => {
       state.isPlaying = false;
@@ -627,9 +670,11 @@ if (audioPlayer) {
       updateActiveQueueItem();
     });
     audioPlayer.addEventListener('timeupdate', updateProgressUI);
+    audioPlayer.addEventListener('playing', () => rememberPlayed(getPlayingTrack()));
     audioPlayer.addEventListener('loadedmetadata', () => {
-      if (state.tracks[state.currentTrackIndex] && !state.tracks[state.currentTrackIndex].duration) {
-        state.tracks[state.currentTrackIndex].duration = Math.floor(audioPlayer.duration || 0);
+      const playing = getPlayingTrack();
+      if (playing && !playing.duration) {
+        playing.duration = Math.floor(audioPlayer.duration || 0);
       }
       updateProgressUI();
       renderQueue();

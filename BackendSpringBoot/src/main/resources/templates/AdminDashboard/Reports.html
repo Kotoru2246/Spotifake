@@ -100,6 +100,7 @@
 
       <!-- Content -->
       <div class="dash-content">
+        <div th:if="${redownloadError}" style="color: #ef4444; margin-bottom: 1rem;" th:text="${redownloadError}"></div>
         <div class="dash-card">
           <div class="dash-card-header">
             <h3><i class="bi bi-flag-fill" style="color: #ef4444;"></i> Flagged Content & Triage Reports</h3>
@@ -123,7 +124,10 @@
                   <td>
                     <span class="dash-badge" th:classappend="${r.itemType == 'Song' ? 'cyan' : 'purple'}" th:text="${r.itemType}">Song</span>
                     <strong style="margin-left: 6px;" th:text="${r.itemTitle}">Title</strong>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);" th:text="'Item ID: ' + ${r.itemId}">ID: 1</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);" th:text="'Item ID: ' + ${r.songId != '' ? r.songId : r.itemId}">ID: 1</div>
+                    <!-- Listen before deciding -->
+                    <audio th:if="${r.songId != '' and r.status == 'Pending'}" controls preload="none" style="margin-top: 6px; max-width: 260px;"
+                           th:src="@{'/api/music/stream/' + ${r.songId}}"></audio>
                   </td>
                   <td>
                     <span class="dash-badge red" th:text="${r.reason}">Copyright</span>
@@ -169,6 +173,16 @@
                         </button>
                       </form>
                     </div>
+                    <!-- Confirmed wrong audio: replace the file -->
+                    <form th:if="${r.status == 'Pending' and r.songId != ''}" method="POST" style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap;"
+                          th:action="@{'/admin/dashboard/reports/' + ${r.id} + '/redownload'}"
+                          onsubmit="return confirm('Replace this song\'s audio?')">
+                      <input type="url" name="youtubeUrl" placeholder="Correct YouTube link (optional)" style="min-width: 220px;" />
+                      <button type="submit" class="dash-btn dash-btn-sm dash-btn-primary">
+                        <i class="bi bi-arrow-repeat"></i> Re-download
+                      </button>
+                    </form>
+                    <div th:if="${redownloads[r.id] != null}" style="font-size: 0.8rem; margin-top: 4px;" th:text="${redownloads[r.id]} + ' (refresh to update)'"></div>
                     <div th:unless="${r.status == 'Pending'}">
                       <span style="font-size: 0.8rem; color: var(--text-muted);" th:text="'Resolved by ' + ${r.resolvedBy}">Resolved</span>
                     </div>

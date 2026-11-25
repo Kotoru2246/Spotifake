@@ -29,6 +29,11 @@ public class ContentReport {
         this.resolutionNotes = resolutionNotes;
     }
 
+    private String songId = "";
+
+    public String getSongId() { return songId; }
+    public void setSongId(String songId) { this.songId = songId != null ? songId : ""; }
+
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 

@@ -150,6 +150,16 @@ button {
   max-width: 500px;
 }
 
+.history-nav { display: flex; gap: 8px; margin-right: 8px; }
+.history-nav-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: rgba(0, 0, 0, 0.7); color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.2s ease, opacity 0.2s ease;
+}
+.history-nav-btn:hover:not(:disabled) { background: #2a2a2a; }
+.history-nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 .nav-btn {
   background: var(--surface-3);
   border: none;
@@ -4470,3 +4480,48 @@ button {
   transform: scale(1.04);
 }
 
+
+/* ---- Playlist covers (uploaded / mosaic / placeholder) ---- */
+.pl-cover { width: 100%; height: 100%; display: block; overflow: hidden; background: #282828; }
+.pl-cover img, img.pl-cover { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-cover--mosaic { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.pl-cover--mosaic img { min-width: 0; min-height: 0; }
+.pl-cover--empty {
+  display: flex; align-items: center; justify-content: center; color: #b3b3b3;
+  background: linear-gradient(135deg, #2f2f2f, #1f1f1f);
+}
+.pl-cover--liked {
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  background: linear-gradient(135deg, #450af5, #8e8ee5 60%, #c4efd9);
+}
+.home-card-img-wrap > .pl-cover { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.home-card-img-wrap .pl-cover img { position: static; }
+.quick-card-cover { width: 64px; height: 64px; min-width: 64px; flex-shrink: 0; overflow: hidden; border-radius: 4px 0 0 4px; }
+.sidebar-playlist-tile > .pl-cover { width: 100%; height: 100%; }
+
+#pvCoverMosaic { width: 100%; height: 100%; overflow: hidden; }
+#pvCoverMosaic[hidden] { display: none; }
+#pvCoverArt[hidden] { display: none; }
+.playlist-cover-shadow #pvCoverMosaic .pl-cover { width: 100%; height: 100%; }
+
+/* ---- Cover picker (create / edit playlist modals) ---- */
+.create-playlist-name-group { margin-top: 16px; }
+.create-playlist-submit { margin-top: 8px; }
+.cover-picker { display: flex; align-items: center; gap: 16px; }
+.cover-picker-preview {
+  width: 96px; height: 96px; min-width: 96px; border-radius: 8px; overflow: hidden;
+  background: #282828; box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.cover-picker-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cover-picker-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.cover-picker-remove[hidden] { display: none; }
+.cover-picker-hint { margin: 0; font-size: 12px; color: var(--muted, #b3b3b3); }
+.edit-cover-box {
+  position: relative; display: block; width: 180px; height: 180px; min-width: 180px;
+  border-radius: 8px; overflow: hidden; cursor: pointer; background: #282828; color: #fff;
+}
+.edit-cover-box::after {
+  content: "Choose photo"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6); font-size: 14px; font-weight: 700; opacity: 0; transition: opacity 0.15s ease;
+}
+.edit-cover-box:hover::after { opacity: 1; }

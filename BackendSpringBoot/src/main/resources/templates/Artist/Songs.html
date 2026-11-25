@@ -189,7 +189,7 @@
     });
   }
   function openEditSong(id, title, mood, language, lyrics, credits, customGenre, albumId) {
-    document.getElementById('editSongForm').action = '/artist/manager/songs/' + id + '/update';
+    document.getElementById('editSongForm').action = '/artist/manager/songs/' + id + '/edit';
     document.getElementById('editTitle').value = title;
     document.getElementById('editMood').value = mood;
     document.getElementById('editLanguage').value = language;

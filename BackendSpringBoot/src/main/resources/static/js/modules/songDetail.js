@@ -1,12 +1,13 @@
 // Split from the former site.js (feature: songDetail). See docs/architecture.md.
 import { state } from './state.js';
+import { navSetRestore } from './nav.js';
 import { API_BASE_URL, authTokenKey, authenticatedFetch } from './api.js';
 import { setAuthPanelOpen } from './auth.js';
 import { audioPlayer } from './dom.js';
 import { showSection } from './library.js';
 import { loadTrack, togglePlay, updateTransportUI } from './player.js';
 import { renderUserPlaylists } from './playlists.js';
-import { getCurrentQueue } from './queue.js';
+import { getCurrentQueue, getPlayingTrack } from './queue.js';
 import { escapeHtml, formatTime, showToast } from './utils.js';
 
 export function isTrackLiked(track) {
@@ -53,14 +54,14 @@ export function updateLikeButtonState(track) {
   });
 }
 
-export async function toggleLikeInspectedTrack() {
+export async function toggleLikeInspectedTrack(inspected) {
   if (!state.authToken) {
     showToast('error', 'Authentication Required', 'Please log in to save songs to your Liked Songs.');
     setAuthPanelOpen(true, 'login');
     return;
   }
 
-  const track = state.currentInspectedTrack || state.tracks[state.currentTrackIndex];
+  const track = inspected || getPlayingTrack();
   if (!track) return;
 
   const fileName = track.fileName || track.title;
@@ -120,6 +121,7 @@ export function openSongDetailView(track) {
 
   state.isSongDetailLyricsExpanded = false;
   showSection('song-detail-view');
+  navSetRestore(() => openSongDetailView(track));
 
   const mainPanel = document.querySelector('.main-panel');
   if (mainPanel) mainPanel.scrollTop = 0;
@@ -254,9 +256,8 @@ export function renderSongDetailView(track) {
     likeBtn.style.color = isLiked ? '#1db954' : '#b3b3b3';
     likeBtn.title = isLiked ? 'Remove from Your Library' : 'Save to Your Library';
     likeBtn.onclick = async () => {
-      window.currentInspectedTrack = track;
       if (typeof window.toggleLikeInspectedTrack === 'function') {
-        await window.toggleLikeInspectedTrack();
+        await window.toggleLikeInspectedTrack(track);
         const nowLiked = typeof isTrackLiked === 'function' ? isTrackLiked(track) : false;
         likeBtn.classList.toggle('active', nowLiked);
         likeBtn.style.color = nowLiked ? '#1db954' : '#b3b3b3';
@@ -373,7 +374,8 @@ export function renderSongDetailRecommended(track) {
     const tDur = t.durationSeconds || Math.round((t.durationMs || 180000) / 1000);
     const tCover = t.coverArtUrl || t.coverUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.artist || t.title)}&background=333&color=fff&size=60`;
     const tPlays = (t.playCount || t.views || (1450000 - i * 180000)).toLocaleString();
-    const isCur = state.tracks[state.currentTrackIndex] && (state.tracks[state.currentTrackIndex].id === t.id || state.tracks[state.currentTrackIndex].fileName === t.fileName);
+    const playing = getPlayingTrack();
+    const isCur = playing && (playing.id === t.id || playing.fileName === t.fileName);
     return `
       <div class="sd-track-item ${isCur ? 'is-active' : ''}" onclick="window.playSongDirectly('${escapeHtml(t.id || t.fileName)}')">
         <div class="sd-track-index-col">
@@ -415,7 +417,8 @@ export function renderSongDetailPopularArtistTracks(track) {
     const tDur = t.durationSeconds || Math.round((t.durationMs || 180000) / 1000);
     const tCover = t.coverArtUrl || t.coverUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.title)}&background=333&color=fff&size=60`;
     const tPlays = (t.playCount || t.views || (2500000 - idx * 250000)).toLocaleString();
-    const isCur = state.tracks[state.currentTrackIndex] && (state.tracks[state.currentTrackIndex].id === t.id || state.tracks[state.currentTrackIndex].fileName === t.fileName);
+    const playing = getPlayingTrack();
+    const isCur = playing && (playing.id === t.id || playing.fileName === t.fileName);
     return `
       <div class="sd-track-item ${isCur ? 'is-active' : ''}" onclick="window.playSongDirectly('${escapeHtml(t.id || t.fileName)}')">
         <div class="sd-track-index-col">${idx + 1}</div>
@@ -444,7 +447,7 @@ export function playSongDirectly(identifier) {
 }
 
 export function initializeWaveform(track) {
-  if (!track) track = state.tracks[state.currentTrackIndex];
+  if (!track) track = getPlayingTrack();
   if (!track) return;
 
   state.activeTrackId = track.Id || track.id || state.tracks.indexOf(track) || 1;
@@ -542,10 +545,21 @@ export const AudioContextClass = window.AudioContext || window.webkitAudioContex
 
 export const audioCtx = AudioContextClass ? new AudioContextClass() : null;
 
+// True while the player is still downloading this track.
+function isStillLoadingInPlayer(track) {
+    if (!audioPlayer || audioPlayer.src !== new URL(track.src, window.location.href).href) return false;
+    if (audioPlayer.currentTime > 20) return false; // long tracks may never buffer fully
+    const ranges = audioPlayer.buffered;
+    return !(audioPlayer.duration && ranges.length && ranges.end(ranges.length - 1) >= audioPlayer.duration - 1);
+}
+
 export function fetchRealAudioData(track) {
     if (!audioCtx || track.isFetchingRealData || track.realAudioData) return;
     if (!track.src) return;
-    
+    // The waveform needs the whole file; don't compete with playback for it.
+    // The next waveform redraw tries again.
+    if (isStillLoadingInPlayer(track)) return;
+
     track.isFetchingRealData = true;
     fetch(track.src)
         .then(res => {
@@ -648,7 +662,7 @@ export function drawSimulatedWaveform(progress = 0) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  let track = state.tracks[state.currentTrackIndex];
+  let track = getPlayingTrack();
   if (state.activeTrackId) {
       track = state.tracks.find(t => (t.Id || t.id || state.tracks.indexOf(t) || 1) === state.activeTrackId) || track;
   }
@@ -708,7 +722,7 @@ export function updateWaveformProgress(current, duration) {
           state.lastDanmakuTime = currentMs;
           return;
       }
-      const toSpawn = state.currentWaveformComments.filter(c => c.timestamp_ms > state.lastDanmakuTime && c.timestamp_ms <= currentMs);
+      const toSpawn = state.currentWaveformComments.filter(c => c.timestampMs > state.lastDanmakuTime && c.timestampMs <= currentMs);
       toSpawn.forEach(c => spawnDanmaku(c.content));
       state.lastDanmakuTime = currentMs;
   }
@@ -720,9 +734,10 @@ export function fetchTrackComments(songId) {
   const layer = document.getElementById('danmakuLayer');
   if (layer) layer.innerHTML = ''; 
   
-  fetch(`${API_BASE_URL}/songs/${songId}/comments`)
+  fetch(`${API_BASE_URL}/api/music/comments/${encodeURIComponent(songId)}`)
       .then(res => res.ok ? res.json() : [])
       .then(data => {
+          if (state.activeTrackId !== songId) return; // another song was opened meanwhile
           state.currentWaveformComments = data || [];
       })
       .catch(err => console.error("Failed to load comments:", err));
@@ -742,23 +757,22 @@ export function handleCommentSubmit(event) {
           return;
       }
 
-      fetch(`${API_BASE_URL}/songs/${state.activeTrackId}/comments`, {
+      const songId = state.activeTrackId;
+      fetch(`${API_BASE_URL}/api/music/comments/${encodeURIComponent(songId)}`, {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-              song_id: String(state.activeTrackId),
-              timestamp_ms: timestampMs,
-              content: content
-          })
+          body: JSON.stringify({ timestampMs, content })
       }).then(res => {
           if (res.ok) return res.json();
           throw new Error("Failed to post comment");
       }).then(comment => {
-          state.currentWaveformComments.push(comment);
-          state.currentWaveformComments.sort((a,b) => a.timestamp_ms - b.timestamp_ms);
+          if (state.activeTrackId === songId) {
+              state.currentWaveformComments.push(comment);
+              state.currentWaveformComments.sort((a,b) => a.timestampMs - b.timestampMs);
+          }
           input.value = '';
           const popover = document.getElementById('commentPopover');
           if (popover) popover.style.display = 'none';

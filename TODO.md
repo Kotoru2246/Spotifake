@@ -27,14 +27,14 @@ site.js module split, tests). Most important first.
 - [ ] Remove the legacy aliases once a new APK is out: `GET /api/playlists/my`,
       `POST /api/downloader/download`, `GET /artist/details` (update `spotifake_mobile/lib/services/api_service.dart`).
 - [ ] Front-end calls with no backend route (pre-existing 404s, listed in docs/API.md): record-play,
-      import, download, album/playlist save/unsave, playlist rename/visibility, song features and
-      comments, studio album list/create, studio test upload. Implement or remove them.
+      import, download, album/playlist save/unsave, playlist rename/visibility, song features,
+      studio album list/create, studio test upload. Implement or remove them.
 - [ ] `ArtistApiController` delegates to `ArtistController.getArtistDetails`. Move that logic into a service.
 - [ ] `POST /api/music/upload` without a multipart body returns 500; it should be 400.
 - [ ] `Range: bytes=-N` (suffix range) returns 416 by design. Browsers rarely send it, but RFC 9110
       allows serving the last N bytes; decide whether to support it.
-- [ ] Spring Boot ignores `ESSENTIA_URL` / `AI_SERVICE_URL` (only docker-compose sets them); either
-      wire them up or remove them from compose.
+- [ ] `AI_SERVICE_URL` is now used (`spotifake.analysis.url`); `ESSENTIA_URL` is still ignored by Spring Boot, so
+      wire it up or remove it from compose.
 
 ## Bugs found during the cleanup (pre-existing)
 

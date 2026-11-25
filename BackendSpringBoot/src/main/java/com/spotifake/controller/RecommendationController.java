@@ -3,6 +3,7 @@ package com.spotifake.controller;
 import com.spotifake.model.Song;
 import com.spotifake.repository.SpotifakeRepository;
 import com.spotifake.service.RecommendationService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -14,45 +15,77 @@ public class RecommendationController {
     private final SpotifakeRepository repository;
     private final RecommendationService recommendationService;
 
-    public RecommendationController(SpotifakeRepository repository, RecommendationService recommendationService) {
+    private final com.spotifake.service.DailyMixService dailyMixService;
+
+    public RecommendationController(SpotifakeRepository repository, RecommendationService recommendationService,
+                                    com.spotifake.service.DailyMixService dailyMixService) {
         this.repository = repository;
         this.recommendationService = recommendationService;
+        this.dailyMixService = dailyMixService;
+    }
+
+    /** Today's mixes for the signed-in user (guests share one). */
+    @GetMapping("/daily-mixes")
+    public Map<String, Object> dailyMixes(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.spotifake.model.User user) {
+        String userId = user != null ? user.getId() : "guest";
+        return Map.of("date", java.time.LocalDate.now().toString(), "mixes", dailyMixService.mixesFor(userId));
     }
 
     @PostMapping("/smart-shuffle")
-    public Map<String, Object> smartShuffle(@RequestBody(required = false) Map<String, Object> body) {
+    public ResponseEntity<?> smartShuffle(
+            @RequestBody(required = false) Map<String, Object> body,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.spotifake.model.User user) {
         if (body == null) body = Collections.emptyMap();
-        @SuppressWarnings("unchecked")
-        List<String> seedIds = (List<String>) body.get("seed_track_ids");
-        if (seedIds == null || seedIds.isEmpty()) {
-            @SuppressWarnings("unchecked")
-            List<String> playlistSongIds = (List<String>) body.get("playlist_song_ids");
-            seedIds = playlistSongIds;
+        Set<String> seedSet = new LinkedHashSet<>();
+        for (String key : new String[]{"seed_track_ids", "playlist_song_ids"}) {
+            if (body.get(key) instanceof List<?> raw) {
+                for (Object o : raw) if (o != null && !o.toString().isBlank()) seedSet.add(o.toString().trim());
+            }
+            if (!seedSet.isEmpty()) break;
         }
-        Number nRec = (Number) body.get("n_recommendations");
-        int count = nRec != null ? nRec.intValue() : 5;
+        if (seedSet.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "seed_track_ids required"));
+        }
+        int count = 5;
+        if (body.get("n_recommendations") instanceof Number nRec) count = nRec.intValue();
+        count = Math.max(1, Math.min(500, count)); // a third of a long playlist
 
-        List<Song> allSongs = repository.getAllSongs();
         List<Song> seedSongs = new ArrayList<>();
         List<Song> candidateSongs = new ArrayList<>();
-
-        Set<String> seedSet = new HashSet<>(seedIds != null ? seedIds : Collections.emptyList());
-        for (Song s : allSongs) {
+        for (Song s : repository.getAllSongs()) {
+            if (s.isDeleted()) continue;
             if (seedSet.contains(s.getId())) {
                 seedSongs.add(s);
-            } else {
+            } else if (!s.isHidden()) {
                 candidateSongs.add(s);
             }
         }
-
-        if (seedSongs.isEmpty() && !allSongs.isEmpty()) {
-            seedSongs.add(allSongs.get(0));
-        }
-        if (candidateSongs.isEmpty()) {
-            candidateSongs.addAll(allSongs);
+        if (seedSongs.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "no known seed_track_ids"));
         }
 
-        List<String> recIds = recommendationService.getSmartShuffle(seedSongs, candidateSongs, count);
+        // Songs already in the playlist, or offered before, are not suggested (nor other releases of them).
+        if (body.get("exclude_track_ids") instanceof List<?> raw && !raw.isEmpty()) {
+            Set<String> excluded = new HashSet<>();
+            for (Object o : raw) if (o != null) excluded.add(o.toString().trim());
+            Set<String> excludedTitles = new HashSet<>();
+            for (Song s : candidateSongs) {
+                if (excluded.contains(s.getId())) excludedTitles.add(com.spotifake.service.DailyMixService.titleKey(s));
+            }
+            candidateSongs.removeIf(s -> excluded.contains(s.getId())
+                    || excludedTitles.contains(com.spotifake.service.DailyMixService.titleKey(s)));
+        }
+
+        // The player sends the current song first; its language decides.
+        List<String> order = new ArrayList<>(seedSet);
+        seedSongs.sort(Comparator.comparingInt(s -> order.indexOf(s.getId())));
+        List<Song> everything = new ArrayList<>(seedSongs);
+        everything.addAll(candidateSongs);
+        Map<String, Integer> together = dailyMixService.playedTogether(
+                user != null ? user.getId() : "guest", everything, seedSet);
+
+        List<String> recIds = recommendationService.getSmartShuffle(seedSongs, candidateSongs, count, together);
         List<Song> recommended = repository.getSongsByIds(recIds);
 
         List<Map<String, Object>> result = new ArrayList<>();
@@ -74,22 +107,27 @@ public class RecommendationController {
         Map<String, Object> response = new HashMap<>();
         response.put("recommendations", result);
         response.put("song_ids", recIds);
-        return response;
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/knn-projection")
     public Map<String, Object> knnProjection(@RequestParam(value = "seed_id", required = false) String seedId,
                                              @RequestParam(value = "k_neighbors", defaultValue = "5") int kNeighbors) {
-        List<Song> allSongs = repository.getAllSongs();
+        List<Song> allSongs = new ArrayList<>();
+        for (Song s : repository.getAllSongs()) if (!s.isDeleted() && !s.isHidden()) allSongs.add(s);
         return recommendationService.getKnnProjection(allSongs, seedId, kNeighbors);
     }
 
     @GetMapping("/hybrid")
-    public Map<String, Object> hybrid(@RequestParam("seed_id") String seedId,
-                                      @RequestParam(value = "limit", defaultValue = "10") int limit) {
+    public ResponseEntity<?> hybrid(@RequestParam("seed_id") String seedId,
+                                    @RequestParam(value = "limit", defaultValue = "10") int limit) {
         Song seed = repository.getSongById(seedId);
-        List<Song> allSongs = repository.getAllSongs();
+        if (seed == null || seed.isDeleted()) {
+            return ResponseEntity.status(404).body(Map.of("error", "seed song not found"));
+        }
+        List<Song> allSongs = new ArrayList<>();
+        for (Song s : repository.getAllSongs()) if (!s.isDeleted() && !s.isHidden()) allSongs.add(s);
         List<Map<String, Object>> recs = recommendationService.getHybridRecommendations(seed, allSongs, limit);
-        return Map.of("recommendations", recs);
+        return ResponseEntity.ok(Map.of("recommendations", recs));
     }
 }

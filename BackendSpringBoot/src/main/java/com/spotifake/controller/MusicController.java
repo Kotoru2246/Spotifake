@@ -1,5 +1,6 @@
 package com.spotifake.controller;
 
+import com.spotifake.model.Comment;
 import com.spotifake.model.Song;
 import com.spotifake.model.User;
 import com.spotifake.repository.SpotifakeRepository;
@@ -24,10 +25,16 @@ public class MusicController {
 
     private final SpotifakeRepository repository;
     private final SongService songService;
+    private final com.spotifake.service.ShortcutService shortcutService;
+    private final com.spotifake.service.AudioAnalysisService audioAnalysisService;
 
-    public MusicController(SpotifakeRepository repository, SongService songService) {
+    public MusicController(SpotifakeRepository repository, SongService songService,
+                           com.spotifake.service.ShortcutService shortcutService,
+                           com.spotifake.service.AudioAnalysisService audioAnalysisService) {
+        this.audioAnalysisService = audioAnalysisService;
         this.repository = repository;
         this.songService = songService;
+        this.shortcutService = shortcutService;
     }
 
     @GetMapping("")
@@ -83,6 +90,9 @@ public class MusicController {
 
         response.setContentType(resolveAudioMimeType(audioFile.getName()));
         response.setHeader("Accept-Ranges", "bytes");
+        // Let the browser keep audio it already has (Spring Security otherwise sends no-store).
+        // One hour, so replaced audio is picked up soon.
+        response.setHeader("Cache-Control", "private, max-age=3600");
 
         if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
             long[] range = parseSingleRange(rangeHeader.substring(6).trim(), length);
@@ -147,6 +157,13 @@ public class MusicController {
             String deviceType = (userAgent != null && userAgent.toLowerCase().contains("mobile")) ? "Mobile Player" : "Web Player";
             String ip = request.getRemoteAddr();
             repository.recordSongPlay(target.trim(), uid, deviceType, ip);
+            if (user != null && body.get("contextType") != null && body.get("contextId") != null) {
+                try {
+                    shortcutService.record(user.getId(), body.get("contextType"), body.get("contextId"));
+                } catch (Exception ignored) {
+                    // context tracking must never break play reporting
+                }
+            }
         }
         return ResponseEntity.ok(Map.of("success", true));
     }
@@ -162,6 +179,7 @@ public class MusicController {
         try {
             String userId = user != null ? user.getId() : "00000000-0000-0000-0000-000000000001";
             Song song = songService.uploadSong(file, coverArt, title, artist, album, genre, userId);
+            if (song != null) audioAnalysisService.analyzeAsync(song.getId());
             return ResponseEntity.ok(song);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -193,6 +211,40 @@ public class MusicController {
         ));
     }
 
+    private static final int MAX_COMMENT_LENGTH = 500;
+
+    @GetMapping("/comments/{songId}")
+    public List<Comment> getComments(@PathVariable String songId) {
+        Song song = repository.getSongById(songId);
+        if (song == null || song.isDeleted()) return List.of();
+        return repository.getCommentsForSong(song.getId());
+    }
+
+    // /api/music/** is open to guests, so posting checks for a signed-in user itself.
+    @PostMapping("/comments/{songId}")
+    public ResponseEntity<?> addComment(@PathVariable String songId,
+                                        @RequestBody(required = false) Map<String, Object> body,
+                                        @AuthenticationPrincipal User user) {
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Sign in required"));
+        }
+        Song song = repository.getSongById(songId);
+        if (song == null || song.isDeleted()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Song not found"));
+        }
+        String content = body != null && body.get("content") instanceof String s ? s.strip() : "";
+        if (content.isEmpty() || content.length() > MAX_COMMENT_LENGTH) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Comment must be 1 to " + MAX_COMMENT_LENGTH + " characters"));
+        }
+        long timestampMs = body.get("timestampMs") instanceof Number n ? Math.max(0, n.longValue()) : 0;
+        Comment comment = repository.insertComment(user.getId(), song.getId(), timestampMs, content);
+        if (comment == null) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Could not save comment"));
+        }
+        return ResponseEntity.ok(comment);
+    }
+
     @PostMapping("/report")
     public ResponseEntity<?> reportSong(@RequestBody(required = false) Map<String, Object> body,
                                         @AuthenticationPrincipal User user) {
@@ -222,7 +274,7 @@ public class MusicController {
         String description = String.valueOf(reqBody.getOrDefault("description", ""));
         String reporter = user != null ? user.getUsername() : String.valueOf(reqBody.getOrDefault("reportedBy", "anonymous"));
 
-        repository.createContentReport("Song", numericId, title, reason, description, reporter);
+        repository.createContentReport("Song", numericId, song != null ? song.getId() : "", title, reason, description, reporter);
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "message", "Report submitted successfully. Thank you for helping keep Spotifake safe."

@@ -531,7 +531,7 @@ public class CheckoutController {
 
     @GetMapping("/subscription/stripe/success")
     public void handleStripeSuccess(@RequestParam("session_id") String sessionId,
-                                    @RequestParam(value = "plan", defaultValue = "Individual") String plan,
+                                    @RequestParam(value = "plan", required = false) String planParam,
                                     @AuthenticationPrincipal User principal,
                                     HttpServletRequest request,
                                     HttpServletResponse response) throws java.io.IOException {
@@ -545,24 +545,39 @@ public class CheckoutController {
                 if (metaUser != null) user = metaUser;
             }
 
-            if (user != null) {
-                double amount = session.getAmountTotal() != null ? session.getAmountTotal() / 100.0 : paymentGateway.getPlanPrice(plan);
-                String authCode = "STRIPE-" + (session.getPaymentIntent() != null ? session.getPaymentIntent().substring(Math.max(0, session.getPaymentIntent().length() - 8)) : "TEST");
-                
-                Transaction tx = repository.recordTransaction(
-                        user.getId(),
-                        plan,
-                        amount,
-                        "Stripe Card (Test Mode)",
-                        "Visa",
-                        "4242",
-                        authCode,
-                        "Completed"
-                );
+            // Trust the plan stored in the session metadata at creation time, not the URL.
+            // Fall back to the query param only for old sessions that have no metadata plan.
+            String metaPlan = session.getMetadata() != null ? session.getMetadata().get("planType") : null;
+            String plan = paymentGateway.normalizePlan(metaPlan != null && !metaPlan.isBlank() ? metaPlan : planParam);
 
-                repository.updateSubscription(user.getId(), plan, true);
-                repository.logUserActivity(user.getId(), "STRIPE_CHECKOUT_SUCCESS", "Completed Stripe Sandbox checkout for " + plan + " ($" + amount + ")", request.getRemoteAddr());
-                repository.logAdminAction("STRIPE_GATEWAY", "BILLING_SUBSCRIPTION", "Transaction", tx != null ? tx.getTransactionId() : "TX-STRIPE", "User " + user.getUsername() + " paid $" + amount + " via Stripe Test");
+            if (user != null && plan == null) {
+                response.sendRedirect("/subscription?stripe_success=true");
+                return;
+            }
+
+            if (user != null) {
+                // Idempotency: one transaction per Stripe Checkout session (keyed by session id in AuthCode).
+                String authCode = "STRIPE-" + session.getId();
+                Transaction tx = repository.getTransactionByAuthCode(authCode);
+
+                if (tx == null) {
+                    double amount = session.getAmountTotal() != null ? session.getAmountTotal() / 100.0 : paymentGateway.getPlanPrice(plan);
+
+                    tx = repository.recordTransaction(
+                            user.getId(),
+                            plan,
+                            amount,
+                            "Stripe Card (Test Mode)",
+                            "Visa",
+                            "4242",
+                            authCode,
+                            "Completed"
+                    );
+
+                    repository.updateSubscription(user.getId(), plan, true);
+                    repository.logUserActivity(user.getId(), "STRIPE_CHECKOUT_SUCCESS", "Completed Stripe Sandbox checkout for " + plan + " ($" + amount + ")", request.getRemoteAddr());
+                    repository.logAdminAction("STRIPE_GATEWAY", "BILLING_SUBSCRIPTION", "Transaction", tx != null ? tx.getTransactionId() : "TX-STRIPE", "User " + user.getUsername() + " paid $" + amount + " via Stripe Test");
+                }
                 User updated = repository.getUserById(user.getId());
 
                 String token = jwtUtil.generateToken(updated != null ? updated : user);

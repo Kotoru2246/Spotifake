@@ -1,0 +1,223 @@
+{
+ "name": "panns-lr-11",
+ "n": 2391,
+ "accuracy": 0.7139272271016311,
+ "artist_balanced_accuracy": 0.7396194173560233,
+ "macro_f1": 0.6917510513434996,
+ "recall": {
+  "blues": null,
+  "classical": null,
+  "country": null,
+  "electronic": 0.46842105263157896,
+  "folk": null,
+  "hip-hop": 0.9017467248908297,
+  "jazz": null,
+  "pop": 0.5505836575875487,
+  "rock": 0.8660508083140878,
+  "soul-rnb": 0.8189910979228486,
+  "j-pop": 0.5904139433551199
+ },
+ "f1": {
+  "blues": null,
+  "classical": null,
+  "country": null,
+  "electronic": 0.4091954022988506,
+  "folk": null,
+  "hip-hop": 0.9157427937915743,
+  "jazz": null,
+  "pop": 0.5603960396039604,
+  "rock": 0.832408435072142,
+  "soul-rnb": 0.7677329624478443,
+  "j-pop": 0.6650306748466258
+ },
+ "support": {
+  "blues": 0,
+  "classical": 0,
+  "country": 0,
+  "electronic": 190,
+  "folk": 0,
+  "hip-hop": 458,
+  "jazz": 0,
+  "pop": 514,
+  "rock": 433,
+  "soul-rnb": 337,
+  "j-pop": 459
+ },
+ "per_artist": {
+  "Ado": [
+   0.4956140350877193,
+   228
+  ],
+  "Arctic Monkeys": [
+   0.7572815533980582,
+   103
+  ],
+  "Avicii": [
+   0.5063291139240507,
+   79
+  ],
+  "Charlie Puth": [
+   0.6461538461538462,
+   65
+  ],
+  "DECO*27": [
+   0.6136363636363636,
+   132
+  ],
+  "Daniel Caesar": [
+   0.68,
+   50
+  ],
+  "Drake": [
+   0.9508196721311475,
+   122
+  ],
+  "Dreamville": [
+   0.8863636363636364,
+   44
+  ],
+  "Eddie Benjamin": [
+   1.0,
+   4
+  ],
+  "Foo Fighters": [
+   0.9468085106382979,
+   94
+  ],
+  "H.E.R.": [
+   0.578125,
+   64
+  ],
+  "Huncho Jack": [
+   1.0,
+   12
+  ],
+  "J. Cole": [
+   0.9444444444444444,
+   108
+  ],
+  "Jamie Paige": [
+   0.5714285714285714,
+   56
+  ],
+  "Joji": [
+   0.8735632183908046,
+   87
+  ],
+  "Kendrick Lamar": [
+   0.8979591836734694,
+   98
+  ],
+  "Ng\u1ecdt": [
+   0.7192982456140351,
+   57
+  ],
+  "PARTYNEXTDOOR": [
+   0.9333333333333333,
+   15
+  ],
+  "Porter Robinson": [
+   0.42424242424242425,
+   66
+  ],
+  "Red Hot Chili Peppers": [
+   0.9329608938547486,
+   179
+  ],
+  "SZA": [
+   0.9210526315789473,
+   76
+  ],
+  "Sam Smith": [
+   0.9444444444444444,
+   18
+  ],
+  "Shawn Mendes": [
+   0.5,
+   88
+  ],
+  "Taylor Swift": [
+   0.35714285714285715,
+   112
+  ],
+  "The Weeknd": [
+   0.6666666666666666,
+   189
+  ],
+  "Th\u1eafng": [
+   0.24242424242424243,
+   33
+  ],
+  "Th\u1ecbnh Suy": [
+   0.8928571428571429,
+   28
+  ],
+  "Travis Scott": [
+   0.788235294117647,
+   85
+  ],
+  "YOASOBI": [
+   0.7777777777777778,
+   99
+  ]
+ },
+ "confusion": {
+  "j-pop": {
+   "pop": 93,
+   "j-pop": 271,
+   "rock": 37,
+   "electronic": 58
+  },
+  "rock": {
+   "soul-rnb": 21,
+   "pop": 29,
+   "rock": 375,
+   "hip-hop": 2,
+   "j-pop": 4,
+   "electronic": 2
+  },
+  "electronic": {
+   "pop": 58,
+   "electronic": 89,
+   "j-pop": 33,
+   "hip-hop": 4,
+   "soul-rnb": 6
+  },
+  "pop": {
+   "electronic": 78,
+   "rock": 39,
+   "pop": 283,
+   "soul-rnb": 54,
+   "hip-hop": 14,
+   "j-pop": 46
+  },
+  "soul-rnb": {
+   "rock": 14,
+   "pop": 26,
+   "soul-rnb": 276,
+   "hip-hop": 11,
+   "electronic": 8,
+   "j-pop": 2
+  },
+  "hip-hop": {
+   "hip-hop": 413,
+   "rock": 3,
+   "electronic": 10,
+   "soul-rnb": 25,
+   "pop": 7
+  }
+ },
+ "pred_distribution": {
+  "blues": 0,
+  "classical": 0,
+  "country": 0,
+  "electronic": 245,
+  "folk": 0,
+  "hip-hop": 444,
+  "jazz": 0,
+  "pop": 496,
+  "rock": 468,
+  "soul-rnb": 382,
+  "j-pop": 356
+ }
+}

@@ -1,11 +1,11 @@
 // Split from the former site.js (feature: search). See docs/architecture.md.
 import { state } from './state.js';
+import { navSetRestore } from './nav.js';
 import { authenticatedFetch } from './api.js';
 import { setAuthPanelOpen } from './auth.js';
 import { showSection } from './library.js';
-import { loadTrack } from './player.js';
 import { loadUserPlaylists, playPlaylistContext } from './playlists.js';
-import { buildQueueOrder, renderQueue } from './queue.js';
+import { playSongWithRelated } from './queue.js';
 import { escapeHtml, showToast } from './utils.js';
 
 export function handleSearchInput(event) {
@@ -64,9 +64,8 @@ export function handleSearchInput(event) {
     }
     
     dropdown.innerHTML = results.map(t => {
-      const idx = state.tracks.indexOf(t);
       return `
-      <div class="search-dropdown-item" onclick="document.getElementById('searchInput').value=''; document.getElementById('searchDropdown').hidden=true; window.playLibraryTrack(${idx});">
+      <div class="search-dropdown-item" onclick="document.getElementById('searchInput').value=''; document.getElementById('searchDropdown').hidden=true; window.playSearchResult('${encodeURIComponent(t.id)}', 'Song', '');">
         <img src="${t.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(t.artist)}&background=random&color=fff`}" alt="art">
         <div class="item-text">
           <div class="item-title">${escapeHtml(t.title)}</div>
@@ -106,6 +105,10 @@ export async function handleSearchSubmit(event) {
     if (!query) return;
     
     showSection('search-results');
+    navSetRestore(() => {
+      document.getElementById('searchInput').value = query;
+      return handleSearchSubmit({key: 'Enter'});
+    });
     const topResultCard = document.getElementById('topResultCard');
     const songsList = document.getElementById('searchSongsList');
     
@@ -222,24 +225,18 @@ export function viewSearchResult(id, type, fileName) {
 
 export async function playSearchResult(id, type, fileName) {
     if (type === 'Song') {
-        const idx = state.tracks.findIndex(t => 
-            (fileName && (t.fileName === fileName || t.title === fileName)) ||
-            (id && (t.id === id || t.Id === id))
-        );
-        if(idx !== -1) {
-            state.activeQueue = [...state.tracks];
-            state.currentQueueTitle = 'Library';
-            state.currentViewedPlaylist = null;
-            buildQueueOrder();
-            loadTrack(idx, true);
-            renderQueue();
+        // The id decides; a title can belong to several songs.
+        const song = state.tracks.find(t => id && (t.id === id || t.Id === id))
+            || state.tracks.find(t => fileName && (t.fileName === fileName || t.title === fileName));
+        if (song) {
+            playSongWithRelated(song);
         } else {
             // Try to find it in the last search results
             let t = window.lastSearchResults ? window.lastSearchResults.find(x => x.id === id) : null;
             if (t) {
                 const songIdentifier = fileName || id || t.title;
                 const mockTrack = {
-                    id: songIdentifier,
+                    id: id || songIdentifier,
                     title: t.title || songIdentifier,
                     artist: t.creator || 'Unknown',
                     album: 'Single',
@@ -250,18 +247,8 @@ export async function playSearchResult(id, type, fileName) {
                     artistId: t.artistId || '',
                     durationSeconds: 0
                 };
-                
-                // Inject track into the queue and play it
-                if (state.activeQueue) {
-                    state.activeQueue.unshift(mockTrack);
-                } else {
-                    state.activeQueue = [mockTrack];
-                }
-                state.currentQueueTitle = 'Search';
-                state.currentViewedPlaylist = null;
-                buildQueueOrder();
-                loadTrack(0, true);
-                renderQueue();
+
+                playSongWithRelated(mockTrack);
             } else {
                 showToast('info', 'Play', 'Song not found in local library scope.');
             }

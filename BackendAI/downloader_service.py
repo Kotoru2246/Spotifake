@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -107,19 +108,19 @@ def _execute_spotdl(job_id: str, query: str):
 
     python_exe = sys.executable
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-    music_out = "music/{title} - {artist}.{output-ext}"
+    # Album is part of the name so two releases of a song don't overwrite one file.
+    music_out = "music/{title} - {artist} - {album}.{output-ext}"
 
     cmd = [
         python_exe,
         "-u", # unbuffered binary stdout and stderr
         "-m",
-        "spotdl",
+        "BackendAI.spotdl_runner",  # spotdl, with full artist discographies
         "download",
         query,
         "--audio",
         "youtube-music",
         "youtube",
-        "--sponsor-block",
         "--generate-lrc",
         "--format",
         "m4a",
@@ -129,9 +130,19 @@ def _execute_spotdl(job_id: str, query: str):
         "force",
     ]
 
+    # SponsorBlock cutting needs ffprobe. Without it spotdl fails the track
+    # before the database import runs, so only ask for it when ffprobe exists.
+    if shutil.which("ffprobe"):
+        cmd.append("--sponsor-block")
+    else:
+        _append_job_log(job_id, "ffprobe not found: skipping sponsor segment removal.")
+
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
     env["PYTHONPATH"] = repo_root + os.pathsep + env.get("PYTHONPATH", "")
+    # Piped output defaults to cp1252 on Windows, where the analyzer's emoji prints
+    # raise and the song is saved without audio features.
+    env["PYTHONIOENCODING"] = "utf-8"
 
     try:
         process = subprocess.Popen(
@@ -150,6 +161,7 @@ def _execute_spotdl(job_id: str, query: str):
             ACTIVE_PROCESSES[job_id] = process
 
         _append_job_log(job_id, "Searching audio providers & resolving playlist tracks...")
+        error_count = 0
 
         for raw_line in iter(process.stdout.readline, ""):
             line = raw_line.strip()
@@ -157,6 +169,10 @@ def _execute_spotdl(job_id: str, query: str):
                 continue
 
             _append_job_log(job_id, line)
+
+            # spotdl exits 0 even when individual tracks fail, so count them.
+            if "Error: " in line or "database import failed" in line:
+                error_count += 1
 
             # Check for playlist count
             if "Found" in line and "songs in" in line:
@@ -186,7 +202,10 @@ def _execute_spotdl(job_id: str, query: str):
             job["finished_at"] = datetime.utcnow().isoformat()
             if return_code == 0:
                 job["status"] = "completed"
-                log_msg = "All songs downloaded and saved into Spotifake database!"
+                if error_count:
+                    log_msg = f"Finished with {error_count} error(s): some songs were not saved. See the log above."
+                else:
+                    log_msg = "All songs downloaded and saved into Spotifake database!"
             else:
                 job["status"] = "failed"
                 job["error"] = f"Process exited with code {return_code}"

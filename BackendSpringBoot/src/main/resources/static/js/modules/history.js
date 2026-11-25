@@ -80,7 +80,7 @@ export const SpotifakeHistory = {
 
     let coverUrl = container.imageUrl || container.coverUrl || '';
     if (!coverUrl && container.songs && container.songs[0]) {
-      coverUrl = container.songs[0].coverUrl || '';
+      coverUrl = container.songs[0].coverArtUrl || container.songs[0].coverUrl || '';
     }
     if (!coverUrl && typeof state.tracks !== 'undefined' && state.tracks) {
       const match = state.tracks.find(t => (t.album && t.album.toLowerCase() === title.toLowerCase()) || (t.title && t.title.toLowerCase() === title.toLowerCase()));

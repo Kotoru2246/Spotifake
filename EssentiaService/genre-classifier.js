@@ -91,15 +91,17 @@ async function classify(filePath) {
 
     // Classify genre based on features
     const genreScores = classifyGenre(features);
-    const primaryGenre = Object.keys(genreScores).reduce((a, b) =>
+    const topKey = Object.keys(genreScores).reduce((a, b) =>
       genreScores[a] > genreScores[b] ? a : b
     );
+    const primaryGenre = genreScores[topKey] > 0 ? topKey : null;
+    const num = (v, d) => Number.isFinite(v) ? +v.toFixed(d) : null;
 
     // Determine mood tags
     const moodTags = detectMood(features);
 
     // Calculate confidence
-    const confidence = Math.min(genreScores[primaryGenre], 1.0);
+    const confidence = primaryGenre ? Math.min(genreScores[primaryGenre], 1.0) : 0;
 
     return {
       genre: primaryGenre,
@@ -111,12 +113,12 @@ async function classify(filePath) {
       ),
       tags: moodTags,
       features: {
-        tempo: features.tempo ? parseFloat(features.tempo.toFixed(1)) : null,
-        energy: features.energy ? parseFloat(features.energy.toFixed(2)) : null,
-        danceability: features.danceability ? parseFloat(features.danceability.toFixed(2)) : null,
-        acousticness: features.acousticness ? parseFloat(features.acousticness.toFixed(2)) : null,
-        valence: features.valence ? parseFloat(features.valence.toFixed(2)) : null,
-        instrumentalness: features.instrumentalness ? parseFloat(features.instrumentalness.toFixed(2)) : null,
+        tempo: num(features.tempo, 1),
+        energy: num(features.energy, 2),
+        danceability: num(features.danceability, 2),
+        acousticness: num(features.acousticness, 2),
+        valence: num(features.valence, 2),
+        instrumentalness: num(features.instrumentalness, 2),
         key: features.key,
         mode: features.mode
       }
@@ -133,12 +135,13 @@ async function classify(filePath) {
  */
 function classifyGenre(features) {
   const scores = {};
-  let energy = features.energy || 0;
-  let acousticness = features.acousticness || 0;
-  let danceability = features.danceability || 0;
-  let tempo = features.tempo || 0;
-  let instrumentalness = features.instrumentalness || 0;
-  let valence = features.valence || 0;
+  const fin = (v) => Number.isFinite(v) ? v : NaN;
+  let energy = fin(features.energy);
+  let acousticness = fin(features.acousticness);
+  let danceability = fin(features.danceability);
+  let tempo = fin(features.tempo);
+  let instrumentalness = fin(features.instrumentalness);
+  let valence = fin(features.valence);
 
   // Initialize all genres with base score
   SUPPORTED_GENRES.forEach(genre => {
@@ -218,11 +221,7 @@ function classifyGenre(features) {
     });
   }
 
-  // Default fallback
-  if (maxScore === 0) {
-    scores['pop'] = 0.5; // Default to pop if no clear classification
-  }
-
+  // No rule matched: all scores stay 0 and the caller reports genre null
   return scores;
 }
 
@@ -231,11 +230,11 @@ function classifyGenre(features) {
  */
 function detectMood(features) {
   const tags = [];
-  const energy = features.energy || 0;
-  const valence = features.valence || 0;
-  const acousticness = features.acousticness || 0;
-  const instrumentalness = features.instrumentalness || 0;
-  const tempo = features.tempo || 0;
+  const energy = Number.isFinite(features.energy) ? features.energy : NaN;
+  const valence = Number.isFinite(features.valence) ? features.valence : NaN;
+  const acousticness = Number.isFinite(features.acousticness) ? features.acousticness : NaN;
+  const instrumentalness = Number.isFinite(features.instrumentalness) ? features.instrumentalness : NaN;
+  const tempo = Number.isFinite(features.tempo) ? features.tempo : NaN;
 
   // Valence-based moods
   if (valence > 0.6 && energy > 0.5) tags.push('happy');
@@ -264,17 +263,7 @@ function detectMood(features) {
  * Used when Essentia advanced profile fails
  */
 async function basicFeatureExtraction(filePath) {
-  // Return normalized features between 0-1
-  return {
-    tempo: 120,
-    energy: Math.random(),
-    danceability: Math.random(),
-    acousticness: Math.random(),
-    valence: Math.random(),
-    instrumentalness: Math.random(),
-    key: Math.floor(Math.random() * 12),
-    mode: Math.floor(Math.random() * 2)
-  };
+  throw new Error('Feature extraction unavailable: essentia.js has no extractorProfile');
 }
 
 /**

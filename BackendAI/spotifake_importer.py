@@ -13,17 +13,29 @@ from BackendAI.db import engine
 from BackendAI.models import Song, Album, ArtistProfile
 from BackendAI.artist_scraper import update_or_create_artist_profile
 from BackendAI.lyrics_service import fetch_synced_lyrics
+from BackendAI.song_language import from_lyrics
+from BackendAI.embedding_genre_classifier import may_be_jpop, with_sub_jpop, without_jpop
 try:
-    from BackendAI.audio_features import extract_audio_features, categorize_genre_and_mood
+    from BackendAI.audio_features import (extract_audio_features, categorize_genre_and_mood,
+                                          categorize_genre_and_mood_rule_based)
 except Exception:
     extract_audio_features = None
     categorize_genre_and_mood = None
+    categorize_genre_and_mood_rule_based = None
 
 try:
     from BackendAI.cnn_spectrogram_classifier import CnnSpectrogramClassifier
     _cnn_classifier = CnnSpectrogramClassifier()
 except Exception:
     _cnn_classifier = None
+
+try:
+    # Runs inside the spotdl subprocess; PANNs itself loads lazily on the first song.
+    from BackendAI.embedding_genre_classifier import EmbeddingGenreClassifier
+    _embedding_classifier = EmbeddingGenreClassifier()
+except Exception as _emb_init_err:
+    logging.getLogger("spotifake_importer").warning("Embedding genre classifier disabled: %s", _emb_init_err)
+    _embedding_classifier = None
 
 logger = logging.getLogger("spotifake_importer")
 logging.basicConfig(level=logging.INFO)
@@ -46,7 +58,7 @@ def import_audio_file_to_db(
     2. Extracts ID3 tags, lyrics, and embedded album art
     3. Analyzes audio features (tempo, energy, mood, genre) via librosa
     4. Creates or updates Album in the Albums table
-    5. Saves or updates the Song in the Songs table with full binary FileData and CoverArtData
+    5. Saves or updates the Song in the Songs table (audio stays on disk; CoverArtData is stored)
     """
     src_path = Path(file_path).resolve()
     if not src_path.exists():
@@ -65,9 +77,13 @@ def import_audio_file_to_db(
 
     relative_file_path = f"uploads/{filename}" if copy_to_uploads else str(final_file_path)
 
-    # Read binary file data
-    with open(final_file_path, "rb") as f:
-        file_data = f.read()
+    # Audio lives on disk in uploads/; the backend streams it from FilePath.
+    # Only keep a DB copy when the file stays outside uploads/ (the backend
+    # won't serve paths outside it), otherwise each import doubles its size in the DB.
+    file_data: Optional[bytes] = None
+    if not copy_to_uploads:
+        with open(final_file_path, "rb") as f:
+            file_data = f.read()
 
     # 2. Extract ID3 metadata from mutagen
     title = ""
@@ -228,6 +244,17 @@ def import_audio_file_to_db(
     mode = 0
     mood = "neutral"
 
+    # Genre model first: it decodes the file itself, so it works even when feature extraction is off or fails.
+    genre_from_model = False
+    genre_probs = {}
+    if not genre and _embedding_classifier:
+        try:
+            prediction = _embedding_classifier.predict(str(final_file_path))
+            genre, genre_probs = prediction['genre'], prediction['all_probs']
+            genre_from_model = bool(genre)
+        except Exception as _emb_err:
+            logger.warning("Embedding genre classifier failed for %s: %s", title, _emb_err)
+
     if extract_features and extract_audio_features:
         try:
             logger.info("Extracting audio features for %s...", title)
@@ -243,10 +270,12 @@ def import_audio_file_to_db(
             if duration_seconds == 0 and "duration_ms" in features:
                 duration_seconds = int(features["duration_ms"] / 1000)
 
+            # Fallbacks when the embedding model gave nothing: the CNN, then the rule-based genre below.
             if not genre and _cnn_classifier:
                 try:
-                    pred = _cnn_classifier.predict(str(target_path))
+                    pred = _cnn_classifier.predict(str(final_file_path))
                     genre = pred['genre'].capitalize()
+                    genre_from_model = bool(genre)
                 except Exception as _cnn_err:
                     logger.debug("CNN classifier failed for %s: %s", title, _cnn_err)
 
@@ -255,6 +284,9 @@ def import_audio_file_to_db(
                 if not genre:
                     genre = extracted_genre
                 mood = extracted_mood
+            if genre_from_model and categorize_genre_and_mood_rule_based:
+                # Mood from the model genre, like /internal/analyze does.
+                _, mood = categorize_genre_and_mood_rule_based(features, override_genre=genre.split(", ")[0])
         except Exception as exc:
             logger.warning("Feature extraction skipped/failed for %s: %s", title, exc)
 
@@ -288,13 +320,29 @@ def import_audio_file_to_db(
                 session.refresh(db_album)
             album_id = db_album.id
 
-        # Check if song already exists by Title and Artist
+        # One row per release: the same title on an album and on a compilation are
+        # separate songs, so importing one never moves the other to another album.
         existing_song = session.exec(
-            select(Song).where(Song.title == title, Song.artist == artist)
+            select(Song).where(Song.title == title, Song.artist == artist, Song.album == album)
         ).first()
+
+        # Daily mixes group songs by language: lyrics first, else the artist's usual one.
+        language = from_lyrics(lyrics)
+        if not language:
+            known = [l for l in session.exec(select(Song.language).where(Song.artist == artist)).all() if l]
+            language = max(set(known), key=known.count) if known else ""
+
+        if genre_from_model and "J-Pop" in genre:
+            artist_languages = session.exec(select(Song.language).where(Song.artist == artist)).all()
+            if not may_be_jpop(language, artist_languages):
+                genre = without_jpop(genre, genre_probs)
+        genre = with_sub_jpop(genre, artist)
+        tags_str = f"{genre},{mood}".strip(",")
 
         if existing_song:
             logger.info("Updating existing song in DB: '%s' by '%s'", title, artist)
+            if language:
+                existing_song.language = language
             existing_song.album = album
             existing_song.album_id = album_id
             existing_song.collab_artists = collab_artists
@@ -342,6 +390,7 @@ def import_audio_file_to_db(
                 cover_art_data=cover_art_data,
                 release_date=release_date or datetime.utcnow(),
                 lyrics=lyrics,
+                language=language,
                 genre=genre,
                 mood=mood,
                 tags=tags_str,

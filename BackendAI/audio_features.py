@@ -51,6 +51,68 @@ def _get_duration_seconds(file_path: str) -> float:
     return 0.0
 
 
+_TEMPO_HOP = 256          # ~86 onset frames/s: finer BPM steps than the default 512 hop
+_TEMPO_FOLD = (70.0, 180.0)
+
+
+def _estimate_tempo(y: np.ndarray, sr: int) -> float:
+    """BPM from the onset-strength envelope of the analysis clip.
+
+    librosa.feature.tempo with its default log-normal prior around 120 BPM picks the peak of
+    the averaged tempogram; the result is refined to sub-bin precision on the global onset
+    autocorrelation and folded into 70-180 BPM by halving/doubling.
+    """
+    if y.size < sr * 5:
+        raise ValueError("clip too short for tempo estimation")
+    oenv = librosa.onset.onset_strength(y=y, sr=sr, hop_length=_TEMPO_HOP)
+    if not np.any(oenv > 0):
+        raise ValueError("no onset energy (silent clip)")
+    bpm = float(np.atleast_1d(librosa.feature.tempo(
+        onset_envelope=oenv, sr=sr, hop_length=_TEMPO_HOP, start_bpm=120.0))[0])
+
+    # Parabolic refinement of the autocorrelation peak near the coarse estimate
+    ac = librosa.autocorrelate(oenv - oenv.mean(), max_size=int(sr / _TEMPO_HOP * 60.0 / 40.0))
+    lag0 = 60.0 * sr / (_TEMPO_HOP * bpm)
+    lo, hi = max(2, int(lag0 * 0.95)), min(len(ac) - 2, int(np.ceil(lag0 * 1.05)))
+    if hi > lo:
+        k = lo + int(np.argmax(ac[lo:hi + 1]))
+        a, b, c = ac[k - 1], ac[k], ac[k + 1]
+        denom = a - 2 * b + c
+        lag = k + (0.5 * (a - c) / denom if denom < 0 else 0.0)
+        bpm = 60.0 * sr / (_TEMPO_HOP * lag)
+
+    if not np.isfinite(bpm) or bpm <= 0:
+        raise ValueError("tempo estimation failed")
+    while bpm > _TEMPO_FOLD[1]:
+        bpm /= 2.0
+    while bpm < _TEMPO_FOLD[0]:
+        bpm *= 2.0
+    return float(bpm)
+
+
+def _estimate_instrumentalness(y: np.ndarray, sr: int) -> float:
+    """Vocal-presence estimate mapped to 0..1 (1 = instrumental).
+
+    REPET-SIM style separation (librosa vocal-separation example): a median of the most
+    similar frames (nn_filter, cosine, +-2 s) models the repeating accompaniment; what does
+    not repeat (mostly lead vocals) is the foreground. The median per-frame share of
+    foreground energy is low for instrumentals and higher for sung tracks, and is mapped
+    through a monotone logistic. Calibrated on 12 instrumental-titled vs 60 random songs
+    (AUC ~0.79; vocal median ~0.17 -> ~0.3, instrumental median ~0.10 -> ~0.6).
+    """
+    n_fft, hop = 2048, 1024
+    mag = np.abs(librosa.stft(y, n_fft=n_fft, hop_length=hop))
+    if mag.shape[1] < 8 or not np.any(mag > 0):
+        raise ValueError("clip too short/silent for instrumentalness estimation")
+    width = int(librosa.time_to_frames(2.0, sr=sr, hop_length=hop))
+    repeating = librosa.decompose.nn_filter(mag, aggregate=np.median, metric="cosine", width=width)
+    repeating = np.minimum(mag, repeating)
+    foreground = librosa.util.softmask(mag - repeating, 2.0 * repeating, power=2) * mag
+    frame_share = np.sum(foreground ** 2, axis=0) / (np.sum(mag ** 2, axis=0) + 1e-12)
+    share = float(np.median(frame_share))
+    return float(1.0 / (1.0 + np.exp((share - 0.12) / 0.06)))
+
+
 def extract_audio_features(file_path: str) -> Dict[str, float]:
     """
     Extract audio features from a file using librosa & numpy signal analysis.
@@ -129,13 +191,8 @@ def extract_audio_features(file_path: str) -> Dict[str, float]:
                 y, sr = librosa.load(file_path, sr=sr, mono=True,
                                      offset=clip_start, duration=clip_duration)
             except Exception as e:
-                print(f"⚠ Could not load audio file {file_path}: {e}")
-                return {
-                    "duration_ms": duration_ms,
-                    "tempo": 120.0, "energy": 0.5, "danceability": 0.5,
-                    "valence": 0.5, "acousticness": 0.5, "instrumentalness": 0.5,
-                    "key": 0, "mode": 1,
-                }
+                # Never return placeholder features: callers would store them as real analysis.
+                raise RuntimeError(f"Could not load audio file {file_path}: {e}") from e
         finally:
             if tmp_wav and os.path.exists(tmp_wav):
                 try:
@@ -153,28 +210,9 @@ def extract_audio_features(file_path: str) -> Dict[str, float]:
     # Zero Crossing Rate (ZCR) — numpy only, instant
     zcr_val = float(np.mean(np.abs(np.diff(np.sign(y))) > 0))
 
-    # Fast tempo estimate via autocorrelation of energy envelope
-    # Much faster than librosa.beat.beat_track (~0.1s vs 10-30s)
-    try:
-        frame_len = int(sr * 0.05)  # 50ms frames
-        hop = frame_len // 2
-        # RMS energy per frame
-        frames = np.array([
-            float(np.sqrt(np.mean(y[i:i+frame_len]**2)))
-            for i in range(0, len(y) - frame_len, hop)
-        ])
-        # Autocorrelation to find beat period
-        corr = np.correlate(frames, frames, mode='full')
-        corr = corr[len(corr)//2:]
-        # BPM range 60-200 → period range in frames
-        min_lag = max(1, int((sr / hop) * 60 / 200))
-        max_lag = int((sr / hop) * 60 / 60)
-        if max_lag > len(corr):
-            max_lag = len(corr)
-        best_lag = np.argmax(corr[min_lag:max_lag]) + min_lag
-        tempo = float(np.clip((sr / hop) * 60.0 / best_lag, 60.0, 200.0))
-    except Exception:
-        tempo = 120.0
+    # Tempo from the onset-strength envelope (see _estimate_tempo). Raises on failure:
+    # callers must never store a placeholder BPM as if it were analysed.
+    tempo = _estimate_tempo(y, sr)
 
     # Fast spectral centroid via FFT — numpy only, instant
     try:
@@ -192,7 +230,7 @@ def extract_audio_features(file_path: str) -> Dict[str, float]:
     base_valence = float(np.clip((sc_mean - 1000.0) / 3000.0, 0.0, 1.0))
     valence = float(np.clip(base_valence * 0.7 + energy * 0.3, 0.0, 1.0))
     
-    instrumentalness = float(np.clip((1.0 - zcr_val) * 0.5 + 0.3, 0.0, 1.0))
+    instrumentalness = float(np.clip(_estimate_instrumentalness(y, sr), 0.0, 1.0))
     key = int(np.argmax(np.abs(np.fft.rfft(y[:min(len(y), 22050)]))) % 12)
     mode = 1 if np.mean(y) >= 0 else 0
 

@@ -65,6 +65,20 @@ def find_best_model_path(default_path: str = MODEL_PATH) -> str:
     return candidates[0]
 
 
+def format_genre_label(all_scores: dict, second_min_prob: float = 0.35) -> str:
+    """Genre label for storage: the top genre, plus the runner-up only if it is clearly present.
+
+    all_scores maps genre -> probability. Returns "" when there are no scores.
+    """
+    ranked = sorted(all_scores.items(), key=lambda kv: kv[1], reverse=True)
+    if not ranked:
+        return ""
+    label = [ranked[0][0]]
+    if len(ranked) > 1 and ranked[1][1] >= second_min_prob:
+        label.append(ranked[1][0])
+    return ", ".join(label)
+
+
 class CnnSpectrogramClassifier:
     def __init__(self, model_path: str = None):
         if not HAS_TORCH:
@@ -192,9 +206,12 @@ class CnnSpectrogramClassifier:
                 y_np = np.pad(y_np, (0, pad))
                 
             # Convert to Mel-Spectrogram
+            # Match torchaudio.transforms.MelSpectrogram defaults used in training:
+            # HTK mel scale, no filter-bank normalisation, reflect padding (librosa defaults differ).
             S = librosa.feature.melspectrogram(
                 y=y_np, sr=self.sample_rate, n_fft=self.n_fft,
-                hop_length=self.hop_length, n_mels=self.n_mels
+                hop_length=self.hop_length, n_mels=self.n_mels,
+                htk=True, norm=None, pad_mode='reflect'
             )
             S_db = librosa.power_to_db(S, ref=np.max)
             mel = torch.tensor(S_db).unsqueeze(0).to(self.device)

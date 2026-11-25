@@ -84,9 +84,13 @@ export const createPlaylistModal = document.getElementById('createPlaylistModal'
 
 export const createPlaylistName = document.getElementById('createPlaylistName');
 
-export const createPlaylistImageUrl = document.getElementById('createPlaylistImageUrl');
+export const createPlaylistCoverInput = document.getElementById('createPlaylistCoverInput');
 
-export const createPlaylistSongs = document.getElementById('createPlaylistSongs');
+export const createPlaylistCoverPreview = document.getElementById('createPlaylistCoverPreview');
+
+export const createPlaylistCoverPickBtn = document.getElementById('createPlaylistCoverPickBtn');
+
+export const createPlaylistCoverRemoveBtn = document.getElementById('createPlaylistCoverRemoveBtn');
 
 export const cancelCreatePlaylistButton = document.getElementById('cancelCreatePlaylistButton');
 
