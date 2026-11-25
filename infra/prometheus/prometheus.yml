@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s      # how often metrics are collected
+  evaluation_interval: 15s  # how often alert rules are checked
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  # Prometheus watching itself
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Spring Boot metrics (management port, only reachable inside the Docker network)
+  - job_name: spotifake-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['backend:8081']

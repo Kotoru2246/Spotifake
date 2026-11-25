@@ -20,8 +20,8 @@ RUN mkdir -p /app/uploads /app/music
 # Copy built JAR artifact from builder
 COPY --from=builder /build/target/spotifake-backend-2.0.0.jar app.jar
 
-# Expose Player (8000) and Admin (9000) ports
-EXPOSE 8000 9000
+# Expose Player (8000), Admin (9000) and metrics (8081) ports
+EXPOSE 8000 9000 8081
 
 # Set environment variables
 ENV SPRING_PROFILES_ACTIVE=prod \

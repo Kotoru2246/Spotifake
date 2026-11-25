@@ -1,0 +1,10 @@
+# "kubectl apply -k infra/k8s" applies every file listed here into the spotifake namespace
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: spotifake
+resources:
+  - namespace.yaml
+  - backend.yaml
+  - ai.yaml
+  - essentia.yaml
+  - prometheus.yaml

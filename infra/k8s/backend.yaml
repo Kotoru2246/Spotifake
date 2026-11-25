@@ -1,0 +1,92 @@
+# PersistentVolumeClaim: asks the cluster for disk space that survives pod restarts.
+# It starts empty; it is NOT your local backendai.db.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1            # SQLite allows only one writer, so do not scale this one
+  strategy:
+    type: Recreate       # stop the old pod before starting the new one (same database file)
+  selector:
+    matchLabels: { app: backend }
+  template:
+    metadata:
+      labels: { app: backend }
+    spec:
+      initContainers:
+        # The app needs the database file to exist, otherwise it picks another path
+        - name: init-db
+          image: spotifake-backend:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "touch /app/data/backendai.db"]
+          volumeMounts:
+            - { name: data, mountPath: /app/data, subPath: db }
+      containers:
+        - name: backend
+          image: spotifake-backend:latest
+          imagePullPolicy: IfNotPresent   # use the locally built image
+          ports:
+            - { name: web, containerPort: 8000 }
+            - { name: admin, containerPort: 9000 }
+            - { name: metrics, containerPort: 8081 }
+          env:
+            - { name: SPRING_DATASOURCE_URL, value: "jdbc:sqlite:/app/data/backendai.db" }
+            - { name: APP_DB_PATH, value: /app/data/backendai.db }
+            - { name: APP_UPLOADS_DIR, value: /app/uploads }
+            - { name: AI_SERVICE_URL, value: "http://backendai:5000" }
+            - { name: MANAGEMENT_ADDRESS, value: "0.0.0.0" }
+            - name: INTERNAL_API_TOKEN
+              valueFrom:
+                secretKeyRef: { name: spotifake-secrets, key: internal-api-token }
+          volumeMounts:
+            - { name: data, mountPath: /app/data, subPath: db }
+            - { name: data, mountPath: /app/uploads, subPath: uploads }
+            - { name: data, mountPath: /app/music, subPath: music }
+          startupProbe:          # gives Spring Boot up to 2 minutes to start
+            httpGet: { path: /actuator/health, port: metrics }
+            periodSeconds: 5
+            failureThreshold: 24
+          readinessProbe:        # no traffic until this passes
+            httpGet: { path: /actuator/health, port: metrics }
+            periodSeconds: 10
+          livenessProbe:         # restart the container if this keeps failing
+            httpGet: { path: /actuator/health, port: metrics }
+            periodSeconds: 20
+      volumes:
+        - name: data
+          persistentVolumeClaim: { claimName: backend-data }
+---
+# Service: a stable name ("backend") for the pod, reachable only inside the cluster (ClusterIP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  selector: { app: backend }
+  ports:
+    - { name: web, port: 8000, targetPort: web }
+    - { name: admin, port: 9000, targetPort: admin }
+    - { name: metrics, port: 8081, targetPort: metrics }
+---
+# NodePort: opens only the web and admin ports to your machine; metrics stay internal
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-public
+spec:
+  type: NodePort
+  selector: { app: backend }
+  ports:
+    - { name: web, port: 8000, targetPort: web, nodePort: 30085 }
+    - { name: admin, port: 9000, targetPort: admin, nodePort: 30905 }

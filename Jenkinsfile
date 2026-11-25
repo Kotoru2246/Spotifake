@@ -3,11 +3,16 @@ pipeline {
     tools {
         maven 'maven3'
     }
+    parameters {
+        string(name: 'DATA_DIR', defaultValue: '/c/Users/jacky/.gemini/antigravity-ide/scratch/Spotifake',
+               description: 'Host folder containing backendai.db, uploads/ and music/')
+    }
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         IMAGE_NAME = 'spotifake-backend'
-        CONTAINER_NAME = 'spotifake-app'
-        PROJECT_DIR = '/c/Users/jacky/.gemini/antigravity-ide/scratch/Spotifake'
+        DATA_DIR = "${params.DATA_DIR}"
+        // Jenkins "Secret text" credential with this ID must exist
+        INTERNAL_API_TOKEN = credentials('spotifake-internal-token')
     }
     stages {
         stage('Checkout') {
@@ -39,17 +44,9 @@ pipeline {
                 }
             }
         }
-        stage('Build Docker Image') {
-            steps {
-                echo '=== Bước 3: Đóng gói Docker Container ==='
-                sh "docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${BUILD_NUMBER} ./BackendSpringBoot"
-                echo "=== Docker Images ==="
-                sh "docker images | grep ${IMAGE_NAME} || true"
-            }
-        }
         stage('SonarQube Analysis') {
             steps {
-                echo '=== Bước 4: Quét mã nguồn SonarQube ==='
+                echo '=== Bước 3: Quét mã nguồn SonarQube ==='
                 withSonarQubeEnv('SonarQube') {
                     sh '"$SCANNER_HOME/bin/sonar-scanner"'
                 }
@@ -57,26 +54,29 @@ pipeline {
         }
         stage('Quality Gate') {
             steps {
-                echo '=== Bước 5: Kiểm tra Quality Gate ==='
+                echo '=== Bước 4: Kiểm tra Quality Gate (không đạt thì dừng) ==='
+                // Needs a SonarQube webhook pointing to <jenkins-url>/sonarqube-webhook/
                 timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: false
+                    waitForQualityGate abortPipeline: true
                 }
+            }
+        }
+        stage('Build Docker Images') {
+            steps {
+                echo '=== Bước 5: Đóng gói Docker Containers ==='
+                sh 'docker compose build'
+                sh "docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:${BUILD_NUMBER}"
+                sh "docker images | grep spotifake || true"
             }
         }
         stage('Auto-Deploy') {
             steps {
-                echo '=== Bước 6: Tự động triển khai (Auto-Deploy) Container ==='
-                sh """
-                    docker rm -f ${CONTAINER_NAME} || true
-                    docker run -d --name ${CONTAINER_NAME} --restart unless-stopped \
-                        -p 8085:8000 -p 9005:9000 \
-                        -v "${PROJECT_DIR}/backendai.db:/app/backendai.db" \
-                        -v "${PROJECT_DIR}/uploads:/app/uploads" \
-                        -v "${PROJECT_DIR}/music:/app/music" \
-                        ${IMAGE_NAME}:latest
-                """
+                echo '=== Bước 6: Tự động triển khai bằng Docker Compose ==='
+                // spotifake-app is the container the old "docker run" deploy created; it holds port 8085
+                sh 'docker rm -f spotifake-app || true'
+                sh 'docker compose up -d --remove-orphans'
                 echo '=== Running Containers ==='
-                sh "docker ps | grep ${CONTAINER_NAME} || true"
+                sh 'docker compose ps'
             }
         }
     }

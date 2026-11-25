@@ -1,0 +1,8 @@
+target/
+uploads/
+music/
+.env
+*.db
+*.db-shm
+*.db-wal
+*.log

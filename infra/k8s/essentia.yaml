@@ -1,0 +1,33 @@
+# Node.js audio analysis service. It has no state, so it can run several replicas.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: essentia
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: essentia }
+  template:
+    metadata:
+      labels: { app: essentia }
+    spec:
+      containers:
+        - name: essentia
+          image: spotifake-essentia:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet: { path: /health, port: 3000 }
+          livenessProbe:
+            httpGet: { path: /health, port: 3000 }
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: essentia
+spec:
+  selector: { app: essentia }
+  ports:
+    - { port: 3000, targetPort: 3000 }
