@@ -5,7 +5,8 @@
 | Dockerfile | `BackendSpringBoot/Dockerfile`, `BackendAI/Dockerfile`, `EssentiaService/Dockerfile` |
 | Docker Compose | `docker-compose.yml`, `.env.example` |
 | Jenkins | `Jenkinsfile` |
-| Prometheus | `infra/prometheus/` |
+| Prometheus, Blackbox | `infra/prometheus/` |
+| Grafana | `infra/grafana/` |
 | Kubernetes | `infra/k8s/` |
 
 Lệnh bên dưới chạy trong PowerShell, tại thư mục gốc dự án.
@@ -14,25 +15,29 @@ Lệnh bên dưới chạy trong PowerShell, tại thư mục gốc dự án.
 
 Job `spotifake` lấy code từ nhánh `main` trên GitHub, nên thay đổi trên máy chỉ có tác dụng sau khi push.
 
-1. Commit và push.
-2. Jenkins → Manage Jenkins → Credentials → Add: loại **Secret text**, ID `spotifake-internal-token`,
-   giá trị là một chuỗi dài ngẫu nhiên.
-3. SonarQube → Administration → Configuration → Webhooks → Create:
-   URL `http://portal-jenkins:8080/sonarqube-webhook/` (hai container cùng mạng `cicd-portal`).
-   Nếu Jenkins được đặt đường dẫn phụ (prefix) thì thêm vào trước `/sonarqube-webhook/`.
-4. Tắt chương trình đang dùng cổng 3000 và 5000 trên máy (bản Essentia và AI chạy ngoài Docker).
-5. Mở http://localhost:8089 → job `spotifake` → Build Now.
-   Lần đầu Jenkins chưa biết tham số `DATA_DIR` và dùng giá trị mặc định trong Jenkinsfile.
+Jenkins tự tạo `INTERNAL_API_TOKEN` và mật khẩu Grafana trong workspace, không cần tạo credential.
+
+1. Chuẩn bị thư mục dữ liệu cho bản triển khai (mặc định `C:\Users\jacky\SpotifakeDemo`) chứa một bản sao
+   `backendai.db`. Không trỏ vào database mà backend chạy ngoài Docker đang dùng.
+   Nhạc lấy từ `E:\Spotifake\uploads` và `E:\Spotifake\music` (tham số `UPLOADS_DIR`, `MUSIC_DIR`).
+2. SonarQube cần webhook về Jenkins để bước Quality Gate nhận kết quả:
+   `http://portal-jenkins:8080/sonarqube-webhook/` (hai container cùng mạng `cicd-portal`).
+3. Mở http://localhost:8089 → job `spotifake` → Build Now (hoặc Build with Parameters).
+
+| Dịch vụ | Địa chỉ |
+|---|---|
+| Web | http://localhost:8085 |
+| Prometheus | http://localhost:9090 (chỉ máy này) |
+| Grafana | http://localhost:3030 (chỉ máy này, xem không cần đăng nhập) |
 
 Lỗi thường gặp:
 
 | Dấu hiệu | Nguyên nhân |
 |---|---|
-| `spotifake-internal-token` not found | Chưa làm bước 2 |
-| Quality Gate chờ 5 phút rồi dừng | Webhook ở bước 3 sai hoặc chưa có |
-| `port is already allocated` | Chưa làm bước 4 |
+| Quality Gate chờ 5 phút rồi dừng | Webhook ở bước 2 sai hoặc chưa có |
+| `backendai.db` thành thư mục trong container | Thư mục ở bước 1 chưa có file database |
 
-Image do Jenkins build không có file model `.pth` / `.joblib` (git bỏ qua), nên AI không nhận diện được thể loại.
+Image do Jenkins build không có file model `.pth` / `.joblib` (git bỏ qua), nên AI dùng cách phân loại dự phòng.
 
 ## Chạy Kubernetes (Docker Desktop)
 

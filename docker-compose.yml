@@ -1,7 +1,9 @@
 name: spotifake
 
 # Needs INTERNAL_API_TOKEN (copy .env.example to .env).
-# DATA_DIR is the host folder holding backendai.db, uploads/ and music/ (default: this folder).
+# DATA_DIR is the host folder holding backendai.db (default: this folder);
+# UPLOADS_DIR and MUSIC_DIR default to DATA_DIR/uploads and DATA_DIR/music.
+# Only the web (8085/9005), Prometheus and Grafana are published; the rest stays inside spotifake-net.
 services:
   backend:
     build:
@@ -23,8 +25,8 @@ services:
       - MANAGEMENT_ADDRESS=0.0.0.0   # port 8081 is not published; only the Docker network sees it
     volumes:
       - ${DATA_DIR:-.}/backendai.db:/app/backendai.db
-      - ${DATA_DIR:-.}/uploads:/app/uploads
-      - ${DATA_DIR:-.}/music:/app/music
+      - ${UPLOADS_DIR:-${DATA_DIR:-.}/uploads}:/app/uploads
+      - ${MUSIC_DIR:-${DATA_DIR:-.}/music}:/app/music
     depends_on:
       - essentia
       - backendai
@@ -44,10 +46,8 @@ services:
     image: spotifake-essentia:latest
     container_name: spotifake-essentia
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     volumes:
-      - ${DATA_DIR:-.}/uploads:/app/uploads:ro
+      - ${UPLOADS_DIR:-${DATA_DIR:-.}/uploads}:/app/uploads:ro
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/health"]
       interval: 15s
@@ -63,14 +63,12 @@ services:
     image: spotifake-ai:latest
     container_name: spotifake-ai
     restart: unless-stopped
-    ports:
-      - "5000:5000"
     environment:
       - INTERNAL_API_TOKEN=${INTERNAL_API_TOKEN:?set INTERNAL_API_TOKEN in .env, see .env.example}
     # backendai.db is deliberately NOT mounted here: two containers writing one SQLite file in WAL mode,
     # each with its own -wal file, can corrupt it. /internal/analyze does not write to the database.
     volumes:
-      - ${DATA_DIR:-.}/uploads:/app/uploads:ro
+      - ${UPLOADS_DIR:-${DATA_DIR:-.}/uploads}:/app/uploads:ro
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/health"]
       interval: 15s
@@ -87,17 +85,48 @@ services:
     container_name: spotifake-prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - prometheus-data:/prometheus
     depends_on:
       backend:
         condition: service_healthy
+      blackbox:
+        condition: service_started
+    networks:
+      - spotifake-net
+
+  # Checks that the web page, the AI service and Essentia answer HTTP 2xx
+  blackbox:
+    image: prom/blackbox-exporter:v0.27.0
+    container_name: spotifake-blackbox
+    restart: unless-stopped
+    networks:
+      - spotifake-net
+
+  grafana:
+    build:
+      context: ./infra/grafana
+    image: spotifake-grafana:latest
+    container_name: spotifake-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3030:3000"   # host port 3030: 3000 is often taken by a local Essentia
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env, see .env.example}
+      - GF_AUTH_ANONYMOUS_ENABLED=true      # read-only viewing without login (port bound to this machine only)
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/spotifake.json
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
     networks:
       - spotifake-net
 
 volumes:
   prometheus-data:
+  grafana-data:
 
 networks:
   spotifake-net:

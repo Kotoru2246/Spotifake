@@ -16,3 +16,11 @@ groups:
           severity: warning
         annotations:
           summary: Backend is returning HTTP 5xx errors
+
+      - alert: ServiceProbeFailed
+        expr: probe_success{job="spotifake-http"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.instance }} does not answer with HTTP 2xx"

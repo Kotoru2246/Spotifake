@@ -16,3 +16,21 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['backend:8081']
+
+  # HTTP checks through Blackbox Exporter: web page, AI service and Essentia health
+  - job_name: spotifake-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://backend:8000/
+          - http://backendai:5000/health
+          - http://essentia:3000/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
