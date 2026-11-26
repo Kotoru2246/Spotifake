@@ -1,4 +1,4 @@
-# Spotifake
+# 2 test
 
 A Spotify-style music streaming app: web player, artist studio, admin dashboard, Stripe test-mode
 subscriptions, synced lyrics, smart shuffle and an album downloader.
