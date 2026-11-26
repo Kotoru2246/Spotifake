@@ -1,0 +1,183 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e7]:
+        - button "Go back" [disabled] [ref=f1e8]
+        - button "Go forward" [disabled] [ref=f1e11]
+      - button "Home" [ref=f1e14] [cursor=pointer]
+      - generic [ref=f1e17]:
+        - textbox "What do you want to play?" [ref=f1e21]
+        - button "Browse All" [ref=f1e22] [cursor=pointer]
+    - generic [ref=f1e25]:
+      - button "Explore Premium" [ref=f1e26] [cursor=pointer]
+      - button "What's New" [ref=f1e27] [cursor=pointer]
+      - generic [ref=f1e30]:
+        - generic [ref=f1e31]: Not signed in
+        - button "Log In" [ref=f1e35] [cursor=pointer]
+        - button "Sign Up" [ref=f1e36] [cursor=pointer]
+  - generic [ref=f1e39]:
+    - generic [ref=f1e40]:
+      - generic [ref=f1e41]:
+        - generic [ref=f1e42]: S
+        - generic [ref=f1e43]:
+          - heading "Sign in to Spotifake" [level=2] [ref=f1e44]
+          - paragraph [ref=f1e45]: Connect with real JWT authentication & SQL Server.
+      - button "✕" [ref=f1e46] [cursor=pointer]
+    - generic [ref=f1e47]:
+      - button "Sign In" [ref=f1e48] [cursor=pointer]
+      - button "Sign Up" [ref=f1e49] [cursor=pointer]
+    - generic [ref=f1e50]:
+      - heading "Demo Credentials (Quick Select)" [level=3] [ref=f1e51]
+      - generic [ref=f1e53]:
+        - generic [ref=f1e54]: User
+        - text: user_test / User@123
+      - generic [ref=f1e56]:
+        - generic [ref=f1e57]: Artist
+        - text: artist_test / Artist@123
+      - generic [ref=f1e59]:
+        - generic [ref=f1e60]: Admin
+        - text: admin_test / Admin@123
+    - generic [ref=f1e61]:
+      - generic [ref=f1e62]:
+        - generic [ref=f1e63]: Username
+        - textbox "Username" [ref=f1e64]:
+          - /placeholder: Enter username
+          - text: user_test
+      - generic [ref=f1e65]:
+        - generic [ref=f1e66]: Password
+        - textbox "Password" [ref=f1e67]:
+          - /placeholder: Enter password
+          - text: User@123
+      - button "Login" [ref=f1e68] [cursor=pointer]
+  - text: Choose photo
+  - generic [ref=f1e71]:
+    - complementary [ref=f1e72]:
+      - generic [ref=f1e73]:
+        - button "Home" [ref=f1e74] [cursor=pointer]
+        - button "Your Library" [ref=f1e77] [cursor=pointer]
+        - button "Create playlist or manage playlists" [ref=f1e81] [cursor=pointer]
+      - generic [ref=f1e84]:
+        - generic "Liked Songs" [ref=f1e85] [cursor=pointer]
+        - generic [ref=f1e89]:
+          - generic "Phonk Hits" [ref=f1e90] [cursor=pointer]: 🔥
+          - generic "Chill Lofi" [ref=f1e93] [cursor=pointer]: 🎧
+          - generic "Discover Weekly" [ref=f1e96] [cursor=pointer]: ✨
+        - button "⬇️" [ref=f1e99] [cursor=pointer]
+    - main [ref=f1e101]:
+      - generic [ref=f1e102]:
+        - generic [ref=f1e104]:
+          - button "All" [ref=f1e105] [cursor=pointer]
+          - button "Music" [ref=f1e106] [cursor=pointer]
+          - button "Podcasts" [ref=f1e107] [cursor=pointer]
+        - heading "Good evening" [level=1] [ref=f1e108]
+        - generic "Liked Songs" [ref=f1e110] [cursor=pointer]:
+          - generic [ref=f1e114]:
+            - generic: Liked Songs
+            - generic: Playlist
+          - generic "Play Liked Songs" [ref=f1e115]: ▶
+        - generic [ref=f1e116]:
+          - generic [ref=f1e117]:
+            - heading "Made For You" [level=2] [ref=f1e118]
+            - link "Show all" [ref=f1e119] [cursor=pointer]:
+              - /url: javascript:void(0)
+          - generic [ref=f1e120]:
+            - button "Daily Mix 1 Play Daily Mix 1 Daily Mix 1 Ngọt and more" [ref=f1e121] [cursor=pointer]:
+              - generic [ref=f1e122]:
+                - img "Daily Mix 1" [ref=f1e123]
+                - button "Play Daily Mix 1" [ref=f1e124]
+              - generic [ref=f1e127]: Daily Mix 1
+              - generic [ref=f1e128]: Ngọt and more
+            - button "Daily Mix 2 Play Daily Mix 2 Daily Mix 2 Sam Smith and more" [ref=f1e129] [cursor=pointer]:
+              - generic [ref=f1e130]:
+                - img "Daily Mix 2" [ref=f1e131]
+                - button "Play Daily Mix 2" [ref=f1e132]
+              - generic [ref=f1e135]: Daily Mix 2
+              - generic [ref=f1e136]: Sam Smith and more
+            - button "Daily Mix 3 Play Daily Mix 3 Daily Mix 3 Upbeat energy hits to keep you going" [ref=f1e137] [cursor=pointer]:
+              - generic [ref=f1e138]:
+                - img "Daily Mix 3" [ref=f1e139]
+                - button "Play Daily Mix 3" [ref=f1e140]
+              - generic [ref=f1e143]: Daily Mix 3
+              - generic [ref=f1e144]: Upbeat energy hits to keep you going
+            - button "Daily Mix 4 Play Daily Mix 4 Daily Mix 4 Relaxing acoustic and chill tunes" [ref=f1e145] [cursor=pointer]:
+              - generic [ref=f1e146]:
+                - img "Daily Mix 4" [ref=f1e147]
+                - button "Play Daily Mix 4" [ref=f1e148]
+              - generic [ref=f1e151]: Daily Mix 4
+              - generic [ref=f1e152]: Relaxing acoustic and chill tunes
+            - button "Discover Weekly Play Discover Weekly Discover Weekly New music based on your listening" [ref=f1e153] [cursor=pointer]:
+              - generic [ref=f1e154]:
+                - img "Discover Weekly" [ref=f1e155]
+                - button "Play Discover Weekly" [ref=f1e156]
+              - generic [ref=f1e159]: Discover Weekly
+              - generic [ref=f1e160]: New music based on your listening
+        - generic [ref=f1e162]:
+          - heading "Popular Albums" [level=2] [ref=f1e163]
+          - link "Show all" [ref=f1e164] [cursor=pointer]:
+            - /url: javascript:void(0)
+        - generic [ref=f1e165]:
+          - generic [ref=f1e166]:
+            - heading "Featured Playlists" [level=2] [ref=f1e167]
+            - link "Show all" [ref=f1e168] [cursor=pointer]:
+              - /url: javascript:void(0)
+          - generic [ref=f1e169]:
+            - generic "Today's Top Hits - The most played tracks right now" [ref=f1e170] [cursor=pointer]:
+              - generic [ref=f1e171]:
+                - img "Today's Top Hits" [ref=f1e172]
+                - button "Play Today's Top Hits" [ref=f1e173]
+              - generic [ref=f1e176]: Today's Top Hits
+              - generic [ref=f1e177]: The most played tracks right now
+            - generic "Best of Indie Việt - Thắng, Ngọt, Thịnh Suy, and more" [ref=f1e178] [cursor=pointer]:
+              - generic [ref=f1e179]:
+                - img "Best of Indie Việt" [ref=f1e180]
+                - button "Play Best of Indie Việt" [ref=f1e181]
+              - generic [ref=f1e184]: Best of Indie Việt
+              - generic [ref=f1e185]: Thắng, Ngọt, Thịnh Suy, and more
+    - complementary [ref=f1e186]:
+      - generic [ref=f1e187]:
+        - heading "Now Playing" [level=3] [ref=f1e188]
+        - button "×" [ref=f1e189] [cursor=pointer]
+      - generic [ref=f1e191]:
+        - generic [ref=f1e192]: ♪
+        - generic [ref=f1e195]:
+          - generic [ref=f1e196]:
+            - generic [ref=f1e197]: Title
+            - generic [ref=f1e198]: Artist
+          - button "+" [ref=f1e199] [cursor=pointer]
+          - button "..." [ref=f1e200] [cursor=pointer]
+        - generic [ref=f1e201]:
+          - generic [ref=f1e202]:
+            - heading "Credits" [level=4] [ref=f1e203]
+            - button "Show all" [ref=f1e204] [cursor=pointer]
+          - generic [ref=f1e205]:
+            - generic [ref=f1e206]:
+              - generic [ref=f1e207]: Artist
+              - generic [ref=f1e208]: Main Artist
+            - button "Follow" [ref=f1e209] [cursor=pointer]
+  - contentinfo [ref=f1e210]:
+    - generic [ref=f1e211]:
+      - generic [ref=f1e212]: ♪
+      - generic [ref=f1e213]:
+        - generic [ref=f1e214]: No Track Selected
+        - generic [ref=f1e215]: Upload audio to begin
+      - button "Save to Liked Songs" [ref=f1e216] [cursor=pointer]
+      - button "+" [ref=f1e219] [cursor=pointer]
+    - generic [ref=f1e220]:
+      - generic [ref=f1e221]:
+        - button "Shuffle off" [ref=f1e222] [cursor=pointer]
+        - button "⏮" [ref=f1e225] [cursor=pointer]
+        - button "Play" [ref=f1e226] [cursor=pointer]: ▶
+        - button "⏭" [ref=f1e227] [cursor=pointer]
+        - button "Enable repeat" [ref=f1e228] [cursor=pointer]
+      - generic [ref=f1e231]:
+        - generic [ref=f1e232]: 0:00
+        - generic [ref=f1e233] [cursor=pointer]
+        - generic [ref=f1e234]: 0:00
+    - generic [ref=f1e235]:
+      - button "Report Song / Issue" [ref=f1e236] [cursor=pointer]
+      - button "Lyrics" [ref=f1e239] [cursor=pointer]
+      - button "Queue" [ref=f1e242] [cursor=pointer]
+      - button "Mini Player" [ref=f1e245] [cursor=pointer]
+      - generic [ref=f1e248]:
+        - button "Mute" [ref=f1e249] [cursor=pointer]
+        - slider [ref=f1e253]: "72"

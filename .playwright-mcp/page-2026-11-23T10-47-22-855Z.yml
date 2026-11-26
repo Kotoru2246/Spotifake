@@ -1,0 +1,229 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: 📢
+      - generic [ref=e5]: Welcome to Spotifake 2.0 — Experience all-new AI smart radios, synchronized lyrics, and lossless audio streaming!
+    - button "×" [ref=e6] [cursor=pointer]
+  - banner [ref=e7]:
+    - generic [ref=e11]:
+      - button "Home" [ref=e12] [cursor=pointer]
+      - generic [ref=e15]:
+        - textbox "What do you want to play?" [ref=e19]
+        - button "Browse All" [ref=e20] [cursor=pointer]
+    - generic [ref=e23]:
+      - button "Explore Premium" [ref=e24] [cursor=pointer]
+      - button "1" [ref=e25] [cursor=pointer]
+      - generic [ref=e29]:
+        - generic [ref=e30]: Not signed in
+        - button "Log In" [ref=e34] [cursor=pointer]
+        - button "Sign Up" [ref=e35] [cursor=pointer]
+  - generic [ref=e38]:
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]: S
+        - generic [ref=e42]:
+          - heading "Sign in to Spotifake" [level=2] [ref=e43]
+          - paragraph [ref=e44]: Connect with real JWT authentication & SQL Server.
+      - button "✕" [ref=e45] [cursor=pointer]
+    - generic [ref=e46]:
+      - button "Sign In" [ref=e47] [cursor=pointer]
+      - button "Sign Up" [ref=e48] [cursor=pointer]
+    - generic [ref=e49]:
+      - heading "Demo Credentials (Quick Select)" [level=3] [ref=e50]
+      - generic [ref=e52]:
+        - generic [ref=e53]: User
+        - text: user_test / User@123
+      - generic [ref=e55]:
+        - generic [ref=e56]: Artist
+        - text: artist_test / Artist@123
+      - generic [ref=e58]:
+        - generic [ref=e59]: Admin
+        - text: admin_test / Admin@123
+    - generic [ref=e60]:
+      - generic [ref=e61]:
+        - generic [ref=e62]: Username
+        - textbox "Username" [ref=e63]:
+          - /placeholder: Enter username
+          - text: user_test
+      - generic [ref=e64]:
+        - generic [ref=e65]: Password
+        - textbox "Password" [ref=e66]:
+          - /placeholder: Enter password
+          - text: User@123
+      - button "Login" [ref=e67] [cursor=pointer]
+  - text: Choose photo
+  - generic [ref=e70]:
+    - complementary [ref=e71]:
+      - generic [ref=e72]:
+        - button "Home" [ref=e73] [cursor=pointer]
+        - button "Your Library" [ref=e76] [cursor=pointer]
+        - button "Create playlist or manage playlists" [ref=e80] [cursor=pointer]
+      - generic [ref=e83]:
+        - generic "Liked Songs" [ref=e84] [cursor=pointer]
+        - generic [ref=e88]:
+          - generic "Phonk Hits" [ref=e89] [cursor=pointer]: 🔥
+          - generic "Chill Lofi" [ref=e92] [cursor=pointer]: 🎧
+          - generic "Discover Weekly" [ref=e95] [cursor=pointer]: ✨
+        - button "⬇️" [ref=e98] [cursor=pointer]
+    - main [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e103]:
+          - button "All" [ref=e104] [cursor=pointer]
+          - button "Music" [ref=e105] [cursor=pointer]
+          - button "Podcasts" [ref=e106] [cursor=pointer]
+        - heading "Good afternoon" [level=1] [ref=e107]
+        - generic "Liked Songs" [ref=e109] [cursor=pointer]:
+          - generic [ref=e113]:
+            - generic: Liked Songs
+            - generic: Playlist
+          - generic "Play Liked Songs" [ref=e114]: ▶
+        - generic [ref=e115]:
+          - generic [ref=e116]:
+            - heading "Made For You" [level=2] [ref=e117]
+            - link "Show all" [ref=e118] [cursor=pointer]:
+              - /url: javascript:void(0)
+          - generic [ref=e119]:
+            - button "Daily Mix 1 Play Daily Mix 1 Daily Mix 1 Ngọt and more" [ref=e120] [cursor=pointer]:
+              - generic [ref=e121]:
+                - img "Daily Mix 1" [ref=e122]
+                - button "Play Daily Mix 1" [ref=e123]
+              - generic [ref=e126]: Daily Mix 1
+              - generic [ref=e127]: Ngọt and more
+            - button "Daily Mix 2 Play Daily Mix 2 Daily Mix 2 Sam Smith and more" [ref=e128] [cursor=pointer]:
+              - generic [ref=e129]:
+                - img "Daily Mix 2" [ref=e130]
+                - button "Play Daily Mix 2" [ref=e131]
+              - generic [ref=e134]: Daily Mix 2
+              - generic [ref=e135]: Sam Smith and more
+            - button "Daily Mix 3 Play Daily Mix 3 Daily Mix 3 Upbeat energy hits to keep you going" [ref=e136] [cursor=pointer]:
+              - generic [ref=e137]:
+                - img "Daily Mix 3" [ref=e138]
+                - button "Play Daily Mix 3" [ref=e139]
+              - generic [ref=e142]: Daily Mix 3
+              - generic [ref=e143]: Upbeat energy hits to keep you going
+            - button "Daily Mix 4 Play Daily Mix 4 Daily Mix 4 Relaxing acoustic and chill tunes" [ref=e144] [cursor=pointer]:
+              - generic [ref=e145]:
+                - img "Daily Mix 4" [ref=e146]
+                - button "Play Daily Mix 4" [ref=e147]
+              - generic [ref=e150]: Daily Mix 4
+              - generic [ref=e151]: Relaxing acoustic and chill tunes
+            - button "Discover Weekly Play Discover Weekly Discover Weekly New music based on your listening" [ref=e152] [cursor=pointer]:
+              - generic [ref=e153]:
+                - img "Discover Weekly" [ref=e154]
+                - button "Play Discover Weekly" [ref=e155]
+              - generic [ref=e158]: Discover Weekly
+              - generic [ref=e159]: New music based on your listening
+        - generic [ref=e160]:
+          - generic [ref=e161]:
+            - heading "Popular Albums" [level=2] [ref=e162]
+            - link "Show all" [ref=e163] [cursor=pointer]:
+              - /url: javascript:void(0)
+          - generic [ref=e164]:
+            - generic "In The Lonely Hour - Album • Album" [ref=e165] [cursor=pointer]:
+              - generic [ref=e166]:
+                - img "In The Lonely Hour" [ref=e167]
+                - button "Play In The Lonely Hour" [ref=e168]
+              - generic [ref=e171]: In The Lonely Hour
+              - generic [ref=e172]: Album • Album
+            - generic "Hazel Eyes - Album • Album" [ref=e173] [cursor=pointer]:
+              - generic [ref=e174]:
+                - img "Hazel Eyes" [ref=e175]
+                - button "Play Hazel Eyes" [ref=e176]
+              - generic [ref=e179]: Hazel Eyes
+              - generic [ref=e180]: Album • Album
+            - generic "Love Goes - Album • Album" [ref=e181] [cursor=pointer]:
+              - generic [ref=e182]:
+                - img "Love Goes" [ref=e183]
+                - button "Play Love Goes" [ref=e184]
+              - generic [ref=e187]: Love Goes
+              - generic [ref=e188]: Album • Album
+            - generic "Desire - Album • Album" [ref=e189] [cursor=pointer]:
+              - generic [ref=e190]:
+                - img "Desire" [ref=e191]
+                - button "Play Desire" [ref=e192]
+              - generic [ref=e195]: Desire
+              - generic [ref=e196]: Album • Album
+            - generic "Gloria - Album • Album" [ref=e197] [cursor=pointer]:
+              - generic [ref=e198]:
+                - img "Gloria" [ref=e199]
+                - button "Play Gloria" [ref=e200]
+              - generic [ref=e203]: Gloria
+              - generic [ref=e204]: Album • Album
+            - generic "Hotel Cabana (Deluxe Version) - Album • Album" [ref=e205] [cursor=pointer]:
+              - generic [ref=e206]:
+                - img "Hotel Cabana (Deluxe Version)" [ref=e207]
+                - button "Play Hotel Cabana (Deluxe Version)" [ref=e208]
+              - generic [ref=e211]: Hotel Cabana (Deluxe Version)
+              - generic [ref=e212]: Album • Album
+            - generic "In The Lonely Hour (Drowning Shadows Edition) - Album • Album" [ref=e213] [cursor=pointer]:
+              - generic [ref=e214]:
+                - img "In The Lonely Hour (Drowning Shadows Edition)" [ref=e215]
+                - button "Play In The Lonely Hour (Drowning Shadows Edition)" [ref=e216]
+              - generic [ref=e219]: In The Lonely Hour (Drowning Shadows Edition)
+              - generic [ref=e220]: Album • Album
+        - generic [ref=e221]:
+          - generic [ref=e222]:
+            - heading "Featured Playlists" [level=2] [ref=e223]
+            - link "Show all" [ref=e224] [cursor=pointer]:
+              - /url: javascript:void(0)
+          - generic [ref=e225]:
+            - generic "Today's Top Hits - The most played tracks right now" [ref=e226] [cursor=pointer]:
+              - generic [ref=e227]:
+                - img "Today's Top Hits" [ref=e228]
+                - button "Play Today's Top Hits" [ref=e229]
+              - generic [ref=e232]: Today's Top Hits
+              - generic [ref=e233]: The most played tracks right now
+            - generic "Best of Indie Việt - Thắng, Ngọt, Thịnh Suy, and more" [ref=e234] [cursor=pointer]:
+              - generic [ref=e235]:
+                - img "Best of Indie Việt" [ref=e236]
+                - button "Play Best of Indie Việt" [ref=e237]
+              - generic [ref=e240]: Best of Indie Việt
+              - generic [ref=e241]: Thắng, Ngọt, Thịnh Suy, and more
+    - complementary [ref=e242]:
+      - generic [ref=e243]:
+        - heading "Now Playing" [level=3] [ref=e244]
+        - button "×" [ref=e245] [cursor=pointer]
+      - generic [ref=e247]:
+        - generic [ref=e248]: ♪
+        - generic [ref=e251]:
+          - generic [ref=e252]:
+            - generic [ref=e253]: Title
+            - generic [ref=e254]: Artist
+          - button "+" [ref=e255] [cursor=pointer]
+          - button "..." [ref=e256] [cursor=pointer]
+        - generic [ref=e257]:
+          - generic [ref=e258]:
+            - heading "Credits" [level=4] [ref=e259]
+            - button "Show all" [ref=e260] [cursor=pointer]
+          - generic [ref=e261]:
+            - generic [ref=e262]:
+              - generic [ref=e263]: Artist
+              - generic [ref=e264]: Main Artist
+            - button "Follow" [ref=e265] [cursor=pointer]
+  - contentinfo [ref=e266]:
+    - generic [ref=e267]:
+      - generic [ref=e268]: ♪
+      - generic [ref=e269]:
+        - generic [ref=e270]: No Track Selected
+        - generic [ref=e271]: Upload audio to begin
+      - button "Save to Liked Songs" [ref=e272] [cursor=pointer]
+      - button "+" [ref=e275] [cursor=pointer]
+    - generic [ref=e276]:
+      - generic [ref=e277]:
+        - button "Shuffle off" [ref=e278] [cursor=pointer]
+        - button "⏮" [ref=e281] [cursor=pointer]
+        - button "Play" [ref=e282] [cursor=pointer]: ▶
+        - button "⏭" [ref=e283] [cursor=pointer]
+        - button "Enable repeat" [ref=e284] [cursor=pointer]
+      - generic [ref=e287]:
+        - generic [ref=e288]: 0:00
+        - generic [ref=e289] [cursor=pointer]
+        - generic [ref=e290]: 0:00
+    - generic [ref=e291]:
+      - button "Report Song / Issue" [ref=e292] [cursor=pointer]
+      - button "Lyrics" [ref=e295] [cursor=pointer]
+      - button "Queue" [ref=e298] [cursor=pointer]
+      - button "Mini Player" [ref=e301] [cursor=pointer]
+      - generic [ref=e304]:
+        - button "Mute" [ref=e305] [cursor=pointer]
+        - slider [ref=e309]: "72"
